@@ -17,7 +17,7 @@ webview. The webview has no direct filesystem or Node access.
 | `src/snap.ts` | Logical-space edge/center snapping against the page and peer boxes. |
 | `src/shape-batch.ts` | Copies a shape's pose and paint onto same-named shapes on other slides. |
 | `src/store.ts` | Zustand state, single-flight revisioned persistence, semantic external-edit rebasing, immutable mutation helpers, selection, and zoom. |
-| `src/vscode.ts` | Typed adapter around `acquireVsCodeApi`, version stamping, host listener, and browser fallback used during local development. |
+| `src/vscode.ts` | Typed adapter around `acquireVsCodeApi`, version stamping, host listener, and browser fallback used during local development. The browser editor installs `acquireVsCodeApi` before this module loads. |
 | `src/toasts.ts` | App-wide transient notification events and stack update helpers. |
 | `src/styles.css` / `src/fixes.css` | Layout and editor appearance. Keep logical slide geometry in element data, not CSS-only state. |
 | `vite.config.ts` | Builds the webview into the extension's `media` directory. |
@@ -186,6 +186,11 @@ always calls its resolver with both `src` and `storage`, including thumbnails.
 - App-wide canvas paste handling ignores inputs, textareas, selects, and
   content-editable targets, so pasting inside the Markdown editor or inspector
   edits that field instead of creating a new slide element.
+- A deck message may set `surface: "web"`. The ribbon then hides workspace
+  actions: embed-all, PowerPoint, standalone web export, AI/MCP, Manim, the
+  presenter view, and live sharing. Present, PNG, and PDF stay. System-font
+  discovery is hidden. Media picked on that surface is embedded. An invalid
+  web deck offers **Start a new deck**, which sends `resetDeck`.
 - Live collaboration shows a status banner, peer initials, colored slide dots,
   remote selections, and a dashed ghost while another peer drags. Presence is
   throttled to 15 Hz and is not saved. A soft lock stops a second person from

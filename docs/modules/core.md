@@ -147,6 +147,10 @@ live-collaboration messages and did not change protocol version 2.
 Deck messages carry an opaque exact-text revision. Replacement requests echo
 their base revision and receive an explicit accepted, stale, invalid, or failed
 response; a host must never apply a replacement against another revision.
+Optional `surface: "web"` on `deck` and `invalidDeck` tells the canvas it is
+hosted by the browser page. The desktop extension omits it. `resetDeck` asks
+that browser host to replace the stored deck with a new one. Neither addition
+changed protocol version 2.
 
 ### `src/index.ts`
 

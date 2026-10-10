@@ -672,6 +672,7 @@ function Toolbar({ slide, element, selectedElements, addText, addShape, addTable
   sharing: boolean;
 }) {
   const runCommand = useDeckStore((state) => state.runCommand);
+  const web = useDeckStore((state) => state.surface === "web");
   const zoom = useDeckStore((state) => state.zoom);
   const setZoom = useDeckStore((state) => state.setZoom);
   const zoomPercent = Math.round(zoom * 100);
@@ -749,13 +750,15 @@ function Toolbar({ slide, element, selectedElements, addText, addShape, addTable
   return <header className="toolbar-shell">
     <div className="toolbar toolbar-primary">
       <div className="ribbon-group"><div className="ribbon-actions">
-        <RibbonButton icon="package" label="Embed all media" disabled={!hasLinkedMedia} onClick={() => postMessage({ type: "embedMedia" })} />
+        {!web && <RibbonButton icon="package" label="Embed all media" disabled={!hasLinkedMedia} onClick={() => postMessage({ type: "embedMedia" })} />}
         <RibbonButton icon="save" label="Save" onClick={() => runCommand("save")} />
         <RibbonMenu icon="export" label="Export" items={[
           { icon: "file-media", label: "PNG", onClick: () => exportDeck("exportPng", "PNG", [slide.id]) },
           { icon: "file-pdf", label: "PDF", onClick: () => exportDeck("exportPdf", "PDF") },
-          { icon: "file", label: "PowerPoint", onClick: () => exportDeck("exportPptx", "PowerPoint") },
-          { icon: "globe", label: "Web", onClick: () => exportDeck("exportWeb", "web presentation") },
+          ...(!web ? [
+            { icon: "file", label: "PowerPoint", onClick: () => exportDeck("exportPptx", "PowerPoint") },
+            { icon: "globe", label: "Web", onClick: () => exportDeck("exportWeb", "web presentation") }
+          ] : []),
           { icon: "folder", label: "Project", onClick: () => exportDeck("exportProject", "project") }
         ]} />
       </div></div>
@@ -763,9 +766,9 @@ function Toolbar({ slide, element, selectedElements, addText, addShape, addTable
         <RibbonButton icon="discard" label="Undo" disabled={historyBusy || !canUndo} onClick={() => runCommand("undo")} />
         <RibbonButton icon="redo" label="Redo" disabled={historyBusy || !canRedo} onClick={() => runCommand("redo")} />
       </div></div>
-      <div className="ribbon-group"><div className="ribbon-actions">
+      {!web && <div className="ribbon-group"><div className="ribbon-actions">
         <RibbonButton icon="sparkle" label="AI" onClick={() => postMessage({ type: "command", command: "configureMcp" })} />
-      </div></div>
+      </div></div>}
       <div className="ribbon-group"><span className="ribbon-label">Insert</span><div className="ribbon-actions">
         <RibbonButton icon="symbol-string" label="Text" onClick={addText} />
         <RibbonButton icon="file-media" label="Image" onClick={chooseImage} />
@@ -776,7 +779,7 @@ function Toolbar({ slide, element, selectedElements, addText, addShape, addTable
           { icon: "circle-large-outline", label: "Circle", onClick: () => addShape("ellipse") },
           { icon: "triangle-up", label: "Triangle", onClick: () => addShape("triangle") }
         ]} />
-        <RibbonMenu icon="run-all" label="Manim" items={[
+        {!web && <RibbonMenu icon="run-all" label="Manim" items={[
           { icon: "file-media", label: "Still image", onClick: () => addManim("image") },
           { icon: "device-camera-video", label: "Video", onClick: () => addManim("video") },
           { icon: "run-all", label: "Render all", onClick: renderAllManim },
@@ -785,12 +788,12 @@ function Toolbar({ slide, element, selectedElements, addText, addShape, addTable
           { icon: "symbol-number", label: "Quality: Medium", onClick: () => setManimQuality("medium") },
           { icon: "symbol-number", label: "Quality: High", onClick: () => setManimQuality("high") },
           { icon: "symbol-number", label: "Quality: Production", onClick: () => setManimQuality("production") }
-        ].map((item) => manimLocked ? { ...item, onClick: () => showError("Manim runs on the host during live collaboration.") } : item)} />
+        ].map((item) => manimLocked ? { ...item, onClick: () => showError("Manim runs on the host during live collaboration.") } : item)} />}
       </div></div>
       <div className="ribbon-group"><span className="ribbon-label">Slide show</span><div className="ribbon-actions">
         <RibbonButton icon="play" label="Present" primary onClick={() => postMessage({ type: "command", command: "present" })} />
-        <RibbonButton icon="multiple-windows" label="Presenter" onClick={() => postMessage({ type: "command", command: "presenter" })} />
-        <RibbonButton icon="broadcast" label={sharing ? "Copy invite" : "Share"} onClick={() => postMessage({ type: "command", command: sharing ? "copyLiveInvite" : "startLive" })} />
+        {!web && <RibbonButton icon="multiple-windows" label="Presenter" onClick={() => postMessage({ type: "command", command: "presenter" })} />}
+        {!web && <RibbonButton icon="broadcast" label={sharing ? "Copy invite" : "Share"} onClick={() => postMessage({ type: "command", command: sharing ? "copyLiveInvite" : "startLive" })} />}
       </div></div>
     </div>
     <div className="context-toolbar" aria-label="Selection formatting">
@@ -1239,6 +1242,7 @@ function Inspector({ collapsed, onToggleCollapse, tab, setTab, deck, slide, elem
   collapsed: boolean; onToggleCollapse(): void; tab: Tab; setTab(tab: Tab): void; deck: Deck; slide: Slide; element?: SlideElement; cropping: boolean; batchShapeEdit: boolean; setBatchShapeEdit(enabled: boolean): void; assetUrl(reference: string, storage: MediaStorage): string; mutate(fn: (deck: Deck) => void): void; preview(fn: (deck: Deck) => void): void; scheduleCommit(): void; commit(): void; selectElement(id?: string, additive?: boolean): void; editText(id: string): void; editImage(id: string): void; relinkMedia(kind: "image" | "video", id: string): void; chooseBackgroundImage(): void;
 }) {
   const selectedIds = useDeckStore((state) => state.selectedElementIds);
+  const web = useDeckStore((state) => state.surface === "web");
   const update = (patch: Partial<SlideElement>) => element && mutate((draft) => Object.assign(findElement(draft, slide.id, element.id)!, patch));
   const updateContinuous = (patch: Partial<SlideElement>) => {
     if (!element) return;
@@ -1329,7 +1333,7 @@ function Inspector({ collapsed, onToggleCollapse, tab, setTab, deck, slide, elem
             <span className="inspector-control-label">Vertical alignment</span><AlignmentButtons label="Vertical alignment" value={element.style.verticalAlign} values={["top", "middle", "bottom"]} onChange={(value) => mutate((draft) => { const target = findElement(draft, slide.id, element.id); if (target?.type === "table") target.style.verticalAlign = value as "top" | "middle" | "bottom"; })} />
           </>}
           {(element.type === "image" || element.type === "video") && <>
-            <div className="media-source-card"><span className={`storage-badge ${element.storage}`}>{element.storage}</span><code title={element.src}>{element.src}</code><div><button onClick={() => relinkMedia(element.type, element.id)}>Choose linked file…</button>{element.storage === "linked" && <button onClick={() => postMessage({ type: "embedMedia", elementIds: [element.id] })}>Embed in .assets</button>}</div></div>
+            <div className="media-source-card"><span className={`storage-badge ${element.storage}`}>{element.storage}</span><code title={element.src}>{element.src}</code><div><button onClick={() => relinkMedia(element.type, element.id)}>{web ? "Choose file…" : "Choose linked file…"}</button>{!web && element.storage === "linked" && <button onClick={() => postMessage({ type: "embedMedia", elementIds: [element.id] })}>Embed in .assets</button>}</div></div>
             <CheckboxField label="Keep original aspect ratio" checked={element.lockAspectRatio} onChange={(locked) => {
               if (!locked) {
                 mutate((draft) => { const target = findElement(draft, slide.id, element.id); if (target?.type === "image" || target?.type === "video") target.lockAspectRatio = false; });
@@ -1487,6 +1491,7 @@ const FONT_CANDIDATES = [
 ] as const;
 
 function FontFamilyPicker({ value, onChange }: { value: string; onChange(value: string): void }) {
+  const web = useDeckStore((state) => state.surface === "web");
   const available = [...FONT_CANDIDATES];
   const custom = available.some((font) => font.value === value) ? [] : [{ label: `Current: ${value}`, value }];
   const discover = () => {
@@ -1498,10 +1503,11 @@ function FontFamilyPicker({ value, onChange }: { value: string; onChange(value: 
     });
     postMessage({ type: "selectFont", requestId, current: value });
   };
-  return <label>Font family<div className="font-picker"><select value={value} onChange={(event) => onChange(event.target.value)}>{[...custom, ...available].map((font) => <option key={font.value} value={font.value} style={{ fontFamily: font.value }}>{font.label}</option>)}</select><button type="button" title="Choose a font installed on this computer" onClick={discover}>System fonts…</button></div></label>;
+  return <label>Font family<div className="font-picker"><select value={value} onChange={(event) => onChange(event.target.value)}>{[...custom, ...available].map((font) => <option key={font.value} value={font.value} style={{ fontFamily: font.value }}>{font.label}</option>)}</select>{!web && <button type="button" title="Choose a font installed on this computer" onClick={discover}>System fonts…</button>}</div></label>;
 }
 
 function CompactFontPicker({ value, onChange }: { value: string; onChange(value: string): void }) {
+  const web = useDeckStore((state) => state.surface === "web");
   const available = [...FONT_CANDIDATES];
   const custom = available.some((font) => font.value === value) ? [] : [{ label: `Current: ${value}`, value }];
   const discover = () => {
@@ -1513,7 +1519,7 @@ function CompactFontPicker({ value, onChange }: { value: string; onChange(value:
     });
     postMessage({ type: "selectFont", requestId, current: value });
   };
-  return <div className="context-font"><select aria-label="Font family" value={value} onChange={(event) => onChange(event.target.value)}>{[...custom, ...available].map((font) => <option key={font.value} value={font.value}>{font.label}</option>)}</select><button type="button" title="Choose a system font" aria-label="Choose a system font" onClick={discover}>…</button></div>;
+  return <div className="context-font"><select aria-label="Font family" value={value} onChange={(event) => onChange(event.target.value)}>{[...custom, ...available].map((font) => <option key={font.value} value={font.value}>{font.label}</option>)}</select>{!web && <button type="button" title="Choose a system font" aria-label="Choose a system font" onClick={discover}>…</button>}</div>;
 }
 
 function NumberField({ label, value, step = 1, min, max, onChange, onCommit }: { label: string; value: number; step?: number; min?: number; max?: number; onChange(value: number): void; onCommit?(): void }) {
@@ -1550,7 +1556,10 @@ function ToastStack() {
 
 function showError(message: string): void { notifyToast({ id: crypto.randomUUID(), kind: "error", message }); }
 
-function InvalidDeck({ message, gitConflict }: { message: string; gitConflict: boolean }) { return <div className="invalid"><h1>{gitConflict ? "This deck has an unresolved Git conflict" : "SlidePix could not open this deck"}</h1><pre>{message}</pre>{gitConflict ? <p><button onClick={() => postMessage({ type: "command", command: "resolveGitConflict" })}>Resolve with SlidePix</button> <button onClick={() => postMessage({ type: "command", command: "openTextEditor" })}>Open as text</button></p> : <p>Fix the JSON in the text editor. SlidePix will reopen the last valid preview automatically.</p>}</div>; }
+function InvalidDeck({ message, gitConflict }: { message: string; gitConflict: boolean }) {
+  const web = useDeckStore((state) => state.surface === "web");
+  return <div className="invalid"><h1>{gitConflict ? "This deck has an unresolved Git conflict" : "SlidePix could not open this deck"}</h1><pre>{message}</pre>{web ? <p><button onClick={() => postMessage({ type: "resetDeck" })}>Start a new deck</button></p> : gitConflict ? <p><button onClick={() => postMessage({ type: "command", command: "resolveGitConflict" })}>Resolve with SlidePix</button> <button onClick={() => postMessage({ type: "command", command: "openTextEditor" })}>Open as text</button></p> : <p>Fix the JSON in the text editor. SlidePix will reopen the last valid preview automatically.</p>}</div>;
+}
 
 function MergeConflictDialog({ conflict, resolve, useLatest }: { conflict?: import("@slidepix/core").DeckMergeConflict; resolve(id: string, resolution: import("@slidepix/core").DeckMergeResolution): void; useLatest(): void }) {
   if (!conflict) return null;
@@ -1630,9 +1639,9 @@ function deleteElements(slideId: string, elementIds: string[], mutate: (fn: (dec
   });
   select();
 }
-function handleHostMessage(message: HostToWebviewMessage, setDeck: (deck: Deck, revision: string, uri: string, linkedUri: string, history?: { canUndo?: boolean; canRedo?: boolean }) => void, setInvalid: (message: string, gitConflict: boolean, uri: string, linkedUri: string) => void, handleEditResult: (message: Extract<HostToWebviewMessage, { type: "documentEditResult" }>) => void, handleHistoryResult: (message: Extract<HostToWebviewMessage, { type: "historyResult" }>) => void) {
-  if (message.type === "deck") setDeck(message.deck, message.revision, message.uri, message.linkedUri, { canUndo: message.canUndo, canRedo: message.canRedo });
-  else if (message.type === "invalidDeck") setInvalid(message.message, message.gitConflict, message.uri, message.linkedUri);
+function handleHostMessage(message: HostToWebviewMessage, setDeck: (deck: Deck, revision: string, uri: string, linkedUri: string, history?: { canUndo?: boolean; canRedo?: boolean; surface?: "web" }) => void, setInvalid: (message: string, gitConflict: boolean, uri: string, linkedUri: string, surface?: "web") => void, handleEditResult: (message: Extract<HostToWebviewMessage, { type: "documentEditResult" }>) => void, handleHistoryResult: (message: Extract<HostToWebviewMessage, { type: "historyResult" }>) => void) {
+  if (message.type === "deck") setDeck(message.deck, message.revision, message.uri, message.linkedUri, { canUndo: message.canUndo, canRedo: message.canRedo, surface: message.surface });
+  else if (message.type === "invalidDeck") setInvalid(message.message, message.gitConflict, message.uri, message.linkedUri, message.surface);
   else if (message.type === "documentEditResult") handleEditResult(message);
   else if (message.type === "historyResult") handleHistoryResult(message);
   else if (message.type === "assetImported") {

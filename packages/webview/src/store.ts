@@ -50,8 +50,9 @@ export type DeckStore = {
   historyError?: string;
   canUndo: boolean;
   canRedo: boolean;
-  setFromHost(deck: Deck, revision: string, sourceUri: string, linkedSourceUri: string, history?: { canUndo?: boolean; canRedo?: boolean }): void;
-  setInvalid(message: string, gitConflict: boolean, sourceUri: string, linkedSourceUri: string): void;
+  surface?: "web";
+  setFromHost(deck: Deck, revision: string, sourceUri: string, linkedSourceUri: string, history?: { canUndo?: boolean; canRedo?: boolean; surface?: "web" }): void;
+  setInvalid(message: string, gitConflict: boolean, sourceUri: string, linkedSourceUri: string, surface?: "web"): void;
   handleEditResult(message: Extract<HostToWebviewMessage, { type: "documentEditResult" }>): void;
   handleHistoryResult(message: Extract<HostToWebviewMessage, { type: "historyResult" }>): void;
   clearHistoryError(): void;
@@ -171,11 +172,19 @@ export const useDeckStore = create<DeckStore>((set, get) => {
         sourceUri,
         linkedSourceUri,
         canUndo: history?.canUndo ?? get().canUndo,
-        canRedo: history?.canRedo ?? get().canRedo
+        canRedo: history?.canRedo ?? get().canRedo,
+        ...(history?.surface === "web" ? { surface: "web" as const } : {})
       });
       acceptHostDeck(deck, revision);
     },
-    setInvalid: (message, gitConflict, sourceUri, linkedSourceUri) => set({ error: message, gitConflict, sourceUri, linkedSourceUri, pending: undefined }),
+    setInvalid: (message, gitConflict, sourceUri, linkedSourceUri, surface) => set({
+      error: message,
+      gitConflict,
+      sourceUri,
+      linkedSourceUri,
+      pending: undefined,
+      ...(surface === "web" ? { surface: "web" as const } : {})
+    }),
     handleEditResult: (message) => {
       const state = get();
       if (state.pending && state.pending.requestId !== message.requestId) return;

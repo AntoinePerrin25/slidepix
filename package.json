@@ -4,9 +4,9 @@
   "private": true,
   "packageManager": "pnpm@10.29.3",
   "scripts": {
-    "build": "pnpm --filter @slidepix/core build && pnpm --filter @slidepix/webview build && pnpm --filter @slidepix/mcp build && pnpm --filter slidepix build",
+    "build": "pnpm --filter @slidepix/core build && pnpm --filter @slidepix/webview build && pnpm --filter @slidepix/web build && pnpm --filter @slidepix/mcp build && pnpm --filter slidepix build",
     "dev": "pnpm --parallel --filter @slidepix/webview --filter slidepix dev",
-    "test": "pnpm --filter @slidepix/core test && pnpm --filter @slidepix/webview test && pnpm --filter slidepix test && pnpm --filter @slidepix/mcp test",
+    "test": "pnpm --filter @slidepix/core test && pnpm --filter @slidepix/webview test && pnpm --filter @slidepix/web test && pnpm --filter slidepix test && pnpm --filter @slidepix/mcp test",
     "typecheck": "pnpm -r typecheck",
     "docs:check": "node ./scripts/check-docs.mjs",
     "test:live": "pnpm --filter slidepix test:live",

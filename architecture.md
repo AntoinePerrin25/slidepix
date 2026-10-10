@@ -11,6 +11,7 @@ the task; this keeps context small while making ownership explicit.
 | Change the deck format or defaults | `packages/core/src/schema.ts` | [Core module](docs/modules/core.md), [deck format](docs/format.md) |
 | Change Markdown, LaTeX, slide HTML, print, or morph behavior | `packages/core/src/render.ts` | [Core module](docs/modules/core.md) |
 | Change editor UI or interactions | `packages/webview/src/App.tsx` | [Webview module](docs/modules/webview.md) |
+| Change the browser editor at `/slidepix` | `packages/web/src/session.ts` | [Web module](docs/modules/web.md), [Webview](docs/modules/webview.md) |
 | Change canvas element rendering | `packages/webview/src/SlideView.tsx` and `packages/core/src/render.ts` | [Webview](docs/modules/webview.md), [Core](docs/modules/core.md) |
 | Change save/undo/external-edit behavior | `packages/extension/src/editor.ts` | [Extension module](docs/modules/extension.md) |
 | Change commands or extension contributions | `packages/extension/src/extension.ts` and `packages/extension/package.json` | [Extension module](docs/modules/extension.md), `packages/extension/src/create-deck.ts` |
@@ -39,6 +40,7 @@ base / ours / theirs ── @slidepix/core semantic merge ── validated canon
 
 @slidepix/core schema + renderer
        ├── editor canvas/thumbnails
+       ├── browser page at /slidepix (IndexedDB host, same webview)
        ├── audience and presenter server
        ├── PDF/PNG captured in the editor; a video is its first frame plus a play control
        ├── native editable PPTX through semantic OOXML conversion
@@ -49,7 +51,8 @@ base / ours / theirs ── @slidepix/core semantic merge ── validated canon
 The JSON document is the source of truth. The webview never writes files
 directly: it serializes a full deck and asks the extension host to apply a
 `WorkspaceEdit`. This is what preserves VS Code/Cursor undo, autosave, backup,
-external edits, and multi-editor synchronization.
+external edits, and multi-editor synchronization. The browser page speaks the
+same messages; its host keeps the revision check and undo stack in IndexedDB.
 
 ## Package boundaries
 
@@ -57,6 +60,7 @@ external edits, and multi-editor synchronization.
 | --- | --- | --- |
 | `@slidepix/core` | Zod schema, types, parsing, stable serialization, safe asset paths, shared HTML renderer, message protocol | VS Code APIs, React state, MCP transport |
 | `@slidepix/webview` | React editor, selection, manipulation, inspector, notes, transient UI state | filesystem access, authoritative persistence, headless browser lifecycle |
+| `@slidepix/web` | Browser page at `/slidepix`, IndexedDB deck and embedded media, in-page presentation | deck schema, canvas rendering, VS Code document lifecycle |
 | `slidepix` extension | VS Code custom editor lifecycle, commands, assets, local presentation server, PDF/PNG/PowerPoint/web export | deck-format forks or a second rendering implementation |
 | `@slidepix/mcp` | read-only stdio tools and deterministic slide selection | any create/update/delete operation |
 
@@ -64,6 +68,7 @@ Detailed ownership and method contracts:
 
 - [Core schema, rendering, assets, and protocol](docs/modules/core.md)
 - [React webview and state](docs/modules/webview.md)
+- [Browser editor](docs/modules/web.md)
 - [Extension host, presentation, and export](docs/modules/extension.md)
 - [MCP server and tools](docs/modules/mcp.md)
 
@@ -79,8 +84,10 @@ Detailed ownership and method contracts:
    the sibling asset directory; `linked` references stay relative and may only
    resolve inside an open workspace root. All consumers receive the storage
    mode explicitly and use the shared safe resolver.
-5. Editor changes cross the versioned protocol and become `WorkspaceEdit`s.
-   Do not bypass the text-document lifecycle with `writeFile` for normal edits.
+5. Editor changes cross the versioned protocol. Inside VS Code they become
+   `WorkspaceEdit`s. Do not bypass the text-document lifecycle with `writeFile`
+   for normal edits. The browser page applies those same replacements to its
+   IndexedDB record and must still reject a stale base revision.
 6. Webview HTML keeps a restrictive content security policy and narrowly scoped
    `localResourceRoots`. Markdown does not execute arbitrary HTML or script.
 7. Rendering semantics belong in `@slidepix/core`. Editor, presentation, export,
@@ -117,7 +124,7 @@ Edit source files, then regenerate outputs with the documented commands.
 
 | Command or script | Responsibility |
 | --- | --- |
-| `pnpm build` | Builds core, webview, MCP, extension, and the standalone Git merge driver in dependency order; also generates schema. |
+| `pnpm build` | Builds core, webview, browser editor, MCP, extension, and the standalone Git merge driver in dependency order; also generates schema. |
 | `pnpm dev` | Watches the webview and extension packages for local extension development. |
 | `pnpm test` | Runs core schema/rendering tests, extension presentation-state tests, and MCP selection tests. |
 | `pnpm typecheck` | Type-checks every workspace package without emitting files. |
@@ -154,6 +161,7 @@ For any nontrivial change:
 
 Do not assume every planned feature is complete. Current known gaps include:
 
+- the browser page stores one deck in IndexedDB on that origin. It does not sign in, sync to a server, or open a workspace;
 - grouping is not implemented;
 - layouts exist in the schema but have no layout designer;
 - **Export Project** writes a zip of the deck JSON, its `.assets` folder, and

@@ -1,0 +1,33 @@
+:root {
+  color-scheme: light;
+  --vscode-font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --vscode-editor-font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --vscode-foreground: #1f2328;
+  --vscode-descriptionForeground: #59636e;
+  --vscode-editor-background: #ffffff;
+  --vscode-sideBar-background: #f6f8fa;
+  --vscode-editorGroupHeader-tabsBackground: #f6f8fa;
+  --vscode-input-background: #ffffff;
+  --vscode-input-foreground: #1f2328;
+  --vscode-input-border: #d0d7de;
+  --vscode-panel-border: #d0d7de;
+  --vscode-widget-border: #d0d7de;
+  --vscode-focusBorder: #0969da;
+  --vscode-button-background: #0969da;
+  --vscode-button-foreground: #ffffff;
+  --vscode-button-secondaryBackground: #eff2f5;
+  --vscode-button-secondaryForeground: #1f2328;
+  --vscode-toolbar-hoverBackground: #eaeef2;
+  --vscode-list-activeSelectionBackground: #dbeafe;
+  --vscode-textLink-foreground: #0969da;
+  --vscode-errorForeground: #d1242f;
+  --vscode-badge-background: #0969da;
+  --vscode-badge-foreground: #ffffff;
+  --vscode-editorWidget-background: #ffffff;
+  --vscode-menu-background: #ffffff;
+  --vscode-textCodeBlock-background: #f6f8fa;
+  --vscode-progressBar-background: #0969da;
+  --vscode-charts-blue: #0969da;
+  --vscode-notifications-background: #ffffff;
+  --vscode-notifications-foreground: #1f2328;
+}

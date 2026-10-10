@@ -12,6 +12,7 @@ const documents = [
   "docs/format.md",
   "docs/modules/core.md",
   "docs/modules/webview.md",
+  "docs/modules/web.md",
   "docs/modules/extension.md",
   "docs/modules/mcp.md",
   ".cursor/rules/slidepix-development.mdc",

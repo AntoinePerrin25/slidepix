@@ -3,8 +3,8 @@ import type { Deck } from "./schema.js";
 export const PROTOCOL_VERSION = 2 as const;
 
 export type HostToWebviewMessage =
-  | { version: 2; type: "deck"; text: string; deck: Deck; revision: string; uri: string; linkedUri: string; canUndo?: boolean; canRedo?: boolean }
-  | { version: 2; type: "invalidDeck"; text: string; revision: string; message: string; gitConflict: boolean; uri: string; linkedUri: string }
+  | { version: 2; type: "deck"; text: string; deck: Deck; revision: string; uri: string; linkedUri: string; canUndo?: boolean; canRedo?: boolean; surface?: "web" }
+  | { version: 2; type: "invalidDeck"; text: string; revision: string; message: string; gitConflict: boolean; uri: string; linkedUri: string; surface?: "web" }
   | { version: 2; type: "documentEditResult"; requestId: string; accepted: boolean; revision: string; text: string; deck?: Deck; reason?: "stale" | "invalid" | "applyFailed"; message?: string; canUndo?: boolean; canRedo?: boolean }
   | { version: 2; type: "historyResult"; requestId: string; command: "undo" | "redo"; ok: boolean; revision: string; text: string; deck?: Deck; error?: string; canUndo?: boolean; canRedo?: boolean }
   | { version: 2; type: "assetImported"; requestId: string; reference?: string; storage?: "embedded" | "linked"; error?: string }
@@ -35,6 +35,7 @@ export type LivePeer = {
 
 export type WebviewToHostMessage =
   | { version: 2; type: "ready" }
+  | { version: 2; type: "resetDeck" }
   | { version: 2; type: "replaceDocument"; requestId: string; baseRevision: string; text: string }
   | { version: 2; type: "history"; requestId: string; command: "undo" | "redo" }
   | { version: 2; type: "importAsset"; requestId: string; name: string; mime: string; base64: string }

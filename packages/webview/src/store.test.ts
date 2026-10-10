@@ -39,7 +39,8 @@ beforeEach(() => {
     deferredCommands: [],
     historyError: undefined,
     canUndo: false,
-    canRedo: false
+    canRedo: false,
+    surface: undefined
   });
 });
 
@@ -210,6 +211,15 @@ describe("element selection", () => {
     expect(useDeckStore.getState().selectedElementIds).toEqual(["element-b"]);
     useDeckStore.getState().selectSlide("slide-b");
     expect(useDeckStore.getState().selectedElementIds).toEqual([]);
+  });
+});
+
+describe("browser surface", () => {
+  it("records a web host without changing a desktop session", () => {
+    const base = fixture();
+    useDeckStore.getState().setFromHost(base, "revision-0", "asset", "linked", { surface: "web", canUndo: true });
+    expect(useDeckStore.getState().surface).toBe("web");
+    expect(useDeckStore.getState().canUndo).toBe(true);
   });
 });
 

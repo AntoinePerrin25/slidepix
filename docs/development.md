@@ -54,7 +54,8 @@ Chrome or Microsoft Edge already installed on the machine.
 
 `pnpm dev` watches the webview and the `slidepix` extension bundle. The
 Extension Development Host still needs **Developer: Reload Window** to load a
-new `dist/extension.cjs`.
+new `dist/extension.cjs`. The browser editor is separate: `pnpm --filter @slidepix/web dev`
+serves it at `http://localhost:5173/slidepix/`.
 
 ## Verification by change type
 
@@ -64,6 +65,7 @@ new `dist/extension.cjs`.
 | Schema/assets/protocol | `pnpm test`, `pnpm typecheck`, `pnpm build` |
 | Git collaboration/merge driver | Previous checks plus the extension integration tests; manually configure, merge, resolve, stage, and remove in a temporary repository. |
 | Webview behavior | `pnpm typecheck`, `pnpm build`, manual Extension Development Host test |
+| Browser editor | `pnpm --filter @slidepix/web test`, `pnpm typecheck`, `pnpm build`, then open `/slidepix/` and edit, reload, import an image, present, and export a PNG |
 | Rendering/motion | previous checks plus `node scripts/render-smoke.mjs`; inspect the contact sheet, PDF, and `slides/` exact-size PNG frames |
 | Presentation/export | previous checks plus audience/presenter and PDF/PNG/PPTX/Web manual smoke tests; inspect native PPTX object editability and motion in PowerPoint, with LibreOffice as an additional compatibility check |
 | MCP | `pnpm test`, `pnpm typecheck`, build, start bundled stdio server, and render one/many slides |
