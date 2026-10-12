@@ -7,7 +7,7 @@ services:
     init: true
     restart: unless-stopped
     ports:
-      - "127.0.0.1:3000:3000"
+      - "127.0.0.1:3010:3000"
     volumes:
       - ./decks:/home/workspace/decks
       - ./connection-token:/run/slidepix/connection-token:ro

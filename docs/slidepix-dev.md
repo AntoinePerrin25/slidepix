@@ -45,8 +45,9 @@ docker compose logs
 
 `connection-token` is required. The entrypoint exits if the file is missing or
 empty, and it does not pass `--without-connection-token`. Compose publishes
-the container only on `127.0.0.1:3000`. Inside the container the server listens
-on `0.0.0.0` so Docker can publish that port. Deck files live in `./decks`,
+the container only on `127.0.0.1:3010`. The host port is 3010 because 3000 is
+a common local service port. Inside the container the server still listens on
+port 3000. Deck files live in `./decks`,
 mounted at `/home/workspace/decks`, which is the folder opened on startup.
 Files created by the editor are owned by uid 1000.
 
@@ -55,10 +56,21 @@ path, open that path under `/slidepix-dev/` rather than the site root.
 
 ## Reverse proxy
 
-Add [nginx-slidepix-dev.conf](../deploy/slidepix-dev/nginx-slidepix-dev.conf)
+The backend expects the `/slidepix-dev` prefix. The proxy must forward that
+prefix unchanged to `127.0.0.1:3010`.
+
+For Apache 2.4.47 or newer, put this inside the existing HTTPS virtual host
+and enable `proxy_wstunnel`:
+
+```apache
+ProxyPass        /slidepix-dev http://127.0.0.1:3010/slidepix-dev upgrade=websocket
+ProxyPassReverse /slidepix-dev http://127.0.0.1:3010/slidepix-dev
+```
+
+For nginx, add [nginx-slidepix-dev.conf](../deploy/slidepix-dev/nginx-slidepix-dev.conf)
 to the existing TLS server. The `proxy_pass` line has no URI path, so nginx
 does not strip `/slidepix-dev`. WebSocket upgrades use `Upgrade` and
-`Connection`. Reload nginx, then open:
+`Connection`. Reload the proxy, then open:
 
 ```text
 https://<host>/slidepix-dev/?tkn=<token>
