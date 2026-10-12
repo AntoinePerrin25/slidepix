@@ -22,6 +22,7 @@ the task; this keeps context small while making ownership explicit.
 | Change Manim slide elements or rendering | `packages/core/src/schema.ts` and `packages/extension/src/manim-host.ts` | [Core module](docs/modules/core.md), [Extension module](docs/modules/extension.md), [Webview module](docs/modules/webview.md) |
 | Change live collaboration, invitations, or peer sync | `packages/extension/src/live/manager.ts` | [Live collaboration](docs/modules/live-collaboration.md), [Extension module](docs/modules/extension.md) |
 | Change build/package/release work | root and package `package.json` files | [Development guide](docs/development.md) |
+| Serve the editor in a browser at `/slidepix-dev` | `deploy/slidepix-dev` | [Browser server](docs/slidepix-dev.md), [Extension module](docs/modules/extension.md) |
 
 ## System map
 

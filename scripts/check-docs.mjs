@@ -10,6 +10,7 @@ const documents = [
   "docs/development.md",
   "docs/install.md",
   "docs/format.md",
+  "docs/slidepix-dev.md",
   "docs/modules/core.md",
   "docs/modules/webview.md",
   "docs/modules/extension.md",

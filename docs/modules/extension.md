@@ -235,10 +235,13 @@ panel and out of audience HTML.
 ## Manifest and build scripts
 
 `package.json` owns custom editor selectors, JSON validation, commands, menus,
-keybindings, bundled files, and VS Code engine compatibility. Its build emits
+keybindings, bundled files, and VS Code engine compatibility. `extensionKind`
+is `ui` and `workspace`: a desktop window keeps the UI host, and OpenVSCode
+Server loads the Node bundle on the workspace host so files, processes, and
+the native live-collaboration module can run. The build emits
 the extension, MCP server, and standalone semantic merge-driver bundles. See
 the script table in root [architecture.md](../../architecture.md) before
-altering build outputs.
+altering build outputs. Browser deployment is [docs/slidepix-dev.md](../slidepix-dev.md).
 
 The Explorer context menu contributes **SlidePix: Create Deck** so the selected
 file or folder URI can be used as the creation location without opening a

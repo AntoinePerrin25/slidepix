@@ -3,6 +3,9 @@ dist/
 packages/extension/media/
 packages/extension/vendor/
 *.vsix
+deploy/slidepix-dev/connection-token
+deploy/slidepix-dev/decks/*
+!deploy/slidepix-dev/decks/.gitkeep
 .DS_Store
 test-results/
 coverage/
