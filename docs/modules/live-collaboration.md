@@ -1,6 +1,6 @@
 # Live collaboration
 
-Package: `slidepix` (`src/live/`)
+Package: `slidepix-deck` (`src/live/`)
 
 Purpose: let several people edit one deck at the same time without a SlidePix server. The host's file stays the only saved document.
 

@@ -1,6 +1,6 @@
 # Extension module
 
-Package: `slidepix`
+Package: `slidepix-deck`
 
 Purpose: connect the shared deck model and React webview to VS Code/Cursor APIs,
 own assets and persistence, serve presentations, and manage deterministic

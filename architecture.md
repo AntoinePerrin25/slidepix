@@ -57,7 +57,7 @@ external edits, and multi-editor synchronization.
 | --- | --- | --- |
 | `@slidepix/core` | Zod schema, types, parsing, stable serialization, safe asset paths, shared HTML renderer, message protocol | VS Code APIs, React state, MCP transport |
 | `@slidepix/webview` | React editor, selection, manipulation, inspector, notes, transient UI state | filesystem access, authoritative persistence, headless browser lifecycle |
-| `slidepix` extension | VS Code custom editor lifecycle, commands, assets, local presentation server, PDF/PNG/PowerPoint/web export | deck-format forks or a second rendering implementation |
+| `slidepix-deck` extension | VS Code custom editor lifecycle, commands, assets, local presentation server, PDF/PNG/PowerPoint/web export | deck-format forks or a second rendering implementation |
 | `@slidepix/mcp` | read-only stdio tools and deterministic slide selection | any create/update/delete operation |
 
 Detailed ownership and method contracts:

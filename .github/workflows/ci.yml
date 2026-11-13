@@ -25,7 +25,7 @@ jobs:
       - run: pnpm test
       - run: pnpm build
       - if: runner.os == 'Linux'
-        run: pnpm --filter slidepix package
+        run: pnpm --filter slidepix-deck package
       - if: runner.os == 'Linux'
         uses: actions/upload-artifact@v4
         with:
