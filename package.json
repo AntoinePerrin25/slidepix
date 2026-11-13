@@ -12,6 +12,7 @@
     "test:live": "pnpm --filter slidepix-deck test:live",
     "package:all": "pnpm --filter slidepix-deck build && node packages/extension/scripts/package-all.mjs",
     "publish:all": "pnpm build && pnpm --filter slidepix-deck publish:all",
+    "publish:ovsx": "pnpm build && pnpm --filter slidepix-deck publish:ovsx",
     "package": "pnpm build && pnpm --filter slidepix-deck package"
   }
 }

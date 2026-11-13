@@ -31,10 +31,10 @@ with relays disabled. `pnpm package` stages the current platform's iroh binary
 and passes `--target` to vsce from a Node script, so the same command works in
 `cmd.exe`. `pnpm package:all` repeats that for darwin-arm64, linux-x64,
 linux-arm64, win32-x64, and win32-arm64. `pnpm publish:all` stages the
-matching iroh binary before each `vsce publish --no-dependencies --target`,
-so every uploaded package contains that platform's binary.
-`--no-dependencies` keeps `vsce` from running `npm list` in this pnpm
-workspace. `VSCE_PAT` must be set. Intel macOS has no published iroh
+matching iroh binary, packages that target once, and uploads the same VSIX to
+the Visual Studio Marketplace and Open VSX. `--no-dependencies` keeps `vsce`
+from running `npm list` in this pnpm workspace. `VSCE_PAT` and `OVSX_PAT`
+must be set. Intel macOS has no published iroh
 binary; `pnpm build` and `pnpm package` still succeed there and the editor
 reports that live collaboration is unavailable. An explicit unsupported
 `--target` still fails.
@@ -90,13 +90,17 @@ Publish every platform with:
 
 ```sh
 export VSCE_PAT="..."
+export OVSX_PAT="..."
 pnpm publish:all
 ```
 
-`pnpm publish:all` builds the workspace, stages each iroh binary, and
-publishes `darwin-arm64`, `linux-x64`, `linux-arm64`, `win32-x64`, and
-`win32-arm64` as the same extension version. Pass targets after the script to
-publish a subset: `pnpm --filter slidepix-deck publish:all -- darwin-arm64`.
+`pnpm publish:all` builds the workspace and publishes `darwin-arm64`,
+`linux-x64`, `linux-arm64`, `win32-x64`, and `win32-arm64` as the same
+extension version. The Open VSX namespace must be `antoineperrin`, matching
+the Marketplace publisher. A target already present on either registry is
+skipped. Pass targets after the script to publish a subset:
+`pnpm --filter slidepix-deck publish:all -- darwin-arm64`.
+Open VSX alone uses `pnpm publish:ovsx` and needs only `OVSX_PAT`.
 
 ## Generated-output discipline
 

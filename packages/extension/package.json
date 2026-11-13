@@ -216,7 +216,8 @@
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "package": "node ./scripts/package.mjs",
-    "publish:all": "node ./scripts/publish-all.mjs"
+    "publish:all": "node ./scripts/publish-all.mjs",
+    "publish:ovsx": "node ./scripts/publish-all.mjs --ovsx"
   },
   "dependencies": {
     "@modelcontextprotocol/server": "^2.0.0",
@@ -234,6 +235,7 @@
     "@types/vscode": "^1.99.0",
     "@types/ws": "^8.18.1",
     "@vscode/vsce": "^3.6.0",
+    "ovsx": "^1.4.0",
     "esbuild": "^0.25.9",
     "typescript": "^5.9.2",
     "vitest": "^3.2.4"
