@@ -1,9 +1,12 @@
 {
-  "name": "slidepix",
-  "displayName": "SlidePix",
-  "description": "A Git-friendly visual presentation editor for VS Code and Cursor.",
+  "name": "slidepix-deck",
+  "displayName": "SlidePix Deck",
+  "description": "A Git-friendly visual presentation editor for VS Code, Cursor and Forks.",
   "version": "0.1.0",
-  "publisher": "slidepix",
+  "publisher": "antoineperrin",
+  "repository": "https://github.com/antoineperrin25/slidepix",
+  "homepage": "https://github.com/antoineperrin25/slidepix",
+  "bugs": "https://github.com/antoineperrin25/slidepix/issues",
   "license": "MIT",
   "engines": {
     "vscode": "^1.99.0"
