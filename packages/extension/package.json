@@ -215,7 +215,8 @@
     "dev": "pnpm build --watch",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "package": "node ./scripts/package.mjs"
+    "package": "node ./scripts/package.mjs",
+    "publish:all": "node ./scripts/publish-all.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/server": "^2.0.0",

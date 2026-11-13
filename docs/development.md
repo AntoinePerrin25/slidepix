@@ -30,7 +30,11 @@ pnpm test:live
 with relays disabled. `pnpm package` stages the current platform's iroh binary
 and passes `--target` to vsce from a Node script, so the same command works in
 `cmd.exe`. `pnpm package:all` repeats that for darwin-arm64, linux-x64,
-linux-arm64, win32-x64, and win32-arm64. Intel macOS has no published iroh
+linux-arm64, win32-x64, and win32-arm64. `pnpm publish:all` stages the
+matching iroh binary before each `vsce publish --no-dependencies --target`,
+so every uploaded package contains that platform's binary.
+`--no-dependencies` keeps `vsce` from running `npm list` in this pnpm
+workspace. `VSCE_PAT` must be set. Intel macOS has no published iroh
 binary; `pnpm build` and `pnpm package` still succeed there and the editor
 reports that live collaboration is unavailable. An explicit unsupported
 `--target` still fails.
@@ -67,7 +71,7 @@ new `dist/extension.cjs`.
 | Rendering/motion | previous checks plus `node scripts/render-smoke.mjs`; inspect the contact sheet, PDF, and `slides/` exact-size PNG frames |
 | Presentation/export | previous checks plus audience/presenter and PDF/PNG/PPTX/Web manual smoke tests; inspect native PPTX object editability and motion in PowerPoint, with LibreOffice as an additional compatibility check |
 | MCP | `pnpm test`, `pnpm typecheck`, build, start bundled stdio server, and render one/many slides |
-| Release | all checks on the target OS, then `pnpm package` and install the produced VSIX |
+| Release | all checks on the target OS, then `pnpm package` and install the produced VSIX. Publish with `pnpm publish:all`. |
 
 ## Package a VSIX
 
@@ -77,9 +81,22 @@ Run:
 pnpm package
 ```
 
-The artifact is written to `packages/extension/slidepix-<version>.vsix`. Install
-that file with **Extensions → … → Install from VSIX…** in both VS Code and
-Cursor before publishing it.
+The current-platform artifact is
+`packages/extension/slidepix-deck-<target>-<version>.vsix`. Install that file
+with **Extensions → … → Install from VSIX…** in both VS Code and Cursor before
+publishing it.
+
+Publish every platform with:
+
+```sh
+export VSCE_PAT="..."
+pnpm publish:all
+```
+
+`pnpm publish:all` builds the workspace, stages each iroh binary, and
+publishes `darwin-arm64`, `linux-x64`, `linux-arm64`, `win32-x64`, and
+`win32-arm64` as the same extension version. Pass targets after the script to
+publish a subset: `pnpm --filter slidepix-deck publish:all -- darwin-arm64`.
 
 ## Generated-output discipline
 

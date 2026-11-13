@@ -11,6 +11,7 @@
     "docs:check": "node ./scripts/check-docs.mjs",
     "test:live": "pnpm --filter slidepix-deck test:live",
     "package:all": "pnpm --filter slidepix-deck build && node packages/extension/scripts/package-all.mjs",
+    "publish:all": "pnpm build && pnpm --filter slidepix-deck publish:all",
     "package": "pnpm build && pnpm --filter slidepix-deck package"
   }
 }
