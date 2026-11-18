@@ -128,10 +128,13 @@ Keep these pure helpers independently testable; the VS Code picker stays in
 
 ## Bibliography file
 
-`src/bibliography-file.ts` reads the deck's linked bibliography with
-`resolveMediaPath`. The editor sends that text to the webview and watches the
-file. Presentation, web export, and PowerPoint export pass the same text into
-the shared renderer. The file must stay inside an open workspace root.
+`src/bibliography-file.ts` reads `bibliography.source`, then the referenced file
+through `resolveMediaPath` and its `linked` or `embedded` storage. The editor
+sends that text to the webview, watches the file, and writes merged `source`
+back to the file. Choosing a file stores its text in `source`. **Embed in
+assets** copies it into the deck `.assets` folder with `WorkspaceEdit`.
+Presentation, web export, and PowerPoint export use the same read. A linked
+file must stay inside an open workspace root.
 
 ## `src/presentation.ts`
 

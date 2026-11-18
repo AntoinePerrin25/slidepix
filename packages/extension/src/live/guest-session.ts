@@ -85,6 +85,10 @@ export class GuestSession {
     await this.requireLink().send({ type: "embedMedia", elementIds });
   }
 
+  async embedBibliography(): Promise<void> {
+    await this.requireLink().send({ type: "embedBibliography" });
+  }
+
   async saveHost(): Promise<void> {
     const link = this.requireLink();
     const request = new Promise<void>((resolve, reject) => {

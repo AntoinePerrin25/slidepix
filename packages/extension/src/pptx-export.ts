@@ -19,7 +19,7 @@ import {
   type TextElement,
   type VideoElement
 } from "@slidepix/core";
-import { readLinkedBibliography } from "./bibliography-file";
+import { readDeckBibliography } from "./bibliography-file";
 import { resolveMediaPath } from "@slidepix/core/assets";
 import {
   addPptxWarning,
@@ -56,7 +56,7 @@ export async function buildPptxExport(
   if (!visibleSlides.length) throw new Error("The deck has no visible slides to export.");
   await validateMedia(deck, deckPath, allowedLinkedRoots);
 
-  const citations = parseBibliography(await readLinkedBibliography(deckPath, deck.bibliography.file, allowedLinkedRoots));
+  const citations = parseBibliography(await readDeckBibliography(deckPath, deck.bibliography, allowedLinkedRoots));
   const context: BuildContext = { deck, deckPath, allowedLinkedRoots, warnings: [], nativeObjectCount: 0, mathSequence: 0, citations };
   addFontWarnings(context);
   const pptx = createPresentation(deck);

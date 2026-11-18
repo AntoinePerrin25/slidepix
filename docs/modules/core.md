@@ -17,7 +17,7 @@ cross-process message types, and shared DOM/HTML rendering semantics.
 | `createDeck(title?)` | Creates one valid 1920×1080 light-theme deck with a centered dark title using a portable system-font stack. |
 | `duplicateSlide(slide)` | Deep-copies the slide, creates new slide/element IDs, preserves element names and morph keys, and clears the timeline. |
 | `duplicateElementOntoFollowingSlides(deck, slideId, elementId)` | Copies one element onto every later slide with a new id, keeping its name and morph key. |
-| `parseBibliography`, `formatCitation`, `expandCitationMarkers` | BibTeX parsing and citation formatting in `src/bibliography.ts`. `#indent` inserts the configured spaces. `[@key]` becomes a short author-date. |
+| `parseBibliography`, `formatCitation`, `expandCitationMarkers`, `mergeBibliographySources` | BibTeX parsing, citation formatting, and entry merge in `src/bibliography.ts`. `#indent` inserts the configured spaces. `[@key]` becomes a short author-date. Entries added on either side are kept; the same key changed on both sides is a conflict. |
 | `Deck`, `Slide`, element and motion types | Types inferred from their schemas; do not maintain parallel handwritten interfaces. |
 | `manimElementSchema`, `manimSettingsFingerprint`, `manimRenderResolution`, `manimElementAspectRatio`, `MANIM_STARTER_SCRIPT` | Manim slide element validation, locked 16:9 / 9:16 aspect helpers, render resolution table, and settings fingerprint in `src/manim.ts`. |
 
@@ -49,7 +49,8 @@ the extension or webview.
 `mergeDecksLive(base, ours, theirs, prefer)` reruns `mergeDecks` and resolves
 value, delete-edit, and order conflicts toward `prefer` (`"ours"` or
 `"theirs"`). A result that fails deck integrity stays a conflict and is not
-applied.
+applied. `bibliography.source` is merged by citation key before that preference,
+so a conflicting key can be chosen without dropping entries the other side added.
 
 ### `src/assets.ts`
 
@@ -59,7 +60,7 @@ applied.
 | `normalizeAssetReference(reference)` | Converts backslashes to POSIX separators and removes one leading `./`. |
 | `resolveAssetPath(deckPath, reference)` | Resolves inside the asset root and rejects absolute, empty, NUL, or escaping paths. |
 | `resolveMediaPath(deckPath, reference, storage, allowedLinkedRoots?)` | Resolves embedded media through the asset root or linked media through an allowlist of workspace roots. |
-| `deckMediaReferences(deck, options?)` | Lists image, video, poster, Manim output, and background references. Hidden slides and elements are skipped unless `includeHidden` is set. |
+| `deckMediaReferences(deck, options?)` | Lists image, video, poster, Manim output, background, and bibliography-file references. The bibliography file is included whenever its path is set, including hidden slides. Other hidden slides and elements are skipped unless `includeHidden` is set. |
 
 All extension, presentation, export, and MCP asset reads must use these helpers.
 Add security tests for path-handling changes.

@@ -42,7 +42,8 @@ export const controlFrameSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("assetStored"), requestId: z.string().min(1).max(80), reference: z.string().min(1).max(1024), storage: z.literal("embedded") }),
   z.object({ type: z.literal("assetRejected"), requestId: z.string().min(1).max(80), message: z.string().max(500) }),
   z.object({ type: z.literal("assetBegin"), requestId: z.string().min(1).max(80), size: z.number().int().nonnegative().max(LIVE_LIMITS.maxAssetBytes), sha256: z.string().length(64) }),
-  z.object({ type: z.literal("embedMedia"), elementIds: z.array(z.string().max(200)).max(500).optional() })
+  z.object({ type: z.literal("embedMedia"), elementIds: z.array(z.string().max(200)).max(500).optional() }),
+  z.object({ type: z.literal("embedBibliography") })
 ]);
 
 export type ControlFrame = z.infer<typeof controlFrameSchema>;

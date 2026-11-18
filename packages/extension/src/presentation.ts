@@ -6,7 +6,7 @@ import { URL } from "node:url";
 import { WebSocketServer, type WebSocket } from "ws";
 import { renderDeckDocument, type AssetResolver, type Deck, type MediaStorage } from "@slidepix/core";
 import { resolveMediaPath } from "@slidepix/core/assets";
-import { readLinkedBibliography } from "./bibliography-file";
+import { readDeckBibliography } from "./bibliography-file";
 
 const MIME: Record<string, string> = {
   ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif", ".webp": "image/webp", ".svg": "image/svg+xml",
@@ -146,7 +146,7 @@ export class PresentationServer {
         return send(response, 200, MIME[extname(filePath).toLowerCase()] ?? "application/octet-stream", bytes);
       }
       const roots = this.allowedLinkedRoots.length ? this.allowedLinkedRoots : undefined;
-      const bibliographySource = await readLinkedBibliography(this.deckPath, this.deck.bibliography.file, roots ?? []);
+      const bibliographySource = await readDeckBibliography(this.deckPath, this.deck.bibliography, roots ?? []);
       const asset: AssetResolver = (reference, storage) => {
         const storageMode = storage === "linked" ? "linked" : "embedded";
         let version = "0";

@@ -290,10 +290,12 @@ export const deckSchema = z.object({
   footer: chromeTextSchema(1008),
   bibliography: z.object({
     file: z.string().default(""),
+    storage: z.enum(["linked", "embedded"]).default("linked"),
+    source: z.string().default(""),
     title: z.string().default("Bibliography"),
     format: z.string().default(CHICAGO_CITATION_FORMAT),
     indent: z.number().int().min(0).max(32).default(4)
-  }).default({ file: "", title: "Bibliography", format: CHICAGO_CITATION_FORMAT, indent: 4 }),
+  }).default({ file: "", storage: "linked", source: "", title: "Bibliography", format: CHICAGO_CITATION_FORMAT, indent: 4 }),
   layouts: z.record(z.string(), z.object({
     name: z.string(),
     background: color.optional()

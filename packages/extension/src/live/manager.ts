@@ -128,6 +128,7 @@ export class LiveCollaboration implements LiveDeckHost {
       readAsset: (reference, storage) => this.readHostAsset(document.uri.fsPath, roots, reference, storage),
       allowAsset: (reference, storage) => this.assetIsReferenced(binding, reference, storage),
       embedMedia: (elementIds) => this.editor.embedLinkedMedia(document, elementIds),
+      embedBibliography: () => this.editor.embedBibliographyFile(document),
       save: async () => { await document.save(); },
       revisionOf: revisionForText,
       onPeers: (peers) => { binding.peers = peers; this.announce(document); this.refreshStatus(); },
@@ -307,6 +308,13 @@ export class LiveCollaboration implements LiveDeckHost {
     const guest = this.guests.get(document.uri.authority);
     if (!guest) return false;
     await guest.session.embedMedia(elementIds);
+    return true;
+  }
+
+  async embedBibliographyOnHost(document: vscode.TextDocument): Promise<boolean> {
+    const guest = this.guests.get(document.uri.authority);
+    if (!guest) return false;
+    await guest.session.embedBibliography();
     return true;
   }
 

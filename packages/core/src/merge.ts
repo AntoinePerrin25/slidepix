@@ -1,3 +1,4 @@
+import { mergeBibliographySources, type BibliographyChoice } from "./bibliography.js";
 import { deckSchema, serializeDeck, type Deck } from "./schema.js";
 
 export type DeckMergeResolution = "base" | "ours" | "theirs";
@@ -76,7 +77,7 @@ export function mergeDecks(
 
 const liveResolvable = new Set<DeckMergeConflictKind>(["value", "delete-edit", "order"]);
 
-/** Live collaboration merge: last writer wins per property. Integrity conflicts stay explicit. */
+/** Live collaboration merge. Bibliography entries merge by key; other conflicts prefer one side. Integrity conflicts stay explicit. */
 export function mergeDecksLive(
   base: Deck,
   ours: Deck,
@@ -106,6 +107,7 @@ function mergeValue(
   entity: EntityContext,
   state: MergeState
 ): MaybeValue {
+  if (path.length === 2 && path[0] === "bibliography" && path[1] === "source") return mergeBibliographyField(base, ours, theirs, path, entity, state);
   if (same(ours, theirs)) return clone(ours);
   if (same(ours, base)) return clone(theirs);
   if (same(theirs, base)) return clone(ours);
@@ -151,6 +153,32 @@ function mergeValue(
     );
   }
   return clone(selectResolution(resolution ?? "ours", base, ours, theirs));
+}
+
+function mergeBibliographyField(base: MaybeValue, ours: MaybeValue, theirs: MaybeValue, path: string[], entity: EntityContext, state: MergeState): string {
+  const choices = new Map<string, BibliographyChoice>();
+  const prefix = `value:${path.join(":")}:`;
+  for (const [id, resolution] of Object.entries(state.resolutions)) {
+    if ((resolution === "ours" || resolution === "theirs") && id.startsWith(prefix)) choices.set(id.slice(prefix.length), resolution);
+  }
+  const merged = mergeBibliographySources(textOf(base), textOf(ours), textOf(theirs), choices);
+  for (const conflict of merged.conflicts) {
+    addConflict(
+      state,
+      "value",
+      [...path, conflict.key],
+      entity,
+      conflict.base,
+      conflict.ours,
+      conflict.theirs,
+      `Both sides changed citation “${conflict.key}”.`
+    );
+  }
+  return merged.text;
+}
+
+function textOf(value: MaybeValue): string {
+  return typeof value === "string" ? value : "";
 }
 
 function mergeIndexedArray(base: unknown[], ours: unknown[], theirs: unknown[], path: string[], entity: EntityContext, state: MergeState): unknown[] {

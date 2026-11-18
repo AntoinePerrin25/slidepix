@@ -34,5 +34,7 @@ describe("deckMediaReferences", () => {
     deck.slides.push({ ...deck.slides[0]!, id: "hidden-slide", hidden: true, elements: [image("on-hidden", "slide.png")] });
     expect([...deckMediaReferences(deck).values()].map((item) => item.reference)).toEqual(["shown.png"]);
     expect([...deckMediaReferences(deck, { includeHidden: true }).values()].map((item) => item.reference).sort()).toEqual(["hidden.png", "shown.png", "slide.png"]);
+    deck.bibliography = { ...deck.bibliography, file: "refs.bib", storage: "embedded" };
+    expect([...deckMediaReferences(deck).values()].map((item) => `${item.storage}:${item.reference}`)).toContain("embedded:refs.bib");
   });
 });

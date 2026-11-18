@@ -20,6 +20,7 @@ export type HostHooks = {
   readAsset(reference: string, storage: "embedded" | "linked"): Promise<Uint8Array | undefined>;
   allowAsset(reference: string, storage: "embedded" | "linked"): boolean;
   embedMedia(elementIds?: string[]): Promise<void>;
+  embedBibliography(): Promise<void>;
   save(): Promise<void>;
   revisionOf(text: string): string;
   onPeers(peers: LivePeer[]): void;
@@ -146,6 +147,10 @@ export class HostSession {
     }
     if (frame.type === "embedMedia") {
       await this.hooks.embedMedia(frame.elementIds);
+      return;
+    }
+    if (frame.type === "embedBibliography") {
+      await this.hooks.embedBibliography();
       return;
     }
     if (frame.type === "save") {

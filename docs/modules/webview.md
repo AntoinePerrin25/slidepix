@@ -186,7 +186,8 @@ always calls its resolver with both `src` and `storage`, including thumbnails.
   including **Apply to all slides**, and can choose, replace, or remove a
   storage-aware background image. Tagging **Bibliography slide** opens a
   Bibliography tab for the reference file, displayed title, format, indent,
-  and a short citation cheat sheet.
+  and a short citation cheat sheet. **Embed in assets** stores that file in
+  the deck `.assets` folder.
 - Blocking browser alerts are not used. Success toasts auto-dismiss after 2.5
   seconds, errors remain dismissible, and host-owned exports update a progress
   toast through the versioned protocol.

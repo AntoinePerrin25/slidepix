@@ -56,4 +56,4 @@ Live Share, Open Collaboration Tools, Hyperswarm, and a webview WebRTC mesh were
 
 ## Known limits
 
-No character-level text merge. No view-only role. Linked media outside the deck's workspace folder is not copied. Manim runs only on the host.
+No character-level text merge. No view-only role. Linked media outside the deck's workspace folder is not copied. The bibliography file is sent with the other referenced media, and its citation entries merge by key inside `bibliography.source`. Embedding it places the file in the deck `.assets` folder. Manim runs only on the host.

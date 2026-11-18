@@ -1461,7 +1461,11 @@ function BibliographyFields({ deck, mutate, preview, scheduleCommit, commit }: {
   const choose = () => {
     const requestId = crypto.randomUUID();
     pendingBibliography.set(requestId, (message) => {
-      if (message.file) mutate((draft) => { draft.bibliography.file = message.file ?? ""; });
+      if (message.file) mutate((draft) => {
+        draft.bibliography.file = message.file ?? "";
+        draft.bibliography.storage = "linked";
+        if (typeof message.source === "string") draft.bibliography.source = message.source;
+      });
       else if (message.error) notifyToast({ id: requestId, kind: "error", message: message.error });
     });
     postMessage({ type: "selectBibliography", requestId });
@@ -1469,7 +1473,7 @@ function BibliographyFields({ deck, mutate, preview, scheduleCommit, commit }: {
   return <>
     <h3>Bibliography</h3>
     <label>Displayed name<input value={deck.bibliography.title} onChange={(event) => { preview((draft) => { draft.bibliography.title = event.target.value; }); scheduleCommit(); }} onBlur={commit} /></label>
-    <div className="media-source-card">{deck.bibliography.file ? <code title={deck.bibliography.file}>{deck.bibliography.file}</code> : <span>No reference file</span>}<div><button onClick={choose}>Choose reference file…</button>{deck.bibliography.file && <button className="danger-quiet" onClick={() => mutate((draft) => { draft.bibliography.file = ""; })}>Remove</button>}</div></div>
+    <div className="media-source-card">{deck.bibliography.file ? <code title={deck.bibliography.file}>{deck.bibliography.file}</code> : <span>No reference file</span>}<div><button onClick={choose}>Choose reference file…</button>{deck.bibliography.storage !== "embedded" && (deck.bibliography.file || deck.bibliography.source) && <button onClick={() => postMessage({ type: "embedBibliography" })}>Embed in assets</button>}{deck.bibliography.file && <button className="danger-quiet" onClick={() => mutate((draft) => { draft.bibliography.file = ""; draft.bibliography.storage = "linked"; })}>Remove</button>}</div>{deck.bibliography.storage === "embedded" && <span>Embedded in the deck assets.</span>}</div>
     <label>Citation format<textarea value={deck.bibliography.format} onChange={(event) => { preview((draft) => { draft.bibliography.format = event.target.value; }); scheduleCommit(); }} onBlur={commit} /></label>
     <NumberField label="Indent spaces" value={deck.bibliography.indent} min={0} max={32} onChange={(indent) => continuousIndent(preview, scheduleCommit, indent)} onCommit={commit} />
     <p className="panel-help">#indent in the format inserts this many spaces.</p>

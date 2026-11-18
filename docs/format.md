@@ -81,9 +81,11 @@ invalid inputs fall back to ordinary Git conflict markers.
   color, size, alignment, and box. An optional progress bar has its own color,
   thickness, and box. `header` and `footer` are the same kind of text box and
   stay off until enabled.
-- `bibliography`: a workspace-linked reference file, the title shown on a
-  tagged slide, a citation format, and the number of spaces inserted for
-  `#indent`. The default format is Chicago author-date.
+- `bibliography`: a reference file (`linked` beside the deck, or `embedded` in
+  the deck `.assets` folder), the BibTeX `source` kept in the deck, the title
+  shown on a tagged slide, a citation format, and the number of spaces inserted
+  for `#indent`. The default format is Chicago author-date. `source` is merged
+  by citation key.
 - `layouts`: reusable named background definitions. The UI designer is not yet
   implemented.
 - `slides`: at least one ordered slide.

@@ -15,6 +15,84 @@ export type Citation = {
   fields: Record<string, string>;
 };
 
+export type BibliographyChoice = "ours" | "theirs";
+
+export type BibliographyMergeConflict = {
+  key: string;
+  base: string;
+  ours: string;
+  theirs: string;
+};
+
+/** Combine citation entries by key. A key changed on only one side is kept. Both sides changing the same key is a conflict. */
+export function mergeBibliographySources(
+  base: string,
+  ours: string,
+  theirs: string,
+  choices: ReadonlyMap<string, BibliographyChoice> = new Map()
+): { text: string; conflicts: BibliographyMergeConflict[] } {
+  const baseEntries = entriesByKey(base);
+  const ourEntries = entriesByKey(ours);
+  const theirEntries = entriesByKey(theirs);
+  const keys = orderedKeys(baseEntries, ourEntries, theirEntries);
+  const chosen: Citation[] = [];
+  const conflicts: BibliographyMergeConflict[] = [];
+  for (const key of keys) {
+    const baseBlock = blockOf(baseEntries.get(key));
+    const ourBlock = blockOf(ourEntries.get(key));
+    const theirBlock = blockOf(theirEntries.get(key));
+    const selected = selectBibliographyEntry(baseBlock, ourBlock, theirBlock, choices.get(key));
+    if (selected.conflict) conflicts.push({ key, base: baseBlock, ours: ourBlock, theirs: theirBlock });
+    const entry = selected.side === "base" ? baseEntries.get(key) : selected.side === "theirs" ? theirEntries.get(key) : ourEntries.get(key);
+    if (entry) chosen.push(entry);
+  }
+  const text = serializeBibliography(chosen);
+  if (!conflicts.length && sameEntries(baseEntries, ourEntries) && sameEntries(baseEntries, theirEntries)) return { text: base, conflicts };
+  if (!conflicts.length && sameEntries(baseEntries, ourEntries)) return { text: theirs, conflicts };
+  if (!conflicts.length && sameEntries(baseEntries, theirEntries)) return { text: ours, conflicts };
+  return { text, conflicts };
+}
+
+export function serializeBibliography(entries: readonly Citation[]): string {
+  return entries.map(bibliographyEntryBlock).filter(Boolean).join("\n\n");
+}
+
+export function bibliographyEntryBlock(entry: Citation): string {
+  const fields = Object.entries(entry.fields).map(([name, value]) => `  ${name}={${value}}`);
+  return `@${entry.type}{${entry.key}${fields.length ? `,\n${fields.join(",\n")}` : ""}\n}`;
+}
+
+function selectBibliographyEntry(base: string, ours: string, theirs: string, choice: BibliographyChoice | undefined): { side: "base" | "ours" | "theirs"; conflict: boolean } {
+  if (ours === theirs) return { side: "ours", conflict: false };
+  if (ours === base) return { side: "theirs", conflict: false };
+  if (theirs === base) return { side: "ours", conflict: false };
+  if (choice === "theirs") return { side: "theirs", conflict: false };
+  if (choice === "ours") return { side: "ours", conflict: false };
+  return { side: "ours", conflict: true };
+}
+
+function entriesByKey(source: string): Map<string, Citation> {
+  const entries = new Map<string, Citation>();
+  for (const entry of parseBibliography(source)) entries.set(entry.key, entry);
+  return entries;
+}
+
+function blockOf(entry: Citation | undefined): string {
+  return entry ? bibliographyEntryBlock(entry) : "";
+}
+
+function sameEntries(left: Map<string, Citation>, right: Map<string, Citation>): boolean {
+  if (left.size !== right.size) return false;
+  for (const [key, entry] of left) if (blockOf(entry) !== blockOf(right.get(key))) return false;
+  return true;
+}
+
+function orderedKeys(...maps: Map<string, Citation>[]): string[] {
+  const keys: string[] = [];
+  for (const map of maps) for (const key of map.keys()) if (!keys.includes(key)) keys.push(key);
+  return keys;
+}
+
 export function parseBibliography(source: string): Citation[] {
   const entries: Citation[] = [];
   let index = 0;

@@ -12,8 +12,10 @@ export function deckMediaReferences(deck: Deck, options?: { includeHidden?: bool
   const includeHidden = options?.includeHidden ?? false;
   const references = new Map<string, DeckMediaReference>();
   const add = (reference: string, storage: MediaStorage) => {
+    if (!reference.trim()) return;
     references.set(mediaReferenceKey(reference, storage), { reference, storage });
   };
+  if (deck.bibliography.file.trim()) add(deck.bibliography.file, deck.bibliography.storage);
   for (const slide of deck.slides) {
     if (slide.hidden && !includeHidden) continue;
     if (slide.backgroundImage) add(slide.backgroundImage.src, slide.backgroundImage.storage);

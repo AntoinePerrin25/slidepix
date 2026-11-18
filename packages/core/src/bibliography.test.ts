@@ -4,6 +4,7 @@ import {
   expandCitationMarkers,
   formatCitation,
   inlineCitation,
+  mergeBibliographySources,
   parseBibliography
 } from "./bibliography.js";
 
@@ -29,6 +30,17 @@ describe("bibliography", () => {
       "    Smith, John R., and Johnson, Mary L. (2024). Quantum Computing Advances in Machine Learning. https://arxiv.org/abs/2401.12345."
     );
     expect(inlineCitation(entry!)).toBe("(Smith and Johnson 2024)");
+  });
+
+  it("keeps citation entries added on either side", () => {
+    const base = "";
+    const ours = "@misc{alpha, title={Alpha}, year={2020}}";
+    const theirs = "@misc{beta, title={Beta}, year={2021}}";
+    const merged = mergeBibliographySources(base, ours, theirs);
+    expect(merged.conflicts).toEqual([]);
+    expect(parseBibliography(merged.text).map((entry) => entry.key)).toEqual(["alpha", "beta"]);
+    const clash = mergeBibliographySources(base, "@misc{alpha, title={One}}", "@misc{alpha, title={Two}}");
+    expect(clash.conflicts.map((conflict) => conflict.key)).toEqual(["alpha"]);
   });
 
   it("replaces only known citation markers", () => {

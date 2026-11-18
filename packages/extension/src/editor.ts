@@ -29,7 +29,7 @@ import {
 } from "./manim-host";
 import { ensureManimLaunch, promptManimSetup } from "./manim-setup";
 import { assignManimBasenames, manimDeckStem, manimRenderConcurrency, mapWithConcurrency } from "./manim-render";
-import { readLinkedBibliography } from "./bibliography-file";
+import { readDeckBibliography } from "./bibliography-file";
 
 export const VIEW_TYPE = "slidepix.deckEditor";
 
@@ -40,6 +40,7 @@ export class SlidePixEditorProvider implements vscode.CustomTextEditorProvider {
   private readonly presentationReloads = new Map<string, ReturnType<typeof setTimeout>>();
   private readonly histories = new Map<string, DocumentHistory>();
   private readonly bibliographyWatchers = new Map<string, vscode.Disposable>();
+  private readonly bibliographyImports = new Set<string>();
   private activeDocument?: vscode.TextDocument;
   private outputChannel?: vscode.OutputChannel;
   private manimRenderInFlight = false;
@@ -72,6 +73,10 @@ export class SlidePixEditorProvider implements vscode.CustomTextEditorProvider {
 
   embedLinkedMedia(document: vscode.TextDocument, elementIds?: string[]): Promise<void> {
     return this.embedMedia(document, elementIds);
+  }
+
+  embedBibliographyFile(document: vscode.TextDocument): Promise<void> {
+    return this.embedBibliography(document);
   }
 
   locationOf(document: vscode.TextDocument): { deckPath: string; linkedRoots: string[] } {
@@ -198,6 +203,7 @@ export class SlidePixEditorProvider implements vscode.CustomTextEditorProvider {
       this.schedulePresentationReload(key);
     }
     this.live?.documentChanged(document);
+    void this.projectBibliography(document);
     const set = this.panels.get(key);
     if (!set) return;
     for (const panel of set) this.postDeck(document, panel);
@@ -245,31 +251,96 @@ export class SlidePixEditorProvider implements vscode.CustomTextEditorProvider {
   }
 
   private async postBibliography(document: vscode.TextDocument, panel: vscode.WebviewPanel, deck: Deck): Promise<void> {
-    const source = await readLinkedBibliography(document.uri.fsPath, deck.bibliography.file, linkedRoots(document));
+    const source = await readDeckBibliography(document.uri.fsPath, deck.bibliography, linkedRoots(document));
     await panel.webview.postMessage({ version: 2, type: "bibliography", source } satisfies HostToWebviewMessage);
-    this.watchBibliography(document, panel, deck.bibliography.file);
+    this.watchBibliography(document, panel, deck);
+    if (!deck.bibliography.source && source) void this.importBibliographySource(document, source);
   }
 
-  private watchBibliography(document: vscode.TextDocument, panel: vscode.WebviewPanel, reference: string): void {
+  private watchBibliography(document: vscode.TextDocument, panel: vscode.WebviewPanel, deck: Deck): void {
     const key = document.uri.toString();
     this.bibliographyWatchers.get(key)?.dispose();
     this.bibliographyWatchers.delete(key);
-    const file = reference.trim();
+    const file = deck.bibliography.file.trim();
     if (!file) return;
     let absolute: string;
     try {
-      absolute = resolveMediaPath(document.uri.fsPath, file, "linked", linkedRoots(document));
+      absolute = resolveMediaPath(document.uri.fsPath, file, deck.bibliography.storage, linkedRoots(document));
     } catch {
       return;
     }
     const watcher = vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(vscode.Uri.file(path.dirname(absolute)), path.basename(absolute)));
-    const refresh = () => {
-      const parsed = parseDeckText(document.getText());
-      if (parsed.ok) void this.postBibliography(document, panel, parsed.deck);
-    };
+    const refresh = () => { void this.adoptBibliographyFile(document, panel); };
     watcher.onDidChange(refresh);
     watcher.onDidCreate(refresh);
     this.bibliographyWatchers.set(key, watcher);
+  }
+
+  private async adoptBibliographyFile(document: vscode.TextDocument, panel: vscode.WebviewPanel): Promise<void> {
+    const parsed = parseDeckText(document.getText());
+    if (!parsed.ok || !parsed.deck.bibliography.file.trim()) return;
+    let text = "";
+    try {
+      const absolute = resolveMediaPath(document.uri.fsPath, parsed.deck.bibliography.file, parsed.deck.bibliography.storage, linkedRoots(document));
+      text = Buffer.from(await vscode.workspace.fs.readFile(vscode.Uri.file(absolute))).toString("utf8");
+    } catch {
+      return;
+    }
+    if (text === parsed.deck.bibliography.source) {
+      await this.postBibliography(document, panel, parsed.deck);
+      return;
+    }
+    await this.importBibliographySource(document, text);
+  }
+
+  private async importBibliographySource(document: vscode.TextDocument, source: string): Promise<void> {
+    const key = document.uri.toString();
+    if (this.bibliographyImports.has(key)) return;
+    const baseText = document.getText();
+    const parsed = parseDeckText(baseText);
+    if (!parsed.ok || parsed.deck.bibliography.source === source) return;
+    parsed.deck.bibliography.source = source;
+    this.bibliographyImports.add(key);
+    try {
+      const applied = await replaceDocument(document, serializeDeck(parsed.deck), revisionForText(baseText));
+      if (applied) this.recordHistory(document.uri, baseText, document.getText());
+    } finally {
+      this.bibliographyImports.delete(key);
+    }
+  }
+
+  private async projectBibliography(document: vscode.TextDocument): Promise<void> {
+    if (this.bibliographyImports.has(document.uri.toString())) return;
+    const parsed = parseDeckText(document.getText());
+    if (!parsed.ok) return;
+    const bib = parsed.deck.bibliography;
+    if (!bib.source || !bib.file.trim()) return;
+    const roots = linkedRoots(document);
+    let current = "";
+    try {
+      current = Buffer.from(await vscode.workspace.fs.readFile(vscode.Uri.file(resolveMediaPath(document.uri.fsPath, bib.file, bib.storage, roots)))).toString("utf8");
+    } catch {
+      current = "";
+    }
+    if (current === bib.source) return;
+    try {
+      if (bib.storage === "embedded") {
+        const reference = await storeEmbeddedBytes(document.uri.fsPath, Buffer.from(bib.source, "utf8"), path.basename(bib.file), "");
+        if (reference === bib.file) return;
+        const latestText = document.getText();
+        const latest = parseDeckText(latestText);
+        if (!latest.ok || latest.deck.bibliography.source !== bib.source) return;
+        latest.deck.bibliography.file = reference;
+        latest.deck.bibliography.storage = "embedded";
+        if (await replaceDocument(document, serializeDeck(latest.deck), revisionForText(latestText))) this.recordHistory(document.uri, latestText, document.getText());
+        return;
+      }
+      const target = resolveMediaPath(document.uri.fsPath, bib.file, "linked", roots);
+      await vscode.workspace.fs.createDirectory(vscode.Uri.file(path.dirname(target)));
+      await vscode.workspace.fs.writeFile(vscode.Uri.file(target), Buffer.from(bib.source, "utf8"));
+    } catch (error) {
+      this.log(error instanceof Error ? `Could not update the bibliography file: ${error.message}` : "Could not update the bibliography file.", "warn");
+    }
   }
 
   private async receive(document: vscode.TextDocument, panel: vscode.WebviewPanel, message: WebviewToHostMessage): Promise<void> {
@@ -323,6 +394,10 @@ export class SlidePixEditorProvider implements vscode.CustomTextEditorProvider {
     }
     if (message.type === "selectFont") return this.selectFont(panel, message);
     if (message.type === "selectBibliography") return this.selectBibliography(document, panel, message);
+    if (message.type === "embedBibliography") {
+      if (await this.live?.embedBibliographyOnHost(document)) return;
+      return this.embedBibliography(document);
+    }
     if (message.type === "selectManimScript") return this.selectManimScript(document, panel, message);
     if (message.type === "createManimScript") return this.createManimScript(document, panel, message);
     if (message.type === "openManimScript") return this.openManimScript(document, message);
@@ -605,6 +680,7 @@ export class SlidePixEditorProvider implements vscode.CustomTextEditorProvider {
       const roots = linkedRoots(document);
       if (!roots.some((root) => isInside(root, resolved))) throw new Error("The bibliography file must stay inside an open workspace root.");
       response.file = relativeDeckReference(document.uri.fsPath, resolved);
+      response.source = Buffer.from(await vscode.workspace.fs.readFile(picked[0])).toString("utf8");
     } catch (error) {
       response.error = error instanceof Error ? error.message : "Could not choose the bibliography file.";
     }
@@ -878,6 +954,35 @@ export class SlidePixEditorProvider implements vscode.CustomTextEditorProvider {
     return { results, cancelled, error: failures.length ? failures.join("\n") : undefined };
     } finally {
       this.manimRenderInFlight = false;
+    }
+  }
+
+  private async embedBibliography(document: vscode.TextDocument): Promise<void> {
+    const baseText = document.getText();
+    const baseRevision = revisionForText(baseText);
+    const parsed = parseDeckText(baseText);
+    if (!parsed.ok) return void vscode.window.showErrorMessage(parsed.message);
+    const bib = parsed.deck.bibliography;
+    if (bib.storage === "embedded" && bib.file.trim()) return void vscode.window.showInformationMessage("The bibliography is already embedded.");
+    if (!bib.file.trim() && !bib.source) return void vscode.window.showInformationMessage("Choose a bibliography file first.");
+    try {
+      const roots = linkedRoots(document);
+      let text = bib.source;
+      if (!text && bib.file.trim()) {
+        text = Buffer.from(await vscode.workspace.fs.readFile(vscode.Uri.file(resolveMediaPath(document.uri.fsPath, bib.file, bib.storage, roots)))).toString("utf8");
+      }
+      const baseName = path.basename(bib.file.trim() || "references.bib");
+      const name = /\.bib(?:tex)?$/i.test(baseName) ? baseName : `${baseName}.bib`;
+      bib.file = await storeEmbeddedBytes(document.uri.fsPath, Buffer.from(text, "utf8"), name, "text/x-bibtex");
+      bib.storage = "embedded";
+      bib.source = text;
+      if (!await replaceDocument(document, serializeDeck(parsed.deck), baseRevision)) {
+        return void vscode.window.showWarningMessage("The deck changed while the bibliography was being embedded. No document changes were applied.");
+      }
+      this.recordHistory(document.uri, baseText, document.getText());
+      void vscode.window.showInformationMessage(`Embedded the bibliography in ${path.basename(deckAssetDirectory(document.uri.fsPath))}.`);
+    } catch (error) {
+      void vscode.window.showErrorMessage(error instanceof Error ? `Could not embed the bibliography: ${error.message}` : "Could not embed the bibliography.");
     }
   }
 

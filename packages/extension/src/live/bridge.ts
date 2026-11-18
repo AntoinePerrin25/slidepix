@@ -15,6 +15,7 @@ export interface LiveDeckHost {
   saveOnHost(document: vscode.TextDocument): Promise<void>;
   importAsset(document: vscode.TextDocument, bytes: Uint8Array, name: string, mime: string): Promise<{ reference: string; storage: "embedded" } | { error: string }>;
   embedOnHost(document: vscode.TextDocument, elementIds?: string[]): Promise<boolean>;
+  embedBibliographyOnHost(document: vscode.TextDocument): Promise<boolean>;
   presence(document: vscode.TextDocument, presence: LivePresence): void;
   ensureAssets(document: vscode.TextDocument): Promise<void>;
   announce(document: vscode.TextDocument): void;

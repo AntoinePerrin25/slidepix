@@ -216,6 +216,27 @@ describe("mergeDecksLive", () => {
     if (!result.ok) expect(result.conflicts.some((conflict) => conflict.kind === "invalid-result")).toBe(true);
   });
 
+  it("merges bibliography entries from both sides", () => {
+    const base = fixture();
+    const ours = structuredClone(base);
+    const theirs = structuredClone(base);
+    ours.bibliography.source = "@misc{alpha, title={Alpha}}";
+    theirs.bibliography.source = "@misc{beta, title={Beta}}";
+    const merged = mergeDecksLive(base, ours, theirs, "theirs");
+    expect(merged.ok).toBe(true);
+    if (merged.ok) {
+      expect(merged.deck.bibliography.source).toContain("alpha");
+      expect(merged.deck.bibliography.source).toContain("beta");
+    }
+    const left = structuredClone(base);
+    const right = structuredClone(base);
+    left.bibliography.source = "@misc{alpha, title={Left}}";
+    right.bibliography.source = "@misc{alpha, title={Right}}";
+    const clash = mergeDecksLive(base, left, right, "theirs");
+    expect(clash.ok).toBe(true);
+    if (clash.ok) expect(clash.deck.bibliography.source).toContain("title={Right}");
+  });
+
   it("is deterministic", () => {
     const base = fixture();
     const ours = structuredClone(base);

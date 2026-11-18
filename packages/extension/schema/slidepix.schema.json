@@ -345,6 +345,8 @@
     "bibliography": {
       "default": {
         "file": "",
+        "storage": "linked",
+        "source": "",
         "title": "Bibliography",
         "format": "#indent@author (@year). @title. @url.",
         "indent": 4
@@ -352,6 +354,18 @@
       "type": "object",
       "properties": {
         "file": {
+          "default": "",
+          "type": "string"
+        },
+        "storage": {
+          "default": "linked",
+          "type": "string",
+          "enum": [
+            "linked",
+            "embedded"
+          ]
+        },
+        "source": {
           "default": "",
           "type": "string"
         },
@@ -372,6 +386,8 @@
       },
       "required": [
         "file",
+        "storage",
+        "source",
         "title",
         "format",
         "indent"
