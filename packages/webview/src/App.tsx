@@ -1,5 +1,5 @@
 import Moveable from "react-moveable";
-import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ClipboardEvent as ReactClipboardEvent, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ClipboardEvent as ReactClipboardEvent, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { flushSync } from "react-dom";
 import {
   CITATION_CHEAT_SHEET,
@@ -1374,11 +1374,13 @@ function Inspector({ collapsed, onToggleCollapse, tab, setTab, deck, slide, elem
           <ColorField label="Background" value={slide.background ?? deck.theme.background} onChange={(background) => continuous((draft) => { draft.slides.find((item) => item.id === slide.id)!.background = background; })} onCommit={commit} />
           <h4 className="property-heading">Background image</h4>
           {slide.backgroundImage ? <div className="media-source-card"><span className={`storage-badge ${slide.backgroundImage.storage}`}>{slide.backgroundImage.storage}</span><code title={slide.backgroundImage.src}>{slide.backgroundImage.src}</code><div><button onClick={chooseBackgroundImage}>Replace image…</button><button className="danger-quiet" onClick={() => mutate((draft) => { delete draft.slides.find((item) => item.id === slide.id)!.backgroundImage; })}>Remove</button></div></div> : <button className="edit-text-button" onClick={chooseBackgroundImage}><span className="codicon codicon-file-media" /> Choose background image…</button>}
-          <h4 className="property-heading">Header</h4>
-          <ChromeTextFields item={deck.header} onChange={(patch) => continuous((draft) => Object.assign(draft.header, patch))} onCommit={commit} />
-          <h4 className="property-heading">Footer</h4>
-          <ChromeTextFields item={deck.footer} onChange={(patch) => continuous((draft) => Object.assign(draft.footer, patch))} onCommit={commit} />
-          <h4 className="property-heading">Pagination</h4>
+          <CollapsibleOptions title="Header">
+            <ChromeTextFields item={deck.header} onChange={(patch) => continuous((draft) => Object.assign(draft.header, patch))} onCommit={commit} />
+          </CollapsibleOptions>
+          <CollapsibleOptions title="Footer">
+            <ChromeTextFields item={deck.footer} onChange={(patch) => continuous((draft) => Object.assign(draft.footer, patch))} onCommit={commit} />
+          </CollapsibleOptions>
+          <CollapsibleOptions title="Pagination">
           <CheckboxField label="Show page number" checked={deck.pageNumbers.enabled} onChange={(enabled) => mutate((draft) => { draft.pageNumbers.enabled = enabled; })} />
           <CheckboxField label="Hide pagination on this slide" checked={slide.hidePageNumber} onChange={(hidePageNumber) => mutate((draft) => { const target = draft.slides.find((item) => item.id === slide.id); if (target) target.hidePageNumber = hidePageNumber; })} />
           <label>Format<input value={deck.pageNumbers.format} onChange={(event) => { preview((draft) => { draft.pageNumbers.format = event.target.value; }); scheduleCommit(); }} onBlur={commit} /></label>
@@ -1402,6 +1404,7 @@ function Inspector({ collapsed, onToggleCollapse, tab, setTab, deck, slide, elem
               <NumberField label="W" value={deck.pageNumbers.progress.width} min={0} onChange={(width) => continuous((draft) => { draft.pageNumbers.progress.width = width; })} onCommit={commit} />
             </div>
           </>}
+          </CollapsibleOptions>
           <h4 className="property-heading">Bibliography</h4>
           <CheckboxField label="Bibliography slide" checked={slide.bibliography} onChange={(bibliography) => { mutate((draft) => { const target = draft.slides.find((item) => item.id === slide.id); if (target) target.bibliography = bibliography; }); if (bibliography) setTab("bibliography"); }} />
           <p className="panel-help">A tagged slide lists the reference file. Cite a work from any text with [@citation-key].</p>
@@ -1425,6 +1428,17 @@ function AnimationRow({ step, index, flowLabel, element, selectElement, mutate, 
     {step.effect === "fly" && <label>Direction<select value={step.direction ?? "left"} onChange={(e) => mutate({ direction: e.target.value as NonNullable<AnimationStep["direction"]> })}><option>left</option><option>right</option><option>up</option><option>down</option></select></label>}
     <div className="field-grid"><NumberField label="Delay ms" value={step.delayMs} onChange={(delayMs) => mutate({ delayMs })} /><NumberField label="Duration ms" value={step.durationMs} onChange={(durationMs) => mutate({ durationMs })} /></div><button className="danger-quiet" onClick={remove}>Remove animation</button>
   </div>;
+}
+
+function CollapsibleOptions({ title, children }: { title: string; children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return <section className="collapsible-options">
+    <button type="button" className="property-heading collapsible-heading" aria-expanded={open} onClick={() => setOpen((value) => !value)}>
+      <span className="collapse-arrow" aria-hidden="true">{open ? "⌵" : ">"}</span>
+      {title}
+    </button>
+    {open && children}
+  </section>;
 }
 
 function ChromeTextFields({ item, onChange, onCommit }: { item: Deck["header"]; onChange(patch: Partial<Deck["header"]>): void; onCommit(): void }) {

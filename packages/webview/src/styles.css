@@ -296,6 +296,9 @@ button:disabled { opacity: .45; cursor: default; }
 .inspector-control-label { display: block; margin: 10px 0 4px; color: var(--vscode-descriptionForeground); font-size: 11px; }
 .inspector-body > .segmented-control, .inspector-body .segmented-control { width: max-content; margin-bottom: 8px; }
 .property-heading { padding-top: 10px; border-top: 1px solid var(--vscode-panel-border); color: var(--vscode-foreground); font-size: 11px; letter-spacing: .04em; text-transform: uppercase; }
+.collapsible-heading { display: flex; align-items: center; gap: 6px; width: 100%; margin: 0 0 8px; padding: 10px 0 0; border: 0; border-top: 1px solid var(--vscode-panel-border); border-radius: 0; background: transparent; color: inherit; font: inherit; font-size: 11px; letter-spacing: .04em; text-transform: uppercase; text-align: left; }
+.collapsible-heading:hover { background: transparent; }
+.collapse-arrow { width: 12px; flex: none; font-size: 13px; letter-spacing: 0; text-transform: none; line-height: 1; }
 .inspector-body label { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; color: var(--vscode-descriptionForeground); }
 .inspector-body input, .inspector-body textarea, .inspector-body select { min-width: 0; width: 100%; padding: 5px; }
 .inspector-body label.checkbox-field { display: flex; flex-direction: row; align-items: center; gap: 8px; min-height: 28px; margin-bottom: 6px; }

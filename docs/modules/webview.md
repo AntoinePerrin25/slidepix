@@ -175,6 +175,7 @@ always calls its resolver with both `src` and `storage`, including thumbnails.
   and fits the box inside the slide. Later width edits, including a width
   written into the deck, keep that ratio. Header, footer, pagination, and the
   progress bar are edited in Slide Properties and painted on every slide.
+  Header, Footer, and Pagination start collapsed; the heading arrow opens them.
   **Hide pagination on this slide** suppresses the number and the bar.
   Text renders past its box; the slide still clips at the page edge.
 - **Element name** is the morph link. The same name on both slides morphs
