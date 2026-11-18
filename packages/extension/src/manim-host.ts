@@ -7,11 +7,12 @@ import {
   DEFAULT_MANIM_SCENE_NAME,
   MANIM_STARTER_SCRIPT,
   manimElementAspectRatio,
+  manimSettingsFingerprint,
   type Deck,
   type ManimElement
 } from "@slidepix/core";
 import { resolveMediaPath } from "@slidepix/core/assets";
-import { buildManimArgv, discoverManimScenes, findRenderedMedia, manimDeckStem, manimOutputBasename, manimProcessEnv, manimSpawnFailure, splitManimOutput, type ManimLaunch, renderFingerprintForElement, scriptContentFingerprint } from "./manim-render.js";
+import { buildManimArgv, discoverManimScenes, findRenderedMedia, manimDeckStem, manimOutputBasename, manimProcessEnv, manimSpawnFailure, pythonLaunchForManim, splitManimOutput, type ManimLaunch, renderFingerprintForElement, scriptContentFingerprint } from "./manim-render.js";
 
 const MAX_MEDIA_BYTES = 100 * 1024 * 1024;
 
@@ -64,11 +65,12 @@ export class ManimCancelled extends Error {
   }
 }
 
-export function takenManimOutputStems(deck: Deck, elementId: string): string[] {
+export function takenManimOutputStems(deck: Deck, elementId: string, sharedKeys?: ReadonlySet<string>): string[] {
   const stems: string[] = [];
   for (const slide of deck.slides) {
     for (const element of slide.elements) {
       if (element.type !== "manim" || element.id === elementId || !element.outputMedia?.src) continue;
+      if (sharedKeys?.has(manimSettingsFingerprint(element))) continue;
       const base = path.basename(element.outputMedia.src);
       stems.push(base.replace(/\.[^.]+$/, ""));
     }
@@ -79,14 +81,13 @@ export function takenManimOutputStems(deck: Deck, elementId: string): string[] {
 export async function runManimRender(options: {
   deckPath: string;
   element: ManimElement;
-  slideTitle: string;
   launch: ManimLaunch;
   allowedLinkedRoots: string[];
   takenStems?: readonly string[];
   outputBasename?: string;
   hooks?: ManimRenderHooks;
 }): Promise<{ bytes: Uint8Array; fileName: string; settingsFingerprint: string }> {
-  const { deckPath, element, slideTitle, launch, allowedLinkedRoots, hooks } = options;
+  const { deckPath, element, launch, allowedLinkedRoots, hooks } = options;
   if (!element.script?.trim()) throw new Error("Choose a Manim script before rendering.");
   if (!element.scene?.trim()) throw new Error("Enter a scene class name before rendering.");
   const { absolutePath, source } = await readManimScript(deckPath, element.script, allowedLinkedRoots);
@@ -96,7 +97,7 @@ export async function runManimRender(options: {
   }
 
   const mediaDir = await mkdtemp(path.join(os.tmpdir(), "slidepix-manim-"));
-  const outputName = options.outputBasename ?? manimOutputBasename(manimDeckStem(deckPath), slideTitle, element.scene, options.takenStems ?? []);
+  const outputName = options.outputBasename ?? manimOutputBasename(manimDeckStem(deckPath), element.scene, options.takenStems ?? []);
   const invocation = buildManimArgv(launch, {
     scriptPath: absolutePath,
     scene: element.scene,
@@ -112,9 +113,13 @@ export async function runManimRender(options: {
     await execManim(invocation, hooks);
     const rendered = await findRenderedMedia(mediaDir, outputName);
     if (!rendered) throw new Error(`Manim finished without producing ${outputName}.`);
-    const bytes = await readFile(rendered);
+    let bytes = await readFile(rendered);
+    let extension = path.extname(rendered).toLowerCase() || (element.output === "image" ? ".png" : ".mp4");
+    if (element.output === "image" && !element.transparent && extension !== ".jpg" && extension !== ".jpeg") {
+      bytes = await convertStillToJpeg(rendered, launch);
+      extension = ".jpg";
+    }
     if (bytes.byteLength > MAX_MEDIA_BYTES) throw new Error("Rendered media exceeds the 100 MB limit.");
-    const extension = path.extname(rendered).toLowerCase() || (element.output === "image" ? ".png" : ".mp4");
     return {
       bytes,
       fileName: `${outputName}${extension}`,
@@ -123,6 +128,51 @@ export async function runManimRender(options: {
   } finally {
     await rm(mediaDir, { recursive: true, force: true });
   }
+}
+
+const JPEG_CONVERTER = `
+import sys
+from PIL import Image
+source, destination = sys.argv[1], sys.argv[2]
+image = Image.open(source)
+if image.mode in ("RGBA", "LA") or (image.mode == "P" and "transparency" in image.info):
+    image = image.convert("RGBA")
+    background = Image.new("RGB", image.size, (255, 255, 255))
+    background.paste(image, mask=image.getchannel("A"))
+    image = background
+else:
+    image = image.convert("RGB")
+image.save(destination, "JPEG", quality=85, optimize=True)
+`;
+
+async function convertStillToJpeg(sourcePath: string, launch: ManimLaunch) {
+  const destination = sourcePath.replace(/\.[^.]+$/, ".jpg");
+  const python = pythonLaunchForManim(launch);
+  await new Promise<void>((resolve, reject) => {
+    const child = spawn(python.command, [...python.args, "-c", JPEG_CONVERTER, sourcePath, destination], {
+      cwd: python.cwd,
+      stdio: ["ignore", "ignore", "pipe"],
+      windowsHide: true,
+      env: manimProcessEnv()
+    });
+    let detail = "";
+    child.stderr?.setEncoding("utf8");
+    child.stderr?.on("data", (chunk: string) => {
+      detail = (detail + chunk).slice(-4_000);
+    });
+    child.on("error", (error) => {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+        reject(new Error("Could not convert the Manim still to JPEG because Python was not found next to Manim."));
+        return;
+      }
+      reject(error);
+    });
+    child.on("close", (code) => {
+      if (code === 0) resolve();
+      else reject(new Error(detail.trim() || "Could not convert the Manim still to JPEG. Pillow is required in the Manim environment."));
+    });
+  });
+  return readFile(destination);
 }
 
 async function execManim(invocation: ManimLaunch, hooks: ManimRenderHooks = {}): Promise<void> {

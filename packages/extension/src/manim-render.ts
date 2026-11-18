@@ -94,7 +94,7 @@ export function assembleManimInvocation(launch: ManimLaunch, renderArgs: string[
 }
 
 const SCENE_PATTERN = /^\s*class\s+([A-Za-z_][A-Za-z0-9_]*)\s*\([^)]*Scene[^)]*\)\s*:/gm;
-const MEDIA_EXTENSIONS = new Set([".png", ".mp4", ".webm", ".gif", ".mov"]);
+const MEDIA_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".mp4", ".webm", ".gif", ".mov", ".avif", ".jxl"]);
 
 export function discoverManimScenes(source: string): string[] {
   const names = new Set<string>();
@@ -146,33 +146,74 @@ export function manimDeckStem(deckPath: string): string {
   return path.basename(deckPath).replace(/\.slidepix\.json$/i, "");
 }
 
-/** Reserve one stable stem per element. An element reuses its own current stem; other reserved names get a numeric suffix. */
+/** One stem per shared render. The same scene and settings share a file across slides; a different render that sanitizes to the same stem gets a numeric suffix. */
 export function assignManimBasenames(
-  entries: { id: string; deckName: string; slideTitle: string; scene?: string; ownStem?: string }[],
+  entries: { id: string; deckName: string; scene?: string; ownStem?: string; shareKey?: string }[],
   usedStems: readonly string[]
 ): Map<string, string> {
-  const reserved = usedStems.filter((stem) => !entries.some((entry) => entry.ownStem === stem));
-  const planned = new Map<string, string>();
-  const ownersFirst = [...entries.filter((entry) => entry.ownStem), ...entries.filter((entry) => !entry.ownStem)];
-  for (const entry of ownersFirst) {
-    const name = manimOutputBasename(entry.deckName, entry.slideTitle, entry.scene, reserved);
-    planned.set(entry.id, name);
-    reserved.push(name);
+  const reserved = new Set(usedStems);
+  for (const entry of entries) {
+    if (entry.ownStem && entry.ownStem === manimOutputBasename(entry.deckName, entry.scene)) reserved.delete(entry.ownStem);
   }
   const names = new Map<string, string>();
-  for (const entry of entries) names.set(entry.id, planned.get(entry.id)!);
+  const shared = new Map<string, string>();
+  for (const entry of entries) {
+    const key = entry.shareKey ?? `${entry.deckName}\0${entry.scene ?? ""}`;
+    const existing = shared.get(key);
+    if (existing) {
+      names.set(entry.id, existing);
+      continue;
+    }
+    const name = manimOutputBasename(entry.deckName, entry.scene, [...reserved]);
+    shared.set(key, name);
+    names.set(entry.id, name);
+    reserved.add(name);
+  }
   return names;
 }
 
-/** Stable `deck-slide-scene` stem. A name already used by another element gets a numeric suffix. */
-export function manimOutputBasename(deckName: string, slideTitle: string, scene: string | undefined, taken: readonly string[] = []): string {
-  const parts = [deckName, slideTitle, scene ?? ""].map((part) => sanitizeManimFileStem(part)).filter(Boolean);
+/** Stable `deck-scene` stem. The slide title is not part of the name, so the same scene can be reused on another slide. */
+export function manimOutputBasename(deckName: string, scene: string | undefined, taken: readonly string[] = []): string {
+  const parts = [deckName, scene ?? ""].map((part) => sanitizeManimFileStem(part)).filter(Boolean);
   const preferred = parts.join("-").slice(0, 100) || "manim";
   if (!taken.includes(preferred)) return preferred;
   const room = preferred.slice(0, 96);
   let index = 2;
   while (taken.includes(`${room}-${index}`)) index += 1;
   return `${room}-${index}`;
+}
+
+/** Python from the Manim launch, used to convert a still after Manim writes PNG. */
+export function pythonLaunchForManim(launch: ManimLaunch): ManimLaunch {
+  const base = path.basename(launch.command).toLowerCase();
+  if (base === "manim" || base === "manim.exe") {
+    const pythonName = base.endsWith(".exe") ? "python.exe" : "python";
+    return { command: path.join(path.dirname(launch.command), pythonName), args: [], cwd: launch.cwd };
+  }
+  if (base === "uv" || base === "uv.exe") {
+    const args = [...launch.args];
+    let index = -1;
+    for (let cursor = 0; cursor < args.length; cursor += 1) {
+      if (args[cursor]?.toLowerCase() === "manim") index = cursor;
+    }
+    if (index >= 0) args[index] = "python";
+    else args.push("python");
+    return { command: launch.command, args, cwd: launch.cwd };
+  }
+  if (base.startsWith("python")) {
+    const args: string[] = [];
+    for (let index = 0; index < launch.args.length; index += 1) {
+      const arg = launch.args[index] ?? "";
+      if (arg === "-m" && launch.args[index + 1] === "manim") {
+        index += 1;
+        continue;
+      }
+      if (arg === "manim") continue;
+      args.push(arg);
+    }
+    return { command: launch.command, args, cwd: launch.cwd };
+  }
+  return { command: process.platform === "win32" ? "python" : "python3", args: [], cwd: launch.cwd };
 }
 
 export function formatManimLogChunk(chunk: string): string {

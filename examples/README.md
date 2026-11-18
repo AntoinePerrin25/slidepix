@@ -5,7 +5,7 @@
 `manim/fourier.slidepix.json` is the Manim demo: a short French talk on the
 Fourier transform. Scenes live in `manim/fourier.manim.py`:
 
-- `HarmonicsStill` — three odd harmonics and their sum (PNG)
+- `HarmonicsStill` — three odd harmonics and their sum (JPEG)
 - `BuildSquare` — partial sums toward a square wave (MP4)
 - `TimeToFrequency` — a pure sine and the peak that tracks its frequency (MP4)
 - `RectPulse` — a pulse of height A on `[0, X]`, and the sinc that widens as X shrinks (MP4)

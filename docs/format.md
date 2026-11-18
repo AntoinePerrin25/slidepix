@@ -106,10 +106,14 @@ matching `--resolution` and `--transparent` to Manim on render), `quality`
 (`low`, `medium`, `high`, or `production`), optional `transparent` background,
 optional embedded `outputMedia` produced by the extension host, and video
 `playback` settings when `output` is `video`. The `.py` source stays linked in
-the workspace. Rendered PNG/MP4/WebM bytes are embedded in `talk.assets/`
-under a persistent name `deck-slide-scene` (the deck file stem, the slide
-title, and the scene class). A name already used by another element gets a
-numeric suffix. Re-rendering overwrites that file.
+the workspace. Rendered JPEG/MP4/WebM bytes are embedded in `talk.assets/`
+under a persistent name `deck-scene` (the deck file stem and the scene class).
+The slide title is not part of the name. Elements that share the same script,
+scene, output, orientation, quality, and transparency share that file, including
+a copy on the next slide, so morph reuses one image. A different render whose
+name collides gets a numeric suffix. Re-rendering overwrites that file. Manim
+writes a still as PNG; the host converts it to JPEG afterwards. A transparent
+still stays PNG, because JPEG has no alpha channel.
 
 Text paints past its box. The slide still clips at its own edges. Tab characters
 in Markdown stay as tab stops. `style.lineHeight` is the spacing within a

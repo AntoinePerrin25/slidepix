@@ -104,9 +104,13 @@ covers the Codex table replacement and JSON merges that keep other servers.
 
 These own Manim argv construction (including `--transparent` and
 `--progress_bar`), scene discovery, subprocess rendering, persistent
-`deck-slide-scene` output names, and deck updates. **Render all** runs one
-Manim process per scene, up to one process per CPU core, each limited to one
-math thread. Progress ticks update the bars and are not copied into the log,
+`deck-scene` output names, and deck updates. The slide title is not part of
+the file name. Elements with the same script, scene, and render settings share
+one file across slides, and one render updates every copy. **Render all** runs
+one Manim process per distinct render, up to one process per CPU core, each
+limited to one math thread. Stills are written by Manim as PNG and converted
+to JPEG with Pillow from that Manim environment; a transparent still stays PNG.
+Progress ticks update the bars and are not copied into the log,
 so a full pipe cannot leave the other processes idle. Successful embeds are
 applied with one `WorkspaceEdit`. Starter scripts are written with `workspace.fs` and removed if
 the deck edit does not apply. `manim-setup.ts` locates `.venv/bin/manim` or

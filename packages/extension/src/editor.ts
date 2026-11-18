@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import * as path from "node:path";
 import * as vscode from "vscode";
-import { parseDeckText, serializeDeck, type Deck, type HostToWebviewMessage, type WebviewToHostMessage } from "@slidepix/core";
+import { manimSettingsFingerprint, parseDeckText, serializeDeck, type Deck, type HostToWebviewMessage, type WebviewToHostMessage } from "@slidepix/core";
 import { deckAssetDirectory, resolveMediaPath } from "@slidepix/core/assets";
 
 import { exportPptx } from "./pptx-export-command";
@@ -724,22 +724,25 @@ export class SlidePixEditorProvider implements vscode.CustomTextEditorProvider {
         elementId,
         located,
         label: located.element.scene || located.element.script || elementId,
+        shareKey: manimSettingsFingerprint(located.element),
         ownStem: ownSource ? path.basename(ownSource).replace(/\.[^.]+$/, "") : undefined
       }];
     });
     if (!jobs.length) return { results: [], cancelled: false, error: "Manim element not found." };
     const deckName = manimDeckStem(document.uri.fsPath);
+    const sharedKeys = new Set(jobs.map((job) => job.shareKey));
     const basenames = assignManimBasenames(jobs.map((job) => ({
       id: job.elementId,
       deckName,
-      slideTitle: started.deck.slides[job.located.slideIndex]?.title ?? "",
       scene: job.located.element.scene,
-      ownStem: job.ownStem
-    })), takenManimOutputStems(started.deck, ""));
+      ownStem: job.ownStem,
+      shareKey: job.shareKey
+    })), takenManimOutputStems(started.deck, "", sharedKeys));
+    const representatives = jobs.filter((job, index) => jobs.findIndex((other) => other.shareKey === job.shareKey) === index);
     const results: { elementId: string; settingsFingerprint: string }[] = [];
     const failures: string[] = [];
     let cancelled = false;
-    const percents = jobs.map(() => 0);
+    const percents = representatives.map(() => 0);
     let reportedOverall = 0;
     try {
     await vscode.window.withProgress({
@@ -748,17 +751,17 @@ export class SlidePixEditorProvider implements vscode.CustomTextEditorProvider {
       cancellable: true
     }, async (progress, token) => {
       const signal = abortFrom(token);
-      const cores = manimRenderConcurrency(jobs.length);
-      progress.report({ message: jobs.length > 1 ? `${jobs.length} scenes on ${cores} cores` : jobs[0]!.label });
-      const settled = await mapWithConcurrency(jobs, manimRenderConcurrency(jobs.length), async (job, index) => {
+      const cores = manimRenderConcurrency(representatives.length);
+      progress.report({ message: representatives.length > 1 ? `${representatives.length} scenes on ${cores} cores` : representatives[0]!.label });
+      const settled = await mapWithConcurrency(representatives, cores, async (job, index) => {
         if (signal.aborted) return { cancelled: true as const };
         const outputBasename = basenames.get(job.elementId);
+        const group = jobs.filter((item) => item.shareKey === job.shareKey);
         log.append(`\n--- ${job.label} ---\n`);
         try {
           const rendered = await runManimRender({
             deckPath: document.uri.fsPath,
             element: job.located.element,
-            slideTitle: started.deck.slides[job.located.slideIndex]?.title ?? "",
             launch,
             allowedLinkedRoots: linkedRoots(document),
             outputBasename,
@@ -770,17 +773,19 @@ export class SlidePixEditorProvider implements vscode.CustomTextEditorProvider {
               },
               onProgress: (percent) => {
                 percents[index] = percent;
-                const overall = Math.round(percents.reduce((sum, value) => sum + value, 0) / jobs.length);
+                const overall = Math.round(percents.reduce((sum, value) => sum + value, 0) / representatives.length);
                 const delta = overall - reportedOverall;
                 if (delta > 0) progress.report({ increment: delta, message: `${job.label} ${percent}%` });
                 reportedOverall = Math.max(reportedOverall, overall);
-                onSceneProgress?.({ elementId: job.elementId, index, total: jobs.length, percent, overall, label: job.label });
+                for (const member of group) {
+                  onSceneProgress?.({ elementId: member.elementId, index, total: representatives.length, percent, overall, label: member.label });
+                }
               }
             }
           });
           const embeddedReference = await storeNamedAsset(document.uri.fsPath, rendered.bytes, rendered.fileName);
           log.append(`[${job.label}] Embedded ${embeddedReference}\n`);
-          return { ok: true as const, elementId: job.elementId, embeddedReference, settingsFingerprint: rendered.settingsFingerprint };
+          return { ok: true as const, elementId: job.elementId, shareKey: job.shareKey, embeddedReference, settingsFingerprint: rendered.settingsFingerprint };
         } catch (error) {
           if (error instanceof ManimCancelled || signal.aborted) return { cancelled: true as const };
           const message = error instanceof Error ? error.message : "Manim render failed.";
@@ -798,12 +803,20 @@ export class SlidePixEditorProvider implements vscode.CustomTextEditorProvider {
       const latestRevision = revisionForText(latestText);
       const latest = parseDeckText(latestText);
       if (!latest.ok) throw new Error(latest.message);
-      for (const item of succeeded) applyManimRender(latest.deck, item.elementId, item.embeddedReference);
+      const applied: { elementId: string; settingsFingerprint: string }[] = [];
+      for (const item of succeeded) {
+        const ids = manimElementIdsWithShareKey(latest.deck, item.shareKey);
+        const ordered = ids.includes(item.elementId) ? [item.elementId, ...ids.filter((id) => id !== item.elementId)] : ids;
+        for (const elementId of ordered) {
+          applyManimRender(latest.deck, elementId, item.embeddedReference);
+          applied.push({ elementId, settingsFingerprint: item.settingsFingerprint });
+        }
+      }
       if (!await replaceDocument(document, serializeDeck(latest.deck), latestRevision)) {
         throw new Error("The deck changed while Manim was rendering. Retry after reviewing the latest deck.");
       }
       this.recordHistory(document.uri, latestText, document.getText());
-      for (const item of succeeded) results.push({ elementId: item.elementId, settingsFingerprint: item.settingsFingerprint });
+      results.push(...applied);
     });
     } catch (error) {
       if (error instanceof ManimCancelled) cancelled = true;
@@ -859,6 +872,16 @@ export class SlidePixEditorProvider implements vscode.CustomTextEditorProvider {
     const media = webview.asWebviewUri(vscode.Uri.joinPath(this.context.extensionUri, "media"));
     return `<!doctype html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${webview.cspSource} data: blob:; media-src ${webview.cspSource} blob:; font-src ${webview.cspSource}; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}'; connect-src ${webview.cspSource} data: blob:;"><link rel="stylesheet" href="${style}"></head><body data-media="${media}"><script nonce="${nonce}" type="module" src="${script}"></script></body></html>`;
   }
+}
+
+function manimElementIdsWithShareKey(deck: Deck, shareKey: string): string[] {
+  const ids: string[] = [];
+  for (const slide of deck.slides) {
+    for (const element of slide.elements) {
+      if (element.type === "manim" && manimSettingsFingerprint(element) === shareKey) ids.push(element.id);
+    }
+  }
+  return ids;
 }
 
 function safeExtension(name: string, mime: string): string {

@@ -10,6 +10,7 @@ import {
   assignManimBasenames,
   manimDeckStem,
   manimOutputBasename,
+  pythonLaunchForManim,
   manimProcessEnv,
   manimRenderConcurrency,
   mapWithConcurrency,
@@ -121,24 +122,45 @@ class Outro(MovingCameraScene):
     expect(findVenvManimNear("/repo/examples", windows)).toBe(path.join("/repo", ".venv", "Scripts", "manim.exe"));
   });
 
-  it("names output after the scene, then the slide", () => {
+  it("names output after the deck and scene, shared across slides", () => {
     expect(manimDeckStem("/talks/fourier.slidepix.json")).toBe("fourier");
-    expect(manimOutputBasename("fourier", "Harmoniques", "HarmonicsStill")).toBe("fourier-Harmoniques-HarmonicsStill");
-    expect(manimOutputBasename("fourier", "Créneau", undefined)).toBe("fourier-Creneau");
-    expect(manimOutputBasename("fourier", "Harmoniques", "HarmonicsStill", ["fourier-Harmoniques-HarmonicsStill"])).toBe("fourier-Harmoniques-HarmonicsStill-2");
+    expect(manimOutputBasename("fourier", "HarmonicsStill")).toBe("fourier-HarmonicsStill");
+    expect(manimOutputBasename("fourier", undefined)).toBe("fourier");
+    expect(manimOutputBasename("fourier", "HarmonicsStill", ["fourier-HarmonicsStill"])).toBe("fourier-HarmonicsStill-2");
     expect(assignManimBasenames([
-      { id: "a", deckName: "fourier", slideTitle: "Harmoniques", scene: "HarmonicsStill", ownStem: "fourier-Harmoniques-HarmonicsStill" },
-      { id: "b", deckName: "fourier", slideTitle: "Créneau", scene: "RectPulse" }
+      { id: "a", deckName: "fourier", scene: "HarmonicsStill", ownStem: "fourier-Harmoniques-HarmonicsStill" },
+      { id: "b", deckName: "fourier", scene: "RectPulse" }
     ], ["fourier-Harmoniques-HarmonicsStill"])).toEqual(new Map([
-      ["a", "fourier-Harmoniques-HarmonicsStill"],
-      ["b", "fourier-Creneau-RectPulse"]
+      ["a", "fourier-HarmonicsStill"],
+      ["b", "fourier-RectPulse"]
     ]));
     const shared = assignManimBasenames([
-      { id: "new", deckName: "fourier", slideTitle: "Créneau", scene: "RectPulse" },
-      { id: "owner", deckName: "fourier", slideTitle: "Créneau", scene: "RectPulse", ownStem: "fourier-Creneau-RectPulse" }
-    ], ["fourier-Creneau-RectPulse"]);
-    expect(shared.get("owner")).toBe("fourier-Creneau-RectPulse");
-    expect(shared.get("new")).toBe("fourier-Creneau-RectPulse-2");
+      { id: "copy", deckName: "morph", scene: "HarmonicsStill", shareKey: "same", ownStem: "morph-Harmoniques-HarmonicsStill" },
+      { id: "owner", deckName: "morph", scene: "HarmonicsStill", shareKey: "same", ownStem: "morph-L-idee-HarmonicsStill" }
+    ], ["morph-L-idee-HarmonicsStill", "morph-Harmoniques-HarmonicsStill"]);
+    expect(shared.get("owner")).toBe("morph-HarmonicsStill");
+    expect(shared.get("copy")).toBe("morph-HarmonicsStill");
+    const distinct = assignManimBasenames([
+      { id: "low", deckName: "fourier", scene: "HarmonicsStill", shareKey: "low" },
+      { id: "high", deckName: "fourier", scene: "HarmonicsStill", shareKey: "high" }
+    ], []);
+    expect(distinct.get("low")).toBe("fourier-HarmonicsStill");
+    expect(distinct.get("high")).toBe("fourier-HarmonicsStill-2");
+  });
+
+  it("finds Python beside the Manim launch", () => {
+    expect(pythonLaunchForManim({ command: "/repo/.venv/bin/manim", args: [] })).toEqual({
+      command: "/repo/.venv/bin/python",
+      args: []
+    });
+    expect(pythonLaunchForManim({ command: "uv", args: ["run", "manim"] })).toEqual({
+      command: "uv",
+      args: ["run", "python"]
+    });
+    expect(pythonLaunchForManim({ command: "python", args: ["-m", "manim"] })).toEqual({
+      command: "python",
+      args: []
+    });
   });
 
   it("drops progress ticks from the log and keeps one math thread per process", () => {
