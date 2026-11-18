@@ -182,7 +182,7 @@ function addTextElement(
   patch: PptxSlidePatch,
   context: BuildContext
 ): string[] {
-  const blocks = parsePresentationMarkdown(expandCitationMarkers(element.markdown, context.citations));
+  const blocks = parsePresentationMarkdown(expandCitationMarkers(element.markdown, context.citations, context.deck.bibliography.citationFormat, context.deck.bibliography.indent));
   const tables = blocks.filter((block): block is Extract<PresentationMarkdownBlock, { type: "table" }> => block.type === "table");
   const textBlocks = blocks.filter((block): block is Exclude<PresentationMarkdownBlock, { type: "table" }> => block.type !== "table");
   const names: string[] = [];
@@ -282,7 +282,7 @@ function inlineRun(
   return { text: run.text, options: {
     bold: run.bold || headingLevel !== undefined || isBold(element.style.fontWeight), italic: run.italic,
     strike: run.strike ? "sngStrike" : undefined, fontFace: run.code ? "Consolas" : fontFace(element.style.fontFamily),
-    fontSize: points(element.style.fontSize * scale), hyperlink: run.href ? { url: run.href } : undefined
+    fontSize: points(element.style.fontSize * scale * (run.superscript ? 0.65 : run.small ? 0.75 : 1)), superscript: run.superscript, hyperlink: run.href ? { url: run.href } : undefined
   } };
 }
 
@@ -320,7 +320,7 @@ function addTable(
   const border = borderPaint.visible && element.style.borderWidth > 0 ? { type: "solid" as const, color: borderPaint.color, pt: points(element.style.borderWidth) } : { type: "none" as const };
   const rows: PptxGenJS.TableRow[] = Array.from({ length: element.rows }, (_, row) => Array.from({ length: element.columns }, (_, column) => {
     const fill = pptxColor(row === 0 && element.headerRow ? element.style.headerFill : element.style.cellFill, element.opacity, context.warnings, sourceSlide.id, element.id);
-    const blocks = parsePresentationMarkdown(expandCitationMarkers(element.cells[row]?.[column] ?? "", context.citations));
+    const blocks = parsePresentationMarkdown(expandCitationMarkers(element.cells[row]?.[column] ?? "", context.citations, context.deck.bibliography.citationFormat, context.deck.bibliography.indent));
     const containsMath = blocks.some((block) => block.type === "math" || ((block.type === "paragraph" || block.type === "heading" || block.type === "list-item") && block.runs.some((run) => run.kind === "math")));
     if (containsMath) addPptxWarning(context.warnings, "math-linearized", "Math inside a table cell is exported as editable linear text because PowerPoint table cells cannot contain OfficeMath objects.", sourceSlide.id, element.id);
     return { text: blocks.map(blockPlainText).join("\n"), options: {

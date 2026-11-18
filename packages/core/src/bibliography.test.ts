@@ -30,6 +30,8 @@ describe("bibliography", () => {
       "    Smith, John R., and Johnson, Mary L. (2024). Quantum Computing Advances in Machine Learning. https://arxiv.org/abs/2401.12345."
     );
     expect(inlineCitation(entry!)).toBe("(Smith and Johnson 2024)");
+    expect(formatCitation(entry!, "@author", 0)).toContain("Smith, John R., and Johnson, Mary L.");
+    expect(expandCitationMarkers("[@smith2024quantum]", [entry!], "#sup{@number} (@author @year)", 0)).toBe("#sup{1} (Smith, John R., and Johnson, Mary L. 2024)");
   });
 
   it("keeps citation entries added on either side", () => {

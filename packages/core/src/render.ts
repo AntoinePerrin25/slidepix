@@ -59,7 +59,56 @@ markdown.renderer.rules.math_block = (tokens, index) => `${katex.renderToString(
 markdown.renderer.rules.softbreak = () => "<br>";
 markdown.renderer.rules.hardbreak = () => "<br>";
 
+markdown.inline.ruler.before("emphasis", "cite_sup", citationWrap("sup"));
+markdown.inline.ruler.before("emphasis", "cite_small", citationWrap("small"));
+markdown.renderer.rules.cite_sup_open = () => '<sup class="slidepix-citation-sup">';
+markdown.renderer.rules.cite_sup_close = () => "</sup>";
+markdown.renderer.rules.cite_small_open = () => '<span class="slidepix-citation-small">';
+markdown.renderer.rules.cite_small_close = () => "</span>";
+
 markdown.validateLink = (url) => /^(https?:|mailto:|#)/i.test(url);
+
+function citationWrap(name: "sup" | "small") {
+  const marker = `#${name}{`;
+  return (state: CitationInlineState, silent: boolean) => {
+    if (!state.src.startsWith(marker, state.pos)) return false;
+    const open = state.pos + marker.length - 1;
+    const close = matchingBrace(state.src, open);
+    if (close < 0) return false;
+    if (!silent) {
+      const token = state.push(`cite_${name}_open`, name === "sup" ? "sup" : "span", 1);
+      token.markup = marker;
+      const inner: unknown[] = [];
+      state.md.inline.parse(state.src.slice(open + 1, close), state.md, state.env, inner);
+      state.tokens.push(...inner);
+      state.push(`cite_${name}_close`, name === "sup" ? "sup" : "span", -1);
+    }
+    state.pos = close + 1;
+    return true;
+  };
+}
+
+type CitationInlineState = {
+  src: string;
+  pos: number;
+  env: unknown;
+  tokens: unknown[];
+  md: { inline: { parse(source: string, md: unknown, env: unknown, out: unknown[]): void } };
+  push(type: string, tag: string, nesting: number): { markup?: string };
+};
+
+function matchingBrace(source: string, open: number): number {
+  if (source[open] !== "{") return -1;
+  let depth = 0;
+  for (let index = open; index < source.length; index += 1) {
+    if (source[index] === "{") depth += 1;
+    else if (source[index] === "}") {
+      depth -= 1;
+      if (!depth) return index;
+    }
+  }
+  return -1;
+}
 
 export type AssetResolver = (reference: string, storage: MediaStorage) => string;
 
@@ -69,6 +118,8 @@ export type PresentationTextRun = {
   bold?: boolean;
   italic?: boolean;
   strike?: boolean;
+  superscript?: boolean;
+  small?: boolean;
   code?: boolean;
   href?: string;
 } | {
@@ -211,10 +262,14 @@ export function parsePresentationMarkdown(source: string): PresentationMarkdownB
 
 function parseInlineRuns(tokens: Array<{ type: string; content: string; attrGet(name: string): string | null }>): PresentationTextRun[] {
   const runs: PresentationTextRun[] = [];
-  const style = { bold: false, italic: false, strike: false, href: undefined as string | undefined };
+  const style = { bold: false, italic: false, strike: false, superscript: 0, small: 0, href: undefined as string | undefined };
   for (const token of tokens) {
     if (token.type === "strong_open") style.bold = true;
     else if (token.type === "strong_close") style.bold = false;
+    else if (token.type === "cite_sup_open") { style.superscript += 1; style.small += 1; }
+    else if (token.type === "cite_sup_close") { style.superscript = Math.max(0, style.superscript - 1); style.small = Math.max(0, style.small - 1); }
+    else if (token.type === "cite_small_open") style.small += 1;
+    else if (token.type === "cite_small_close") style.small = Math.max(0, style.small - 1);
     else if (token.type === "em_open") style.italic = true;
     else if (token.type === "em_close") style.italic = false;
     else if (token.type === "s_open") style.strike = true;
@@ -233,7 +288,7 @@ function parseInlineRuns(tokens: Array<{ type: string; content: string; attrGet(
 function pushTextRun(
   runs: PresentationTextRun[],
   text: string,
-  style: { bold?: boolean; italic?: boolean; strike?: boolean; code?: boolean; href?: string }
+  style: { bold?: boolean; italic?: boolean; strike?: boolean; superscript?: number; small?: number; code?: boolean; href?: string }
 ): void {
   if (!text) return;
   const next: Extract<PresentationTextRun, { kind: "text" }> = {
@@ -242,6 +297,8 @@ function pushTextRun(
     ...(style.bold ? { bold: true } : {}),
     ...(style.italic ? { italic: true } : {}),
     ...(style.strike ? { strike: true } : {}),
+    ...(style.superscript ? { superscript: true } : {}),
+    ...(style.small ? { small: true } : {}),
     ...(style.code ? { code: true } : {}),
     ...(style.href ? { href: style.href } : {})
   };
@@ -251,7 +308,7 @@ function pushTextRun(
 }
 
 function sameRunStyle(left: Extract<PresentationTextRun, { kind: "text" }>, right: Extract<PresentationTextRun, { kind: "text" }>): boolean {
-  return left.bold === right.bold && left.italic === right.italic && left.strike === right.strike && left.code === right.code && left.href === right.href;
+  return left.bold === right.bold && left.italic === right.italic && left.strike === right.strike && left.superscript === right.superscript && left.small === right.small && left.code === right.code && left.href === right.href;
 }
 
 function highlightCodeRuns(code: string, requestedLanguage: string): PresentationCodeRun[] {
@@ -311,7 +368,7 @@ export function renderSlideMarkup(
   const elements = [...slide.elements]
     .filter((element) => !element.hidden)
     .sort((a, b) => a.z - b.z)
-    .map((element) => renderElement(element, slide.elements, resolveAsset, citations))
+    .map((element) => renderElement(element, slide.elements, resolveAsset, citations, deck.bibliography.citationFormat, deck.bibliography.indent))
     .join("");
   const background = slide.background ?? deck.layouts[slide.layout ?? ""]?.background ?? deck.theme.background;
   const backgroundImage = slide.backgroundImage
@@ -373,14 +430,14 @@ function chromeBox(item: { x: number; y: number; width: number; height: number }
   return `left:${item.x}px;top:${item.y}px;width:${item.width}px;height:${item.height}px;color:${css(color)};font-size:${fontSize}px;text-align:${align}`;
 }
 
-function renderElement(element: SlideElement, elements: readonly SlideElement[], resolveAsset: AssetResolver, citations: readonly Citation[]): string {
+function renderElement(element: SlideElement, elements: readonly SlideElement[], resolveAsset: AssetResolver, citations: readonly Citation[], citationFormat: string, indent: number): string {
   const base = `left:${element.x}px;top:${element.y}px;width:${element.width}px;height:${element.height}px;transform:rotate(${element.rotation}deg);opacity:${element.opacity};z-index:${element.z}`;
   const common = `class="slidepix-element slidepix-${element.type}" data-element-id="${attr(element.id)}" data-morph-key="${attr(morphMatchToken(element, elements))}" style="${attr(base)}"`;
   switch (element.type) {
     case "text": {
       const align = element.style.verticalAlign === "middle" ? "center" : element.style.verticalAlign === "bottom" ? "flex-end" : "flex-start";
       const style = `font-family:${css(element.style.fontFamily)};font-size:${element.style.fontSize}px;font-weight:${css(String(element.style.fontWeight))};color:${css(element.style.color)};text-align:${element.style.textAlign};line-height:${element.style.lineHeight};padding:${element.style.padding}px;justify-content:${align}`;
-      return `<div ${common}><div class="slidepix-text-content" style="${attr(style)}">${renderMarkdown(expandCitationMarkers(element.markdown, citations))}</div></div>`;
+      return `<div ${common}><div class="slidepix-text-content" style="${attr(style)}">${renderMarkdown(expandCitationMarkers(element.markdown, citations, citationFormat, indent))}</div></div>`;
     }
     case "image":
       return `<div ${common}>${imageMarkup(element, resolveAsset)}</div>`;
@@ -408,7 +465,7 @@ function renderElement(element: SlideElement, elements: readonly SlideElement[],
         const cells = Array.from({ length: element.columns }, (_, column) => {
           const source = element.cells[row]?.[column] ?? "";
           const textAlign = tag === "th" ? "center" : element.style.textAlign;
-          return `<${tag} style="${attr(`background:${css(fill)};border:${element.style.borderWidth}px solid ${css(element.style.borderColor)};padding:${element.style.padding}px;text-align:${textAlign}`)}"><div class="slidepix-table-cell" style="${attr(`justify-content:${vertical}`)}">${renderMarkdown(expandCitationMarkers(source, citations))}</div></${tag}>`;
+          return `<${tag} style="${attr(`background:${css(fill)};border:${element.style.borderWidth}px solid ${css(element.style.borderColor)};padding:${element.style.padding}px;text-align:${textAlign}`)}"><div class="slidepix-table-cell" style="${attr(`justify-content:${vertical}`)}">${renderMarkdown(expandCitationMarkers(source, citations, citationFormat, indent))}</div></${tag}>`;
         }).join("");
         return `<tr>${cells}</tr>`;
       }).join("");
@@ -466,6 +523,7 @@ main{${contact ? `display:grid;grid-template-columns:repeat(${columns},${deck.si
 .slidepix-video video,.slidepix-manim video{object-fit:contain}.slidepix-manim-placeholder{position:absolute;inset:0;box-sizing:border-box;display:flex;align-items:center;justify-content:center;border:2px solid #64748b;background:#f1f5f9;color:#334155;text-align:center;padding:16px}.slidepix-manim-placeholder-label{display:block;max-width:100%;font-size:clamp(16px,2.8vmin,30px);font-weight:600;line-height:1.25;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;word-break:break-word}
 .slidepix-shape-content{inset:0}
 .slidepix-page-number,.slidepix-header,.slidepix-footer,.slidepix-bibliography{position:absolute;z-index:2147483646;display:flex;flex-direction:column;justify-content:center;white-space:pre-wrap;overflow:hidden;pointer-events:none}
+.slidepix-citation-sup{font-size:.65em;line-height:0;vertical-align:super}.slidepix-citation-small{font-size:.75em}
 .slidepix-bibliography{justify-content:flex-start;font-size:28px;line-height:1.35}
 .slidepix-bibliography-title{font-size:48px;font-weight:700;line-height:1.1;margin-bottom:24px}
 .slidepix-progress{position:absolute;z-index:2147483646;background:#e2e8f0;pointer-events:none;overflow:hidden}

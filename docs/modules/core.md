@@ -17,7 +17,7 @@ cross-process message types, and shared DOM/HTML rendering semantics.
 | `createDeck(title?)` | Creates one valid 1920×1080 light-theme deck with a centered dark title using a portable system-font stack. |
 | `duplicateSlide(slide)` | Deep-copies the slide, creates new slide/element IDs, preserves element names and morph keys, and clears the timeline. |
 | `duplicateElementOntoFollowingSlides(deck, slideId, elementId)` | Copies one element onto every later slide with a new id, keeping its name and morph key. |
-| `parseBibliography`, `formatCitation`, `expandCitationMarkers`, `mergeBibliographySources` | BibTeX parsing, citation formatting, and entry merge in `src/bibliography.ts`. `#indent` inserts the configured spaces. `[@key]` becomes a short author-date. Entries added on either side are kept; the same key changed on both sides is a conflict. |
+| `parseBibliography`, `formatCitation`, `expandCitationMarkers`, `mergeBibliographySources` | BibTeX parsing, citation formatting, and entry merge in `src/bibliography.ts`. `#indent` inserts the configured spaces. `[@key]` uses `citationFormat`; `@shortauthor` is the family name and `@author` is the name as written. `#sup{...}` and `#small{...}` mark a small superscript or smaller text. Entries added on either side are kept; the same key changed on both sides is a conflict. |
 | `Deck`, `Slide`, element and motion types | Types inferred from their schemas; do not maintain parallel handwritten interfaces. |
 | `manimElementSchema`, `manimSettingsFingerprint`, `manimRenderResolution`, `manimElementAspectRatio`, `MANIM_STARTER_SCRIPT` | Manim slide element validation, locked 16:9 / 9:16 aspect helpers, render resolution table, and settings fingerprint in `src/manim.ts`. |
 
@@ -101,9 +101,9 @@ markup is replaced by the core's current direct KaTeX renderer so the editor's
 bundled stylesheet and generated HTML always use the same version.
 Header, footer, page number, and progress bar share one chrome renderer.
 A page number can be turned off for the deck or for one slide. `{n}` and
-`{total}` are the only format tokens. A bibliography slide and `[@key]`
-markers use the reference text passed as `bibliographySource`; the core package
-does not read that file. Tables render cell Markdown through the
+`{total}` are the only format tokens. A bibliography slide uses `bibliography.format`. `[@key]` markers use
+`bibliography.citationFormat`. Both use the reference text passed as
+`bibliographySource`; the core package does not read that file. Tables render cell Markdown through the
 same sanitizer and center header cells independently of body alignment. Image
 edge fade is a geometry-derived blurred rounded-rectangle SVG mask shared with
 the editor, so it follows corner radius rather than producing square corners.

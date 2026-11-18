@@ -1,9 +1,12 @@
 export const CHICAGO_CITATION_FORMAT = "#indent@author (@year). @title. @url.";
+export const CHICAGO_INLINE_FORMAT = "(@shortauthor @year)";
 
 export const CITATION_CHEAT_SHEET = [
   "Write [@citation-key] in any slide text. It becomes a short author-date, such as (Smith and Johnson 2024).",
   "Tag one slide as the bibliography. It lists every entry from the reference file, using the format below.",
-  "Tokens: @author @year @date @title @url @doi @journal @booktitle @publisher @eprint @key.",
+  "Tokens: @author @shortauthor @number @year @date @title @url @doi @journal @booktitle @publisher @eprint @key.",
+  "@author keeps the names written in the file. @shortauthor keeps the family name only, so Smith, John R. and Johnson, Mary L. becomes Smith and Johnson.",
+  "@number is the entry position. #sup{...} draws that part as a small superscript, and #small{...} draws it smaller.",
   "#indent inserts the indent setting. 4 means four spaces.",
   "Example: - @author (@date) : @title. @url.",
   "Chicago author-date is the default: #indent@author (@year). @title. @url."
@@ -125,13 +128,15 @@ export function parseBibliography(source: string): Citation[] {
 }
 
 export function formatBibliography(entries: readonly Citation[], template: string, indent: number): string {
-  return entries.map((entry) => formatCitation(entry, template, indent)).join("\n");
+  return entries.map((entry, index) => formatCitation(entry, template, indent, { number: index + 1 })).join("\n");
 }
 
-export function formatCitation(entry: Citation, template: string, indent: number): string {
+export function formatCitation(entry: Citation, template: string, indent: number, options?: { number?: number; markup?: boolean }): string {
   const spaces = " ".repeat(clampIndent(indent));
   const values: Record<string, string> = {
     author: formatAuthor(citationField(entry, "author"), "bibliography"),
+    shortauthor: formatAuthor(citationField(entry, "author"), "inline"),
+    number: options?.number ? String(options.number) : "",
     year: yearOf(entry),
     date: citationField(entry, "date") || yearOf(entry),
     title: citationField(entry, "title"),
@@ -151,21 +156,31 @@ export function formatCitation(entry: Citation, template: string, indent: number
   text = text.replaceAll(indentMark, spaces);
   text = text.replace(/[ \t]+\./g, ".");
   text = text.replace(/\.{2,}/g, (dots, offset, source) => (source[offset - 1] === ":" ? dots : "."));
-  return text.replace(/[ \t]+$/gm, "").trimEnd();
+  return normalizeCitationMarkup(text.replace(/[ \t]+$/gm, "").trimEnd(), options?.markup === true);
 }
 
-export function expandCitationMarkers(source: string, entries: readonly Citation[]): string {
+export function expandCitationMarkers(source: string, entries: readonly Citation[], template = CHICAGO_INLINE_FORMAT, indent = 0): string {
   return source.replace(/\[@([A-Za-z0-9_.:-]+)\]/g, (match, key: string) => {
-    const entry = entries.find((item) => item.key === key);
-    return entry ? inlineCitation(entry) : match;
+    const index = entries.findIndex((item) => item.key === key);
+    const entry = entries[index];
+    return entry ? formatCitation(entry, template, indent, { number: index + 1, markup: true }) : match;
   });
 }
 
 export function inlineCitation(entry: Citation): string {
-  const author = formatAuthor(citationField(entry, "author"), "inline");
-  const year = yearOf(entry);
-  const body = [author, year].filter(Boolean).join(" ");
-  return body ? `(${body})` : `(@${entry.key})`;
+  return formatCitation(entry, CHICAGO_INLINE_FORMAT, 0, { number: 1 });
+}
+
+function normalizeCitationMarkup(source: string, markup: boolean): string {
+  let current = source;
+  for (;;) {
+    const next = current.replace(/#(?:sup|small)\{([^{}]*)\}/g, (_match, inner: string) => {
+      if (!inner.trim()) return "";
+      return markup ? _match : inner;
+    });
+    if (next === current) return current;
+    current = next;
+  }
 }
 
 export function citationField(entry: Citation, name: string): string {

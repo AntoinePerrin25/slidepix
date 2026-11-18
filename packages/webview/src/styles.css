@@ -212,6 +212,8 @@ button:disabled { opacity: .45; cursor: default; }
 .inline-text-editor { position: absolute; inset: 0; width: 100%; height: 100%; overflow: auto; resize: none; outline: 2px solid var(--vscode-focusBorder); outline-offset: 2px; border: 0; border-radius: 0; background: transparent; white-space: pre-wrap; tab-size: 4; }
 .inline-text-editor:focus { box-shadow: 0 0 0 1px color-mix(in srgb, var(--vscode-focusBorder) 50%, transparent); }
 .slidepix-text-content { width: 100%; height: 100%; display: flex; flex-direction: column; overflow: visible; white-space: pre-wrap; tab-size: 4; }
+.slidepix-citation-sup { font-size: .65em; line-height: 0; vertical-align: super; }
+.slidepix-citation-small { font-size: .75em; }
 .slidepix-text-content.valign-middle { justify-content: center; }
 .slidepix-text-content.valign-bottom { justify-content: flex-end; }
 .slidepix-text-content > *:first-child { margin-top: 0; }
@@ -273,7 +275,7 @@ button:disabled { opacity: .45; cursor: default; }
 .slide-bibliography-title { font-size: 48px; font-weight: 700; line-height: 1.1; margin-bottom: 24px; }
 .slide-progress { position: absolute; z-index: 2147483646; background: #e2e8f0; pointer-events: none; overflow: hidden; }
 .slide-progress-fill { height: 100%; }
-.cheat-sheet { margin: 8px 0 0; padding: 10px 12px; border-radius: 8px; background: var(--panel-muted, #f1f5f9); color: inherit; font-size: 12px; line-height: 1.45; }
+.cheat-sheet { margin: 8px 0 0; padding: 10px 12px; border: 1px solid var(--vscode-panel-border); border-radius: 8px; background: color-mix(in srgb, var(--vscode-foreground) 8%, var(--vscode-sideBar-background)); color: var(--vscode-foreground); font-size: 12px; line-height: 1.45; }
 
 .notes { min-height: 0; display: flex; flex-direction: column; border-top: 1px solid var(--vscode-panel-border); background: var(--vscode-editor-background); }
 .notes-header { height: 35px; flex: none; display: flex; align-items: center; justify-content: space-between; padding: 4px 10px; font-size: 11px; }

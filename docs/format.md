@@ -83,9 +83,12 @@ invalid inputs fall back to ordinary Git conflict markers.
   stay off until enabled.
 - `bibliography`: a reference file (`linked` beside the deck, or `embedded` in
   the deck `.assets` folder), the BibTeX `source` kept in the deck, the title
-  shown on a tagged slide, a citation format, and the number of spaces inserted
-  for `#indent`. The default format is Chicago author-date. `source` is merged
-  by citation key.
+  shown on a tagged slide, a bibliography-list format, an in-slide citation
+  format, and the number of spaces inserted for `#indent`. The list defaults
+  to Chicago author-date. `[@key]` defaults to `(@shortauthor @year)`, the
+  family names and year. `@author` keeps the names as written in the file.
+  `#sup{...}` is a small superscript and `#small{...}` is smaller text.
+  `source` is merged by citation key.
 - `layouts`: reusable named background definitions. The UI designer is not yet
   implemented.
 - `slides`: at least one ordered slide.
@@ -96,7 +99,9 @@ hidden state, an optional bibliography tag, `hidePageNumber` for that slide,
 incoming transition, animation timeline,
 and ordered elements. Background images stretch to the exact logical slide
 rectangle in every renderer and export. A bibliography slide lists the deck's
-reference file. Text can cite an entry with `[@citation-key]`.
+reference file. Text can cite an entry with `[@citation-key]`; the in-slide
+citation format decides whether that marker shows a number, the author, the
+date, or another token.
 
 Element types are `text`, `image`, `video`, `manim`, `shape`, and `table`. Shared geometry fields
 are `x`, `y`, `width`, `height`, `rotation`, `opacity`, and `z`; shared behavior

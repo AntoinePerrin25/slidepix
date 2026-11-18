@@ -211,6 +211,7 @@ describe("deck schema", () => {
     expect(parsed.deck.slides[0]!.hidePageNumber).toBe(true);
     expect(parsed.deck.slides[0]!.bibliography).toBe(true);
     expect(parsed.deck.bibliography.format).toContain("@author");
+    expect(parsed.deck.bibliography.citationFormat).toBe("(@shortauthor @year)");
     const copy = duplicateElementOntoFollowingSlides({
       ...parsed.deck,
       slides: [...parsed.deck.slides, { ...parsed.deck.slides[0]!, id: "next", elements: [] }]

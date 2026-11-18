@@ -1,5 +1,16 @@
 # SlidePix examples
 
+## Bibliography
+
+`bibliography/citations.slidepix.json` is a four-slide talk that cites
+`bibliography/references.bib`. The deck stores the same BibTeX in
+`bibliography.source` and links the file with `storage: "linked"`. Inline
+`[@key]` markers in the text and in a table use the in-slide format
+`#sup{@number} (@shortauthor @year)`: a small superscript number, then the
+family names and year. The last slide is tagged as the bibliography and lists
+every entry with `#indent- @author (@year). @title. @url.` and an indent of 4.
+**Embed in assets** copies that file into the deck's `.assets` folder.
+
 ## Manim demo
 
 `manim/fourier.slidepix.json` is the Manim demo: a short French talk on the

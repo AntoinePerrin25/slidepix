@@ -49,6 +49,8 @@ export function SlideView({
           key={element.id}
           element={element}
           citations={citations}
+          citationFormat={deck.bibliography.citationFormat}
+          indent={deck.bibliography.indent}
           interactive={interactive}
           selected={selectedElementIds.includes(element.id)}
           editing={editingElementId === element.id}
@@ -68,6 +70,8 @@ export function SlideView({
 function ElementView({
   element,
   citations,
+  citationFormat,
+  indent,
   interactive,
   selected,
   editing,
@@ -77,6 +81,8 @@ function ElementView({
 }: {
   element: SlideElement;
   citations: readonly Citation[];
+  citationFormat: string;
+  indent: number;
   interactive: boolean;
   selected: boolean;
   editing: boolean;
@@ -117,7 +123,7 @@ function ElementView({
             lineHeight: element.style.lineHeight,
             padding: element.style.padding
           }}
-          dangerouslySetInnerHTML={{ __html: renderMarkdown(expandCitationMarkers(element.markdown, citations)) }}
+          dangerouslySetInnerHTML={{ __html: renderMarkdown(expandCitationMarkers(element.markdown, citations, citationFormat, indent)) }}
         />
       )}
       {element.type === "image" && <ImageView element={element} src={resolveAsset(element.src, element.storage)} />}
@@ -171,7 +177,7 @@ function ElementView({
                   <div
                     className="slidepix-table-cell"
                     style={{ justifyContent: element.style.verticalAlign === "middle" ? "center" : element.style.verticalAlign === "bottom" ? "flex-end" : "flex-start" }}
-                    dangerouslySetInnerHTML={{ __html: renderMarkdown(expandCitationMarkers(element.cells[row]?.[column] ?? "", citations)) }}
+                    dangerouslySetInnerHTML={{ __html: renderMarkdown(expandCitationMarkers(element.cells[row]?.[column] ?? "", citations, citationFormat, indent)) }}
                   />
                 </Cell>
               ))}</tr>;

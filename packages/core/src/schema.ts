@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { CHICAGO_CITATION_FORMAT } from "./bibliography.js";
+import { CHICAGO_CITATION_FORMAT, CHICAGO_INLINE_FORMAT } from "./bibliography.js";
 
 export const CURRENT_SCHEMA_VERSION = 1 as const;
 
@@ -294,8 +294,9 @@ export const deckSchema = z.object({
     source: z.string().default(""),
     title: z.string().default("Bibliography"),
     format: z.string().default(CHICAGO_CITATION_FORMAT),
+    citationFormat: z.string().default(CHICAGO_INLINE_FORMAT),
     indent: z.number().int().min(0).max(32).default(4)
-  }).default({ file: "", storage: "linked", source: "", title: "Bibliography", format: CHICAGO_CITATION_FORMAT, indent: 4 }),
+  }).default({ file: "", storage: "linked", source: "", title: "Bibliography", format: CHICAGO_CITATION_FORMAT, citationFormat: CHICAGO_INLINE_FORMAT, indent: 4 }),
   layouts: z.record(z.string(), z.object({
     name: z.string(),
     background: color.optional()

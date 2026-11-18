@@ -202,3 +202,6 @@ demonstrates Markdown, LaTeX, highlighted code, image borders/radius/crop/fade,
 video, shapes, animations, ordinary transitions, and a two-slide crop morph. Its
 embedded demo reel is assembled from exact-size slide PNG exports with FFmpeg;
 the reproducible asset flow is documented in [examples/README.md](examples/README.md).
+The [bibliography example](examples/bibliography/citations.slidepix.json) cites
+[references.bib](examples/bibliography/references.bib) from slide text, a table,
+and a bibliography slide.

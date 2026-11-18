@@ -146,6 +146,8 @@ describe("shared document rendering", () => {
     title.markdown = "See [@smith2024quantum].";
     const html = renderDeckDocument(deck, undefined, { bibliographySource: `@misc{smith2024quantum, title={Quantum}, author={Smith, John}, year={2024}, url={https://example.test} }` });
     expect(html).toContain("(Smith 2024)");
+    deck.bibliography.citationFormat = "#sup{@number}";
+    expect(renderDeckDocument(deck, undefined, { bibliographySource: `@misc{smith2024quantum, title={Quantum}, author={Smith, John}, year={2024}, url={https://example.test} }` })).toContain('<sup class="slidepix-citation-sup">1</sup>');
     expect(html).toContain("slidepix-bibliography");
     expect(html).toContain("Quantum");
   });

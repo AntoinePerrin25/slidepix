@@ -1,0 +1,312 @@
+{
+  "schemaVersion": 1,
+  "id": "bibliography-example",
+  "metadata": {
+    "title": "Citer ses sources",
+    "author": "",
+    "description": "Exemple de bibliographie : fichier references.bib lié, citations [@clé], et slide Bibliographie."
+  },
+  "size": {
+    "width": 1920,
+    "height": 1080
+  },
+  "theme": {
+    "background": "#ffffff",
+    "foreground": "#111827",
+    "accent": "#2563eb",
+    "fontFamily": "system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif"
+  },
+  "pageNumbers": {
+    "enabled": true,
+    "format": "{n} / {total}",
+    "color": "#64748b",
+    "fontSize": 24,
+    "align": "right",
+    "x": 1520,
+    "y": 1012,
+    "width": 368,
+    "height": 48,
+    "progress": {
+      "enabled": false,
+      "color": "#2563eb",
+      "thickness": 8,
+      "x": 64,
+      "y": 1064,
+      "width": 1792
+    }
+  },
+  "header": {
+    "enabled": false,
+    "text": "",
+    "color": "#64748b",
+    "fontSize": 28,
+    "align": "left",
+    "x": 64,
+    "y": 28,
+    "width": 1400,
+    "height": 48
+  },
+  "footer": {
+    "enabled": false,
+    "text": "",
+    "color": "#64748b",
+    "fontSize": 28,
+    "align": "left",
+    "x": 64,
+    "y": 1008,
+    "width": 1400,
+    "height": 48
+  },
+  "bibliography": {
+    "file": "references.bib",
+    "storage": "linked",
+    "source": "@misc{smith2024quantum,\n  title = {Quantum Computing Advances in Machine Learning},\n  author = {Smith, John R. and Johnson, Mary L.},\n  year = {2024},\n  eprint = {2401.12345},\n  archivePrefix = {arXiv},\n  primaryClass = {quant-ph},\n  doi = {10.48550/arXiv.2401.12345},\n  url = {https://arxiv.org/abs/2401.12345}\n}\n\n@article{turing1950computing,\n  title = {Computing Machinery and Intelligence},\n  author = {Turing, Alan M.},\n  journal = {Mind},\n  volume = {59},\n  number = {236},\n  pages = {433--460},\n  year = {1950},\n  doi = {10.1093/mind/LIX.236.433},\n  url = {https://doi.org/10.1093/mind/LIX.236.433}\n}\n\n@book{knuth1997art,\n  title = {The Art of Computer Programming},\n  author = {Knuth, Donald E.},\n  publisher = {Addison-Wesley},\n  year = {1997},\n  volume = {1},\n  edition = {3},\n  url = {https://www-cs-faculty.stanford.edu/~knuth/taocp.html}\n}\n\n@inproceedings{vaswani2017attention,\n  title = {Attention Is All You Need},\n  author = {Vaswani, Ashish and Shazeer, Noam and Parmar, Niki and Uszkoreit, Jakob},\n  booktitle = {Advances in Neural Information Processing Systems},\n  year = {2017},\n  url = {https://arxiv.org/abs/1706.03762}\n}\n\n@book{lamport1994latex,\n  title = {LaTeX: A Document Preparation System},\n  author = {Lamport, Leslie},\n  publisher = {Addison-Wesley},\n  year = {1994},\n  edition = {2},\n  url = {https://www.latex-project.org/}\n}\n",
+    "title": "Bibliographie",
+    "format": "#indent- @author (@year). @title. @url.",
+    "citationFormat": "(@shortauthor @year)#sup{@number} ",
+    "indent": 4
+  },
+  "layouts": {},
+  "slides": [
+    {
+      "id": "slide-title",
+      "title": "Titre",
+      "notes": "L'onglet Bibliography règle le format de la liste et le format des citations dans les slides. @author garde le nom complet, @shortauthor seulement le nom de famille. #sup{@number} affiche le numéro en petit exposant.",
+      "hidden": false,
+      "bibliography": false,
+      "hidePageNumber": false,
+      "transition": {
+        "type": "none",
+        "durationMs": 500,
+        "easing": "ease-in-out"
+      },
+      "timeline": [],
+      "elements": [
+        {
+          "id": "title-heading",
+          "morphKey": "title-heading",
+          "x": 140,
+          "y": 280,
+          "width": 1640,
+          "height": 180,
+          "rotation": 0,
+          "opacity": 1,
+          "z": 1,
+          "locked": false,
+          "hidden": false,
+          "type": "text",
+          "markdown": "# Citer ses sources",
+          "style": {
+            "fontFamily": "system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+            "fontSize": 84,
+            "fontWeight": 700,
+            "color": "#111827",
+            "textAlign": "center",
+            "verticalAlign": "top",
+            "lineHeight": 1.05,
+            "padding": 8
+          }
+        },
+        {
+          "id": "title-deck",
+          "morphKey": "title-deck",
+          "x": 220,
+          "y": 500,
+          "width": 1480,
+          "height": 140,
+          "rotation": 0,
+          "opacity": 1,
+          "z": 1,
+          "locked": false,
+          "hidden": false,
+          "type": "text",
+          "markdown": "Un fichier `.bib`, des marqueurs `[@clé]`, une slide Bibliographie.",
+          "style": {
+            "fontFamily": "system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+            "fontSize": 36,
+            "fontWeight": 400,
+            "color": "#334155",
+            "textAlign": "center",
+            "verticalAlign": "top",
+            "lineHeight": 1.35,
+            "padding": 8
+          }
+        }
+      ]
+    },
+    {
+      "id": "slide-markers",
+      "title": "Marqueurs",
+      "notes": "La clé absente reste affichée [@absente] parce qu'elle n'est pas dans references.bib.",
+      "hidden": false,
+      "bibliography": false,
+      "hidePageNumber": false,
+      "transition": {
+        "type": "fade",
+        "durationMs": 500,
+        "easing": "ease-in-out"
+      },
+      "timeline": [],
+      "elements": [
+        {
+          "id": "markers-heading",
+          "morphKey": "markers-heading",
+          "x": 120,
+          "y": 80,
+          "width": 1680,
+          "height": 100,
+          "rotation": 0,
+          "opacity": 1,
+          "z": 1,
+          "locked": false,
+          "hidden": false,
+          "type": "text",
+          "markdown": "## Dans le texte",
+          "style": {
+            "fontFamily": "system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+            "fontSize": 56,
+            "fontWeight": 700,
+            "color": "#111827",
+            "textAlign": "left",
+            "verticalAlign": "top",
+            "lineHeight": 1.35,
+            "padding": 8
+          }
+        },
+        {
+          "id": "markers-body",
+          "morphKey": "markers-body",
+          "x": 120,
+          "y": 220,
+          "width": 1680,
+          "height": 720,
+          "rotation": 0,
+          "opacity": 1,
+          "z": 1,
+          "locked": false,
+          "hidden": false,
+          "type": "text",
+          "markdown": "Une citation s'écrit `[@clé]`. Elle devient un auteur-date.\n\n- Deux auteurs : [@smith2024quantum]\n- Un auteur : [@turing1950computing]\n- Quatre auteurs : [@vaswani2017attention]\n- Clé absente : [@absente]",
+          "style": {
+            "fontFamily": "system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+            "fontSize": 40,
+            "fontWeight": 400,
+            "color": "#111827",
+            "textAlign": "left",
+            "verticalAlign": "top",
+            "lineHeight": 1.45,
+            "padding": 8
+          }
+        }
+      ]
+    },
+    {
+      "id": "slide-table",
+      "title": "Tableau",
+      "notes": "",
+      "hidden": false,
+      "bibliography": false,
+      "hidePageNumber": false,
+      "transition": {
+        "type": "fade",
+        "durationMs": 500,
+        "easing": "ease-in-out"
+      },
+      "timeline": [],
+      "elements": [
+        {
+          "id": "table-heading",
+          "morphKey": "table-heading",
+          "x": 120,
+          "y": 80,
+          "width": 1680,
+          "height": 100,
+          "rotation": 0,
+          "opacity": 1,
+          "z": 1,
+          "locked": false,
+          "hidden": false,
+          "type": "text",
+          "markdown": "## Dans un tableau",
+          "style": {
+            "fontFamily": "system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+            "fontSize": 56,
+            "fontWeight": 700,
+            "color": "#111827",
+            "textAlign": "left",
+            "verticalAlign": "top",
+            "lineHeight": 1.35,
+            "padding": 8
+          }
+        },
+        {
+          "id": "table-sources",
+          "morphKey": "table-sources",
+          "x": 120,
+          "y": 240,
+          "width": 1680,
+          "height": 680,
+          "rotation": 0,
+          "opacity": 1,
+          "z": 1,
+          "locked": false,
+          "hidden": false,
+          "type": "table",
+          "rows": 5,
+          "columns": 2,
+          "cells": [
+            [
+              "Affirmation",
+              "Source"
+            ],
+            [
+              "Le test de Turing",
+              "[@turing1950computing]"
+            ],
+            [
+              "L'analyse d'algorithmes",
+              "[@knuth1997art]"
+            ],
+            [
+              "L'attention",
+              "[@vaswani2017attention]"
+            ],
+            [
+              "La composition typographique",
+              "[@lamport1994latex]"
+            ]
+          ],
+          "headerRow": true,
+          "style": {
+            "fontFamily": "system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+            "fontSize": 30,
+            "fontWeight": 400,
+            "color": "#111827",
+            "headerFill": "#e0e7ff",
+            "cellFill": "#ffffff",
+            "borderColor": "#94a3b8",
+            "borderWidth": 2,
+            "textAlign": "left",
+            "verticalAlign": "middle",
+            "padding": 10
+          }
+        }
+      ]
+    },
+    {
+      "id": "slide-bibliography",
+      "title": "Bibliographie",
+      "notes": "Cette slide est marquée Bibliographie. Le titre, le format et la liste viennent de l'onglet Bibliography et de references.bib. #indent vaut 4 espaces.",
+      "hidden": false,
+      "bibliography": true,
+      "hidePageNumber": false,
+      "transition": {
+        "type": "fade",
+        "durationMs": 500,
+        "easing": "ease-in-out"
+      },
+      "timeline": [],
+      "elements": []
+    }
+  ]
+}
