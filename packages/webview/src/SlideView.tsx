@@ -1,4 +1,4 @@
-import { manimScriptFileLabel, renderMarkdown, roundedEdgeFadeMask, type Deck, type MediaStorage, type Slide, type SlideElement } from "@slidepix/core";
+import { expandCitationMarkers, formatBibliography, formatPageLabel, manimScriptFileLabel, renderMarkdown, roundedEdgeFadeMask, type Citation, type Deck, type MediaStorage, type Slide, type SlideElement } from "@slidepix/core";
 import { useEffect, useState, type CSSProperties, type MouseEvent } from "react";
 
 type Props = {
@@ -9,6 +9,7 @@ type Props = {
   selectedElementIds?: string[];
   editingElementId?: string;
   resolveAsset?: (source: string, storage: MediaStorage) => string;
+  citations?: readonly Citation[];
   onSelectElement?: (id?: string, additive?: boolean) => void;
   onEditText?: (id: string) => void;
   onEditImage?: (id: string) => void;
@@ -22,6 +23,7 @@ export function SlideView({
   selectedElementIds = [],
   editingElementId,
   resolveAsset = (value) => value,
+  citations = [],
   onSelectElement,
   onEditText,
   onEditImage
@@ -46,6 +48,7 @@ export function SlideView({
         <ElementView
           key={element.id}
           element={element}
+          citations={citations}
           interactive={interactive}
           selected={selectedElementIds.includes(element.id)}
           editing={editingElementId === element.id}
@@ -57,17 +60,14 @@ export function SlideView({
           }}
         />
       ))}
-      {pageIndex >= 0 && (
-        <div className="page-number" style={{ color: deck.pageNumbers.color, fontSize: deck.pageNumbers.fontSize }}>
-          {pageIndex + 1}
-        </div>
-      )}
+      <SlideChrome deck={deck} slide={slide} pageIndex={pageIndex} total={visibleSlides.length} citations={citations} />
     </div>
   );
 }
 
 function ElementView({
   element,
+  citations,
   interactive,
   selected,
   editing,
@@ -76,6 +76,7 @@ function ElementView({
   onDoubleClick
 }: {
   element: SlideElement;
+  citations: readonly Citation[];
   interactive: boolean;
   selected: boolean;
   editing: boolean;
@@ -116,7 +117,7 @@ function ElementView({
             lineHeight: element.style.lineHeight,
             padding: element.style.padding
           }}
-          dangerouslySetInnerHTML={{ __html: renderMarkdown(element.markdown) }}
+          dangerouslySetInnerHTML={{ __html: renderMarkdown(expandCitationMarkers(element.markdown, citations)) }}
         />
       )}
       {element.type === "image" && <ImageView element={element} src={resolveAsset(element.src, element.storage)} />}
@@ -170,7 +171,7 @@ function ElementView({
                   <div
                     className="slidepix-table-cell"
                     style={{ justifyContent: element.style.verticalAlign === "middle" ? "center" : element.style.verticalAlign === "bottom" ? "flex-end" : "flex-start" }}
-                    dangerouslySetInnerHTML={{ __html: renderMarkdown(element.cells[row]?.[column] ?? "") }}
+                    dangerouslySetInnerHTML={{ __html: renderMarkdown(expandCitationMarkers(element.cells[row]?.[column] ?? "", citations)) }}
                   />
                 </Cell>
               ))}</tr>;
@@ -263,4 +264,25 @@ function ImageView({ element, src }: { element: Extract<SlideElement, { type: "i
       />
     </div>
   );
+}
+
+function SlideChrome({ deck, slide, pageIndex, total, citations }: { deck: Deck; slide: Slide; pageIndex: number; total: number; citations: readonly Citation[] }) {
+  const showPage = pageIndex >= 0 && !slide.hidePageNumber && deck.pageNumbers.enabled;
+  const ratio = Math.min(1, Math.max(0, (pageIndex + 1) / Math.max(1, total)));
+  const bibliography = slide.bibliography
+    ? citations.length
+      ? formatBibliography(citations, deck.bibliography.format, deck.bibliography.indent)
+      : deck.bibliography.file ? "No citations in the reference file." : "Choose a reference file in the Bibliography tab."
+    : "";
+  return <>
+    {deck.header.enabled && deck.header.text && <div className="slide-header" style={chromeStyle(deck.header)}>{deck.header.text}</div>}
+    {deck.footer.enabled && deck.footer.text && <div className="slide-footer" style={chromeStyle(deck.footer)}>{deck.footer.text}</div>}
+    {showPage && <div className="page-number" style={chromeStyle(deck.pageNumbers)}>{formatPageLabel(deck.pageNumbers.format, pageIndex, total)}</div>}
+    {showPage && deck.pageNumbers.progress.enabled && <div className="slide-progress" style={{ left: deck.pageNumbers.progress.x, top: deck.pageNumbers.progress.y, width: deck.pageNumbers.progress.width, height: deck.pageNumbers.progress.thickness }}><div className="slide-progress-fill" style={{ width: `${ratio * 100}%`, background: deck.pageNumbers.progress.color }} /></div>}
+    {slide.bibliography && <div className="slide-bibliography" style={{ left: 72, top: 72, width: Math.max(1, deck.size.width - 144), height: Math.max(1, deck.size.height - 144), color: deck.theme.foreground, fontFamily: deck.theme.fontFamily }}><div className="slide-bibliography-title">{deck.bibliography.title || "Bibliography"}</div><div>{bibliography}</div></div>}
+  </>;
+}
+
+function chromeStyle(item: { x: number; y: number; width: number; height: number; color: string; fontSize: number; align: "left" | "center" | "right" }): CSSProperties {
+  return { left: item.x, top: item.y, width: item.width, height: item.height, color: item.color, fontSize: item.fontSize, textAlign: item.align };
 }

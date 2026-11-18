@@ -126,6 +126,13 @@ labels and `cssFontFamily()` creates a quoted stack with a suitable fallback.
 Keep these pure helpers independently testable; the VS Code picker stays in
 `editor.ts`.
 
+## Bibliography file
+
+`src/bibliography-file.ts` reads the deck's linked bibliography with
+`resolveMediaPath`. The editor sends that text to the webview and watches the
+file. Presentation, web export, and PowerPoint export pass the same text into
+the shared renderer. The file must stay inside an open workspace root.
+
 ## `src/presentation.ts`
 
 `PresentationServer` owns one short-lived HTTP/WebSocket service.

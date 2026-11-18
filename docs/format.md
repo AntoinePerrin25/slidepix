@@ -77,17 +77,24 @@ invalid inputs fall back to ordinary Git conflict markers.
 - `metadata`: title, author, and description.
 - `size`: logical width and height.
 - `theme`: deck background, foreground, accent, and default font family.
-- `pageNumbers`: color and size. Numbers are always shown; a saved deck forces
-  `enabled` on and clears per-slide `hidePageNumber`.
+- `pageNumbers`: whether a number is shown, its format (`{n}` and `{total}`),
+  color, size, alignment, and box. An optional progress bar has its own color,
+  thickness, and box. `header` and `footer` are the same kind of text box and
+  stay off until enabled.
+- `bibliography`: a workspace-linked reference file, the title shown on a
+  tagged slide, a citation format, and the number of spaces inserted for
+  `#indent`. The default format is Chicago author-date.
 - `layouts`: reusable named background definitions. The UI designer is not yet
   implemented.
 - `slides`: at least one ordered slide.
 
 A slide contains its title, optional layout/background color, optional
 `backgroundImage` (`src` plus explicit linked/embedded storage), speaker notes,
-hidden state, incoming transition, animation timeline,
+hidden state, an optional bibliography tag, `hidePageNumber` for that slide,
+incoming transition, animation timeline,
 and ordered elements. Background images stretch to the exact logical slide
-rectangle in every renderer and export.
+rectangle in every renderer and export. A bibliography slide lists the deck's
+reference file. Text can cite an entry with `[@citation-key]`.
 
 Element types are `text`, `image`, `video`, `manim`, `shape`, and `table`. Shared geometry fields
 are `x`, `y`, `width`, `height`, `rotation`, `opacity`, and `z`; shared behavior

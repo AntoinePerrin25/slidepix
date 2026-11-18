@@ -29,6 +29,7 @@ import {
 } from "./manim-host";
 import { ensureManimLaunch, promptManimSetup } from "./manim-setup";
 import { assignManimBasenames, manimDeckStem, manimRenderConcurrency, mapWithConcurrency } from "./manim-render";
+import { readLinkedBibliography } from "./bibliography-file";
 
 export const VIEW_TYPE = "slidepix.deckEditor";
 
@@ -38,6 +39,7 @@ export class SlidePixEditorProvider implements vscode.CustomTextEditorProvider {
   private readonly presenterPanels = new Map<string, vscode.WebviewPanel>();
   private readonly presentationReloads = new Map<string, ReturnType<typeof setTimeout>>();
   private readonly histories = new Map<string, DocumentHistory>();
+  private readonly bibliographyWatchers = new Map<string, vscode.Disposable>();
   private activeDocument?: vscode.TextDocument;
   private outputChannel?: vscode.OutputChannel;
   private manimRenderInFlight = false;
@@ -101,7 +103,7 @@ export class SlidePixEditorProvider implements vscode.CustomTextEditorProvider {
     const saves = vscode.workspace.onDidSaveTextDocument((document) => this.schedulePresentationReload(document.uri.toString(), true));
     const tabs = vscode.window.tabGroups.onDidChangeTabs((event) => { for (const tab of [...event.opened, ...event.changed]) this.watchTab(tab); });
     for (const group of vscode.window.tabGroups.all) for (const tab of group.tabs) this.watchTab(tab);
-    return vscode.Disposable.from(provider, changes, saves, tabs, this.recovery, { dispose: () => { for (const timer of this.presentationReloads.values()) clearTimeout(timer); for (const session of this.sessions.values()) session.dispose(); } });
+    return vscode.Disposable.from(provider, changes, saves, tabs, this.recovery, { dispose: () => { for (const timer of this.presentationReloads.values()) clearTimeout(timer); for (const session of this.sessions.values()) session.dispose(); for (const watcher of this.bibliographyWatchers.values()) watcher.dispose(); } });
   }
 
   async resolveCustomTextEditor(document: vscode.TextDocument, panel: vscode.WebviewPanel): Promise<void> {
@@ -239,6 +241,35 @@ export class SlidePixEditorProvider implements vscode.CustomTextEditorProvider {
       ? { version: 2, type: "deck", text, deck: parsed.deck, revision, uri: assetUri, linkedUri, ...flags }
       : { version: 2, type: "invalidDeck", text, revision, message: parsed.message, gitConflict: hasGitConflictMarkers(text), uri: assetUri, linkedUri };
     void panel.webview.postMessage(message);
+    if (parsed.ok) void this.postBibliography(document, panel, parsed.deck);
+  }
+
+  private async postBibliography(document: vscode.TextDocument, panel: vscode.WebviewPanel, deck: Deck): Promise<void> {
+    const source = await readLinkedBibliography(document.uri.fsPath, deck.bibliography.file, linkedRoots(document));
+    await panel.webview.postMessage({ version: 2, type: "bibliography", source } satisfies HostToWebviewMessage);
+    this.watchBibliography(document, panel, deck.bibliography.file);
+  }
+
+  private watchBibliography(document: vscode.TextDocument, panel: vscode.WebviewPanel, reference: string): void {
+    const key = document.uri.toString();
+    this.bibliographyWatchers.get(key)?.dispose();
+    this.bibliographyWatchers.delete(key);
+    const file = reference.trim();
+    if (!file) return;
+    let absolute: string;
+    try {
+      absolute = resolveMediaPath(document.uri.fsPath, file, "linked", linkedRoots(document));
+    } catch {
+      return;
+    }
+    const watcher = vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(vscode.Uri.file(path.dirname(absolute)), path.basename(absolute)));
+    const refresh = () => {
+      const parsed = parseDeckText(document.getText());
+      if (parsed.ok) void this.postBibliography(document, panel, parsed.deck);
+    };
+    watcher.onDidChange(refresh);
+    watcher.onDidCreate(refresh);
+    this.bibliographyWatchers.set(key, watcher);
   }
 
   private async receive(document: vscode.TextDocument, panel: vscode.WebviewPanel, message: WebviewToHostMessage): Promise<void> {
@@ -291,6 +322,7 @@ export class SlidePixEditorProvider implements vscode.CustomTextEditorProvider {
       return this.embedMedia(document, message.elementIds);
     }
     if (message.type === "selectFont") return this.selectFont(panel, message);
+    if (message.type === "selectBibliography") return this.selectBibliography(document, panel, message);
     if (message.type === "selectManimScript") return this.selectManimScript(document, panel, message);
     if (message.type === "createManimScript") return this.createManimScript(document, panel, message);
     if (message.type === "openManimScript") return this.openManimScript(document, message);
@@ -556,6 +588,27 @@ export class SlidePixEditorProvider implements vscode.CustomTextEditorProvider {
       await notify("error", message);
       void vscode.window.showErrorMessage(message);
     }
+  }
+
+  private async selectBibliography(document: vscode.TextDocument, panel: vscode.WebviewPanel, message: Extract<WebviewToHostMessage, { type: "selectBibliography" }>): Promise<void> {
+    const response: HostToWebviewMessage = { version: 2, type: "bibliographySelected", requestId: message.requestId };
+    try {
+      const picked = await vscode.window.showOpenDialog({
+        canSelectMany: false,
+        canSelectFiles: true,
+        canSelectFolders: false,
+        filters: { Bibliography: ["bib", "bibtex"] },
+        defaultUri: workspaceRootUris(document)[0]
+      });
+      if (!picked?.[0]) return void panel.webview.postMessage(response);
+      const resolved = path.resolve(picked[0].fsPath);
+      const roots = linkedRoots(document);
+      if (!roots.some((root) => isInside(root, resolved))) throw new Error("The bibliography file must stay inside an open workspace root.");
+      response.file = relativeDeckReference(document.uri.fsPath, resolved);
+    } catch (error) {
+      response.error = error instanceof Error ? error.message : "Could not choose the bibliography file.";
+    }
+    await panel.webview.postMessage(response);
   }
 
   private async selectManimScript(document: vscode.TextDocument, panel: vscode.WebviewPanel, message: Extract<WebviewToHostMessage, { type: "selectManimScript" }>): Promise<void> {

@@ -16,6 +16,8 @@ cross-process message types, and shared DOM/HTML rendering semantics.
 | `serializeDeck(deck)` | Revalidates a deck and returns stable two-space JSON with a final newline. Throws on invalid in-memory data. |
 | `createDeck(title?)` | Creates one valid 1920×1080 light-theme deck with a centered dark title using a portable system-font stack. |
 | `duplicateSlide(slide)` | Deep-copies the slide, creates new slide/element IDs, preserves element names and morph keys, and clears the timeline. |
+| `duplicateElementOntoFollowingSlides(deck, slideId, elementId)` | Copies one element onto every later slide with a new id, keeping its name and morph key. |
+| `parseBibliography`, `formatCitation`, `expandCitationMarkers` | BibTeX parsing and citation formatting in `src/bibliography.ts`. `#indent` inserts the configured spaces. `[@key]` becomes a short author-date. |
 | `Deck`, `Slide`, element and motion types | Types inferred from their schemas; do not maintain parallel handwritten interfaces. |
 | `manimElementSchema`, `manimSettingsFingerprint`, `manimRenderResolution`, `manimElementAspectRatio`, `MANIM_STARTER_SCRIPT` | Manim slide element validation, locked 16:9 / 9:16 aspect helpers, render resolution table, and settings fingerprint in `src/manim.ts`. |
 
@@ -96,9 +98,11 @@ show MathML and hide the unstyled HTML fallback so equations are not duplicated.
 `markdown-it-katex` owns delimiter tokenization only; its bundled legacy KaTeX
 markup is replaced by the core's current direct KaTeX renderer so the editor's
 bundled stylesheet and generated HTML always use the same version.
-Page numbers are always
-painted; parse and save force `pageNumbers.enabled` and clear
-`hidePageNumber`. Tables render cell Markdown through the
+Header, footer, page number, and progress bar share one chrome renderer.
+A page number can be turned off for the deck or for one slide. `{n}` and
+`{total}` are the only format tokens. A bibliography slide and `[@key]`
+markers use the reference text passed as `bibliographySource`; the core package
+does not read that file. Tables render cell Markdown through the
 same sanitizer and center header cells independently of body alignment. Image
 edge fade is a geometry-derived blurred rounded-rectangle SVG mask shared with
 the editor, so it follows corner radius rather than producing square corners.

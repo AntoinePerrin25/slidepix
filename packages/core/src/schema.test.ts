@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import path from "node:path";
-import { createDeck, duplicateSlide, fitAspectBoxInSlide, morphMatchToken, parseDeckText, serializeDeck } from "./schema.js";
+import { createDeck, duplicateElementOntoFollowingSlides, duplicateSlide, fitAspectBoxInSlide, morphMatchToken, parseDeckText, serializeDeck } from "./schema.js";
 import { renderDeckDocument, renderMarkdown } from "./render.js";
 import { resolveAssetPath, resolveMediaPath } from "./assets.js";
 
@@ -197,15 +197,26 @@ describe("deck schema", () => {
     if (parsed.ok) expect(parsed.deck.slides[0]!.elements.at(-1)).toMatchObject({ type: "table", rows: 2, columns: 2, headerRow: true, style: { borderWidth: 2 } });
   });
 
-  it("keeps page numbers on and fits a locked picture inside the slide", () => {
+  it("keeps pagination choices and fits a locked picture inside the slide", () => {
     const deck = createDeck("Numbers");
     deck.pageNumbers.enabled = false;
+    deck.pageNumbers.format = "{n}/{total}";
     deck.slides[0]!.hidePageNumber = true;
+    deck.slides[0]!.bibliography = true;
     const parsed = parseDeckText(serializeDeck(deck));
     expect(parsed.ok).toBe(true);
     if (!parsed.ok) return;
-    expect(parsed.deck.pageNumbers.enabled).toBe(true);
-    expect(parsed.deck.slides[0]!.hidePageNumber).toBe(false);
+    expect(parsed.deck.pageNumbers.enabled).toBe(false);
+    expect(parsed.deck.pageNumbers.format).toBe("{n}/{total}");
+    expect(parsed.deck.slides[0]!.hidePageNumber).toBe(true);
+    expect(parsed.deck.slides[0]!.bibliography).toBe(true);
+    expect(parsed.deck.bibliography.format).toContain("@author");
+    const copy = duplicateElementOntoFollowingSlides({
+      ...parsed.deck,
+      slides: [...parsed.deck.slides, { ...parsed.deck.slides[0]!, id: "next", elements: [] }]
+    }, parsed.deck.slides[0]!.id, parsed.deck.slides[0]!.elements[0]!.id);
+    expect(copy.slides[1]!.elements[0]?.name).toBe(parsed.deck.slides[0]!.elements[0]?.name);
+    expect(copy.slides[1]!.elements[0]?.id).not.toBe(parsed.deck.slides[0]!.elements[0]?.id);
     const fitted = fitAspectBoxInSlide({ x: 100, y: 900, width: 1000, height: 100 }, 0.5, { width: 1920, height: 1080 });
     expect(fitted).toEqual({ x: 100, y: 0, width: 540, height: 1080 });
   });

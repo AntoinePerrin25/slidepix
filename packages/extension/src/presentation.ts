@@ -6,6 +6,7 @@ import { URL } from "node:url";
 import { WebSocketServer, type WebSocket } from "ws";
 import { renderDeckDocument, type AssetResolver, type Deck, type MediaStorage } from "@slidepix/core";
 import { resolveMediaPath } from "@slidepix/core/assets";
+import { readLinkedBibliography } from "./bibliography-file";
 
 const MIME: Record<string, string> = {
   ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif", ".webp": "image/webp", ".svg": "image/svg+xml",
@@ -145,6 +146,7 @@ export class PresentationServer {
         return send(response, 200, MIME[extname(filePath).toLowerCase()] ?? "application/octet-stream", bytes);
       }
       const roots = this.allowedLinkedRoots.length ? this.allowedLinkedRoots : undefined;
+      const bibliographySource = await readLinkedBibliography(this.deckPath, this.deck.bibliography.file, roots ?? []);
       const asset: AssetResolver = (reference, storage) => {
         const storageMode = storage === "linked" ? "linked" : "embedded";
         let version = "0";
@@ -154,17 +156,17 @@ export class PresentationServer {
         return `${this.url(`/asset/${encodeURIComponent(reference)}`)}&storage=${storageMode}&v=${version}`;
       };
       if (url.pathname === "/audience") {
-        const html = renderDeckDocument(this.deck, asset, { mode: "present" }).replace("</body>", `${audienceBridge(this.port, this.token)}</body>`);
+        const html = renderDeckDocument(this.deck, asset, { mode: "present", bibliographySource }).replace("</body>", `${audienceBridge(this.port, this.token)}</body>`);
         return send(response, 200, "text/html; charset=utf-8", html);
       }
-      if (url.pathname === "/print") return send(response, 200, "text/html; charset=utf-8", renderDeckDocument(this.deck, asset, { mode: "print" }));
+      if (url.pathname === "/print") return send(response, 200, "text/html; charset=utf-8", renderDeckDocument(this.deck, asset, { mode: "print", bibliographySource }));
       if (url.pathname === "/contact") {
         const ids = url.searchParams.get("ids")?.split(",").filter(Boolean);
         const columns = Number(url.searchParams.get("columns")) || undefined;
-        return send(response, 200, "text/html; charset=utf-8", renderDeckDocument(this.deck, asset, { mode: "contact", selectedSlideIds: ids, columns }));
+        return send(response, 200, "text/html; charset=utf-8", renderDeckDocument(this.deck, asset, { mode: "contact", selectedSlideIds: ids, columns, bibliographySource }));
       }
       if (url.pathname === "/frame") {
-        return send(response, 200, "text/html; charset=utf-8", renderPresenterFrame(this.deck, Number(url.searchParams.get("index")) || 0, asset));
+        return send(response, 200, "text/html; charset=utf-8", renderPresenterFrame(this.deck, Number(url.searchParams.get("index")) || 0, asset, bibliographySource));
       }
       send(response, 404, "text/plain", "Not found");
     } catch (error) {
@@ -177,10 +179,10 @@ function audienceBridge(port: number, token: string): string {
   return `<script>(function(){const socket=new WebSocket('ws://127.0.0.1:${port}/ws?token=${encodeURIComponent(token)}');function command(c){if(c==='next'&&window.slidepixAdvance?.())return;socket.send(JSON.stringify({type:'command',command:c}))}socket.onmessage=e=>{const m=JSON.parse(e.data);if(m.type==='reload'){const next=new URL(location.href);next.searchParams.set('rev',String(m.rev||Date.now()));location.replace(next.href);return}if(m.type==='state')window.slidepixShow?.(m.index,m.animationState);if(m.type==='control')command(m.command)};addEventListener('keydown',e=>{const c=['ArrowRight','ArrowDown',' ','PageDown'].includes(e.key)?'next':['ArrowLeft','ArrowUp','PageUp'].includes(e.key)?'previous':null;if(c){e.preventDefault();command(c)}});addEventListener('click',()=>command('next'))})();</script>`;
 }
 
-export function renderPresenterFrame(deck: Deck, index: number, resolveAsset: AssetResolver = (value) => value): string {
+export function renderPresenterFrame(deck: Deck, index: number, resolveAsset: AssetResolver = (value) => value, bibliographySource = ""): string {
   const target = deck.slides.filter((slide) => !slide.hidden)[index];
   return target
-    ? renderDeckDocument(deck, resolveAsset, { mode: "frame", selectedSlideIds: [target.id] })
+    ? renderDeckDocument(deck, resolveAsset, { mode: "frame", selectedSlideIds: [target.id], bibliographySource })
     : emptyFrameDocument(deck);
 }
 

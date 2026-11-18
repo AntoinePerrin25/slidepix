@@ -3,6 +3,7 @@ import { lstat, mkdir, mkdtemp, readFile, rename, rm, writeFile } from "node:fs/
 import * as path from "node:path";
 import { renderDeckDocument, type Deck } from "@slidepix/core";
 import { deckMediaReferences, mediaReferenceKey, resolveMediaPath } from "@slidepix/core/assets";
+import { readLinkedBibliography } from "./bibliography-file";
 
 export class WebExportDestinationExistsError extends Error {
   constructor(readonly destination: string) {
@@ -42,10 +43,11 @@ export async function buildWebExport(
       resolvedAssets.set(key, `assets/${filename}`);
     }
 
+    const bibliographySource = await readLinkedBibliography(deckPath, deck.bibliography.file, allowedLinkedRoots);
     const html = addOfflineRuntime(renderDeckDocument(
       deck,
       (reference, storage) => resolvedAssets.get(mediaReferenceKey(reference, storage)) ?? reference,
-      { mode: "present" }
+      { mode: "present", bibliographySource }
     ), deck.slides.filter((slide) => !slide.hidden).length);
     await writeFile(path.join(staging, "index.html"), html, "utf8");
 

@@ -124,11 +124,30 @@ describe("shared document rendering", () => {
     expect(html).not.toContain("page-break-after:always");
   });
 
-  it("always paints a page number", () => {
+  it("paints header, pagination, and a progress bar from slide chrome", () => {
     const deck = createDeck("Numbers");
+    deck.header = { ...deck.header, enabled: true, text: "Talk header" };
+    deck.pageNumbers.format = "{n}/{total}";
+    deck.pageNumbers.progress.enabled = true;
+    const html = renderDeckDocument(deck);
+    expect(html).toContain("Talk header");
+    expect(html).toContain("1/1");
+    expect(html).toContain("slidepix-progress-fill");
     deck.pageNumbers.enabled = false;
     deck.slides[0]!.hidePageNumber = true;
-    expect(renderDeckDocument(deck)).toContain("slidepix-page-number");
+    expect(renderDeckDocument(deck)).not.toContain('class="slidepix-page-number"');
+  });
+
+  it("renders a bibliography slide and inline citations from the reference file", () => {
+    const deck = createDeck("Sources");
+    deck.slides[0]!.bibliography = true;
+    const title = deck.slides[0]!.elements[0];
+    if (!title || title.type !== "text") throw new Error("expected a title text element");
+    title.markdown = "See [@smith2024quantum].";
+    const html = renderDeckDocument(deck, undefined, { bibliographySource: `@misc{smith2024quantum, title={Quantum}, author={Smith, John}, year={2024}, url={https://example.test} }` });
+    expect(html).toContain("(Smith 2024)");
+    expect(html).toContain("slidepix-bibliography");
+    expect(html).toContain("Quantum");
   });
 
   it("keeps tab stops in text instead of turning a leading tab into a code block", () => {

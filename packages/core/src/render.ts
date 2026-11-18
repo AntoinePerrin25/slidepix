@@ -16,6 +16,7 @@ import xml from "highlight.js/lib/languages/xml";
 // markdown-it-katex does not publish TypeScript declarations.
 // @ts-ignore The plugin follows MarkdownIt's standard PluginSimple shape.
 import markdownItKatex from "markdown-it-katex";
+import { expandCitationMarkers, formatBibliography, parseBibliography, type Citation } from "./bibliography.js";
 import { manimScriptFileLabel } from "./manim.js";
 import { morphMatchToken, type Deck, type ImageElement, type ManimElement, type MediaStorage, type Slide, type SlideElement } from "./schema.js";
 
@@ -296,38 +297,43 @@ export function roundedEdgeFadeMask(width: number, height: number, borderRadius:
   return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
 }
 
+export function formatPageLabel(format: string, visibleIndex: number, total: number): string {
+  return (format.trim() || "{n}").replaceAll("{n}", String(visibleIndex + 1)).replaceAll("{total}", String(total));
+}
+
 export function renderSlideMarkup(
   deck: Deck,
   slide: Slide,
   visibleIndex: number,
-  resolveAsset: AssetResolver = (value) => value
+  resolveAsset: AssetResolver = (value) => value,
+  citations: readonly Citation[] = []
 ): string {
   const elements = [...slide.elements]
     .filter((element) => !element.hidden)
     .sort((a, b) => a.z - b.z)
-    .map((element) => renderElement(element, slide.elements, resolveAsset))
+    .map((element) => renderElement(element, slide.elements, resolveAsset, citations))
     .join("");
   const background = slide.background ?? deck.layouts[slide.layout ?? ""]?.background ?? deck.theme.background;
   const backgroundImage = slide.backgroundImage
     ? `;background-image:url('${cssUrl(resolveAsset(slide.backgroundImage.src, slide.backgroundImage.storage))}');background-size:100% 100%;background-repeat:no-repeat`
     : "";
-  const pageNumber = visibleIndex >= 0
-    ? `<div class="slidepix-page-number" style="${attr(`color:${css(deck.pageNumbers.color)};font-size:${deck.pageNumbers.fontSize}px`)}">${visibleIndex + 1}</div>`
-    : "";
-  return `<section class="slidepix-slide" data-slide-id="${attr(slide.id)}" style="${attr(`width:${deck.size.width}px;height:${deck.size.height}px;background-color:${css(background)}${backgroundImage}`)}">${elements}${pageNumber}</section>`;
+  const total = deck.slides.filter((item) => !item.hidden).length;
+  const chrome = renderChrome(deck, slide, visibleIndex, total, citations);
+  return `<section class="slidepix-slide" data-slide-id="${attr(slide.id)}" style="${attr(`width:${deck.size.width}px;height:${deck.size.height}px;background-color:${css(background)}${backgroundImage}`)}">${elements}${chrome}</section>`;
 }
 
 export function renderDeckDocument(
   deck: Deck,
   resolveAsset: AssetResolver = (value) => value,
-  options: { mode?: "print" | "present" | "contact" | "frame"; selectedSlideIds?: string[]; columns?: number } = {}
+  options: { mode?: "print" | "present" | "contact" | "frame"; selectedSlideIds?: string[]; columns?: number; bibliographySource?: string } = {}
 ): string {
   const mode = options.mode ?? "print";
   const selected = options.selectedSlideIds?.length ? new Set(options.selectedSlideIds) : undefined;
   const slides = deck.slides.filter((slide) => !slide.hidden && (!selected || selected.has(slide.id)));
+  const citations = parseBibliography(options.bibliographySource ?? "");
   const markup = slides.map((slide) => {
     const visibleIndex = deck.slides.filter((item) => !item.hidden).findIndex((item) => item.id === slide.id);
-    return renderSlideMarkup(deck, slide, visibleIndex, resolveAsset);
+    return renderSlideMarkup(deck, slide, visibleIndex, resolveAsset, citations);
   }).join("");
   const columns = Math.max(1, options.columns ?? Math.ceil(Math.sqrt(slides.length)));
   const runtime = mode === "present" ? presentationScript(deck) : mode === "frame" ? frameScript(deck) : "";
@@ -335,14 +341,46 @@ export function renderDeckDocument(
   return `<!doctype html><html class="mode-${mode}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>${baseStyles(deck, mode, columns)}</style></head><body class="mode-${mode}"><main>${stage}</main>${runtime}</body></html>`;
 }
 
-function renderElement(element: SlideElement, elements: readonly SlideElement[], resolveAsset: AssetResolver): string {
+function renderChrome(deck: Deck, slide: Slide, visibleIndex: number, total: number, citations: readonly Citation[]): string {
+  const parts: string[] = [];
+  if (deck.header.enabled && deck.header.text) parts.push(chromeText("header", deck.header));
+  if (deck.footer.enabled && deck.footer.text) parts.push(chromeText("footer", deck.footer));
+  if (visibleIndex >= 0 && !slide.hidePageNumber && deck.pageNumbers.enabled) {
+    const page = deck.pageNumbers;
+    parts.push(`<div class="slidepix-page-number" style="${attr(chromeBox(page, page.color, page.fontSize, page.align))}">${escapeHtml(formatPageLabel(page.format, visibleIndex, total))}</div>`);
+    if (page.progress.enabled && page.progress.thickness > 0 && page.progress.width > 0) {
+      const ratio = Math.min(1, Math.max(0, (visibleIndex + 1) / Math.max(1, total)));
+      const bar = page.progress;
+      parts.push(`<div class="slidepix-progress" style="${attr(`left:${bar.x}px;top:${bar.y}px;width:${bar.width}px;height:${bar.thickness}px`)}"><div class="slidepix-progress-fill" style="${attr(`width:${ratio * 100}%;background:${css(bar.color)}`)}"></div></div>`);
+    }
+  }
+  if (slide.bibliography) {
+    const body = citations.length
+      ? formatBibliography(citations, deck.bibliography.format, deck.bibliography.indent)
+      : deck.bibliography.file ? "No citations in the reference file." : "Choose a reference file in the Bibliography tab.";
+    const width = Math.max(1, deck.size.width - 144);
+    const height = Math.max(1, deck.size.height - 144);
+    parts.push(`<div class="slidepix-bibliography" style="${attr(`left:72px;top:72px;width:${width}px;height:${height}px;color:${css(deck.theme.foreground)};font-family:${css(deck.theme.fontFamily)}`)}"><div class="slidepix-bibliography-title">${escapeHtml(deck.bibliography.title || "Bibliography")}</div><div class="slidepix-bibliography-body">${escapeHtml(body)}</div></div>`);
+  }
+  return parts.join("");
+}
+
+function chromeText(kind: "header" | "footer", item: Deck["header"]): string {
+  return `<div class="slidepix-${kind}" style="${attr(chromeBox(item, item.color, item.fontSize, item.align))}">${escapeHtml(item.text)}</div>`;
+}
+
+function chromeBox(item: { x: number; y: number; width: number; height: number }, color: string, fontSize: number, align: string): string {
+  return `left:${item.x}px;top:${item.y}px;width:${item.width}px;height:${item.height}px;color:${css(color)};font-size:${fontSize}px;text-align:${align}`;
+}
+
+function renderElement(element: SlideElement, elements: readonly SlideElement[], resolveAsset: AssetResolver, citations: readonly Citation[]): string {
   const base = `left:${element.x}px;top:${element.y}px;width:${element.width}px;height:${element.height}px;transform:rotate(${element.rotation}deg);opacity:${element.opacity};z-index:${element.z}`;
   const common = `class="slidepix-element slidepix-${element.type}" data-element-id="${attr(element.id)}" data-morph-key="${attr(morphMatchToken(element, elements))}" style="${attr(base)}"`;
   switch (element.type) {
     case "text": {
       const align = element.style.verticalAlign === "middle" ? "center" : element.style.verticalAlign === "bottom" ? "flex-end" : "flex-start";
       const style = `font-family:${css(element.style.fontFamily)};font-size:${element.style.fontSize}px;font-weight:${css(String(element.style.fontWeight))};color:${css(element.style.color)};text-align:${element.style.textAlign};line-height:${element.style.lineHeight};padding:${element.style.padding}px;justify-content:${align}`;
-      return `<div ${common}><div class="slidepix-text-content" style="${attr(style)}">${renderMarkdown(element.markdown)}</div></div>`;
+      return `<div ${common}><div class="slidepix-text-content" style="${attr(style)}">${renderMarkdown(expandCitationMarkers(element.markdown, citations))}</div></div>`;
     }
     case "image":
       return `<div ${common}>${imageMarkup(element, resolveAsset)}</div>`;
@@ -370,7 +408,7 @@ function renderElement(element: SlideElement, elements: readonly SlideElement[],
         const cells = Array.from({ length: element.columns }, (_, column) => {
           const source = element.cells[row]?.[column] ?? "";
           const textAlign = tag === "th" ? "center" : element.style.textAlign;
-          return `<${tag} style="${attr(`background:${css(fill)};border:${element.style.borderWidth}px solid ${css(element.style.borderColor)};padding:${element.style.padding}px;text-align:${textAlign}`)}"><div class="slidepix-table-cell" style="${attr(`justify-content:${vertical}`)}">${renderMarkdown(source)}</div></${tag}>`;
+          return `<${tag} style="${attr(`background:${css(fill)};border:${element.style.borderWidth}px solid ${css(element.style.borderColor)};padding:${element.style.padding}px;text-align:${textAlign}`)}"><div class="slidepix-table-cell" style="${attr(`justify-content:${vertical}`)}">${renderMarkdown(expandCitationMarkers(source, citations))}</div></${tag}>`;
         }).join("");
         return `<tr>${cells}</tr>`;
       }).join("");
@@ -427,7 +465,11 @@ main{${contact ? `display:grid;grid-template-columns:repeat(${columns},${deck.si
 .slidepix-image-clip{overflow:hidden}.slidepix-image-clip img{max-width:none;object-fit:fill}.slidepix-manim-still img{object-fit:contain}
 .slidepix-video video,.slidepix-manim video{object-fit:contain}.slidepix-manim-placeholder{position:absolute;inset:0;box-sizing:border-box;display:flex;align-items:center;justify-content:center;border:2px solid #64748b;background:#f1f5f9;color:#334155;text-align:center;padding:16px}.slidepix-manim-placeholder-label{display:block;max-width:100%;font-size:clamp(16px,2.8vmin,30px);font-weight:600;line-height:1.25;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;word-break:break-word}
 .slidepix-shape-content{inset:0}
-.slidepix-page-number{position:absolute;right:32px;bottom:20px;z-index:2147483647}
+.slidepix-page-number,.slidepix-header,.slidepix-footer,.slidepix-bibliography{position:absolute;z-index:2147483646;display:flex;flex-direction:column;justify-content:center;white-space:pre-wrap;overflow:hidden;pointer-events:none}
+.slidepix-bibliography{justify-content:flex-start;font-size:28px;line-height:1.35}
+.slidepix-bibliography-title{font-size:48px;font-weight:700;line-height:1.1;margin-bottom:24px}
+.slidepix-progress{position:absolute;z-index:2147483646;background:#e2e8f0;pointer-events:none;overflow:hidden}
+.slidepix-progress-fill{height:100%}
 @page{size:${deck.size.width}px ${deck.size.height}px;margin:0}
 @media print{html,body{background:transparent}.slidepix-slide{margin:0}}
 	html.mode-present,html.mode-frame,body.mode-present,body.mode-frame{background:#000}

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { CHICAGO_CITATION_FORMAT } from "./bibliography.js";
 
 export const CURRENT_SCHEMA_VERSION = 1 as const;
 
@@ -21,6 +22,30 @@ export const transitionSchema = z.object({
   durationMs: z.number().int().min(0).max(10_000).default(500),
   easing: z.string().default("ease-in-out")
 });
+
+function chromeTextSchema(y: number) {
+  return z.object({
+    enabled: z.boolean().default(false),
+    text: z.string().default(""),
+    color: color.default("#64748b"),
+    fontSize: nonNegative.default(28),
+    align: z.enum(["left", "center", "right"]).default("left"),
+    x: finite.default(64),
+    y: finite.default(y),
+    width: nonNegative.default(1400),
+    height: nonNegative.default(48)
+  }).default({
+    enabled: false,
+    text: "",
+    color: "#64748b",
+    fontSize: 28,
+    align: "left" as const,
+    x: 64,
+    y,
+    width: 1400,
+    height: 48
+  });
+}
 
 const baseElementSchema = z.object({
   id: z.string().min(1),
@@ -217,6 +242,7 @@ export const slideSchema = z.object({
   backgroundImage: slideBackgroundImageSchema.optional(),
   notes: z.string().default(""),
   hidden: z.boolean().default(false),
+  bibliography: z.boolean().default(false),
   hidePageNumber: z.boolean().default(false),
   transition: transitionSchema.default({ type: "none", durationMs: 500, easing: "ease-in-out" }),
   timeline: z.array(animationStepSchema).default([]),
@@ -243,9 +269,31 @@ export const deckSchema = z.object({
   }),
   pageNumbers: z.object({
     enabled: z.boolean().default(true),
-    color: color.default("#94a3b8"),
-    fontSize: nonNegative.default(24)
+    format: z.string().default("{n}"),
+    color: color.default("#64748b"),
+    fontSize: nonNegative.default(24),
+    align: z.enum(["left", "center", "right"]).default("right"),
+    x: finite.default(1520),
+    y: finite.default(1012),
+    width: nonNegative.default(368),
+    height: nonNegative.default(48),
+    progress: z.object({
+      enabled: z.boolean().default(false),
+      color: color.default("#2563eb"),
+      thickness: nonNegative.default(8),
+      x: finite.default(64),
+      y: finite.default(1064),
+      width: nonNegative.default(1792)
+    }).default({ enabled: false, color: "#2563eb", thickness: 8, x: 64, y: 1064, width: 1792 })
   }),
+  header: chromeTextSchema(28),
+  footer: chromeTextSchema(1008),
+  bibliography: z.object({
+    file: z.string().default(""),
+    title: z.string().default("Bibliography"),
+    format: z.string().default(CHICAGO_CITATION_FORMAT),
+    indent: z.number().int().min(0).max(32).default(4)
+  }).default({ file: "", title: "Bibliography", format: CHICAGO_CITATION_FORMAT, indent: 4 }),
   layouts: z.record(z.string(), z.object({
     name: z.string(),
     background: color.optional()
@@ -390,8 +438,6 @@ export function fitAspectBoxInSlide(
 }
 
 function enforceDeckInvariants(deck: Deck): Deck {
-  deck.pageNumbers.enabled = true;
-  for (const slide of deck.slides) slide.hidePageNumber = false;
   return deck;
 }
 
@@ -455,4 +501,15 @@ export function duplicateSlide(slide: Slide): Slide {
     elements: slide.elements.map((element) => ({ ...element, id: crypto.randomUUID() })),
     timeline: []
   };
+}
+
+/** Copy one element onto every later slide. The name and morph key stay so a morph can match the copies. */
+export function duplicateElementOntoFollowingSlides(deck: Deck, slideId: string, elementId: string): Deck {
+  const index = deck.slides.findIndex((slide) => slide.id === slideId);
+  const source = index < 0 ? undefined : deck.slides[index]?.elements.find((element) => element.id === elementId);
+  if (!source) return deck;
+  for (const slide of deck.slides.slice(index + 1)) {
+    slide.elements.push({ ...structuredClone(source), id: crypto.randomUUID() });
+  }
+  return deck;
 }

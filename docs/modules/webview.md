@@ -28,7 +28,7 @@ webview. The webview has no direct filesystem or Node access.
   from this file once it has independent state or tests; v0.1 remains compact.
 - `SlideView(props)` renders one slide at a logical size and applies a visual
   scale. It sorts elements by `z`, resolves media through a supplied resolver,
-  and generates visible-order page numbers.
+  and paints deck header, footer, pagination, progress, and a tagged bibliography.
 - The main editor keeps `SlideView` and Moveable inside one logical-size
   `canvas-scale` wrapper. The wrapper alone is zoomed, so selection geometry,
   drag, resize, rotation, and morph inputs stay in logical slide units while
@@ -173,13 +173,19 @@ always calls its resolver with both `src` and `storage`, including thumbnails.
 - Image and video Properties include **Keep original aspect ratio**, on by
   default for newly inserted media. Turning it on measures the source ratio
   and fits the box inside the slide. Later width edits, including a width
-  written into the deck, keep that ratio. Page numbers stay on every slide.
+  written into the deck, keep that ratio. Header, footer, pagination, and the
+  progress bar are edited in Slide Properties and painted on every slide.
+  **Hide pagination on this slide** suppresses the number and the bar.
   Text renders past its box; the slide still clips at the page edge.
 - **Element name** is the morph link. The same name on both slides morphs
   that object. A blank name, or the same name twice on one slide, does not.
+  **Duplicate on following slides** copies the element onto every later slide
+  and keeps that name.
 - Slide Properties exposes the same incoming transition controls as the rail,
   including **Apply to all slides**, and can choose, replace, or remove a
-  storage-aware background image.
+  storage-aware background image. Tagging **Bibliography slide** opens a
+  Bibliography tab for the reference file, displayed title, format, indent,
+  and a short citation cheat sheet.
 - Blocking browser alerts are not used. Success toasts auto-dismiss after 2.5
   seconds, errors remain dismissible, and host-owned exports update a progress
   toast through the versioned protocol.

@@ -16,6 +16,8 @@ export type HostToWebviewMessage =
   | { version: 2; type: "manimRenderAllResult"; requestId: string; ok: boolean; rendered: number; skipped: number; error?: string; results?: { elementId: string; settingsFingerprint: string }[] }
   | { version: 2; type: "notify"; notificationId: string; status: "progress" | "success" | "error" | "dismiss"; message?: string; progress?: number; elementId?: string; elementProgress?: number }
   | { version: 2; type: "collaboration"; status: LiveCollaborationStatus; role: "host" | "guest" | "none"; canEdit: boolean; hostName?: string; self?: LivePeer; peers: LivePeer[]; temporaryMirror?: boolean }
+  | { version: 2; type: "bibliography"; source: string; error?: string }
+  | { version: 2; type: "bibliographySelected"; requestId: string; file?: string; error?: string }
   | { version: 2; type: "assetsUpdated"; references: string[] }
   | { version: 2; type: "startCapture"; format: "pdf" | "png" };
 
@@ -42,6 +44,7 @@ export type WebviewToHostMessage =
   | { version: 2; type: "linkMedia"; requestId: string; kind: "image" | "video"; uri: string }
   | { version: 2; type: "embedMedia"; elementIds?: string[] }
   | { version: 2; type: "selectFont"; requestId: string; current: string }
+  | { version: 2; type: "selectBibliography"; requestId: string }
   | { version: 2; type: "selectManimScript"; requestId: string; elementId: string }
   | { version: 2; type: "createManimScript"; requestId: string; elementId: string }
   | { version: 2; type: "openManimScript"; script: string }

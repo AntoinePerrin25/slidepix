@@ -268,7 +268,12 @@ button:disabled { opacity: .45; cursor: default; }
 .slidepix-table-cell { width: 100%; height: 100%; display: flex; flex-direction: column; overflow: hidden; white-space: pre-wrap; tab-size: 4; }
 .slidepix-table-cell > *:first-child { margin-top: 0; }
 .slidepix-table-cell > *:last-child { margin-bottom: 0; }
-.page-number { position: absolute; right: 32px; bottom: 20px; z-index: 2147483647; }
+.slide-chrome, .page-number, .slide-header, .slide-footer, .slide-bibliography { position: absolute; z-index: 2147483646; display: flex; flex-direction: column; justify-content: center; white-space: pre-wrap; overflow: hidden; pointer-events: none; }
+.slide-bibliography { justify-content: flex-start; font-size: 28px; line-height: 1.35; }
+.slide-bibliography-title { font-size: 48px; font-weight: 700; line-height: 1.1; margin-bottom: 24px; }
+.slide-progress { position: absolute; z-index: 2147483646; background: #e2e8f0; pointer-events: none; overflow: hidden; }
+.slide-progress-fill { height: 100%; }
+.cheat-sheet { margin: 8px 0 0; padding: 10px 12px; border-radius: 8px; background: var(--panel-muted, #f1f5f9); color: inherit; font-size: 12px; line-height: 1.45; }
 
 .notes { min-height: 0; display: flex; flex-direction: column; border-top: 1px solid var(--vscode-panel-border); background: var(--vscode-editor-background); }
 .notes-header { height: 35px; flex: none; display: flex; align-items: center; justify-content: space-between; padding: 4px 10px; font-size: 11px; }

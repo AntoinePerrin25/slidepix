@@ -1,8 +1,12 @@
 import Moveable from "react-moveable";
-import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState, useSyncExternalStore, type ClipboardEvent as ReactClipboardEvent, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ClipboardEvent as ReactClipboardEvent, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { flushSync } from "react-dom";
 import {
+  CITATION_CHEAT_SHEET,
+  duplicateElementOntoFollowingSlides,
   duplicateSlide,
+  expandCitationMarkers,
+  parseBibliography,
   elementSchema,
   fitAspectBoxInSlide,
   fitLockedAspectBox,
@@ -10,6 +14,7 @@ import {
   renderMarkdown,
   widthForLockedAspect,
   type AnimationStep,
+  type Citation,
   type Deck,
   type HostToWebviewMessage,
   type MediaStorage,
@@ -36,11 +41,12 @@ import { assetCacheKey, collaborationView, ghostPoses, localPreview, noteAssets,
 import { jsPDF } from "jspdf";
 import { captureSlidePng, describeExportError, inlineImages, inlineVideos } from "./export-capture";
 
-type Tab = "properties" | "layers" | "animations";
+type Tab = "properties" | "layers" | "animations" | "bibliography";
 const transitionTypes: Transition["type"][] = ["none", "fade", "slide-left", "slide-right", "slide-up", "slide-down", "morph"];
 type MediaResult = { reference: string; storage: MediaStorage };
 const pendingAssets = new Map<string, (result?: MediaResult, error?: string) => void>();
 const pendingFonts = new Map<string, (family?: string, error?: string) => void>();
+const pendingBibliography = new Map<string, (message: Extract<HostToWebviewMessage, { type: "bibliographySelected" }>) => void>();
 const pendingManimScripts = new Map<string, (message: Extract<HostToWebviewMessage, { type: "manimScriptSelected" }>) => void>();
 const pendingManimCreates = new Map<string, (message: Extract<HostToWebviewMessage, { type: "manimScriptCreated" }>) => void>();
 const pendingManimScenes = new Map<string, (message: Extract<HostToWebviewMessage, { type: "manimScenesListed" }>) => void>();
@@ -68,6 +74,8 @@ export default function App() {
   const [railCollapsed, setRailCollapsed] = useState(false);
   const [inspectorCollapsed, setInspectorCollapsed] = useState(false);
   const [batchShapeEdit, setBatchShapeEdit] = useState(false);
+  const [bibliographySource, setBibliographySource] = useState("");
+  const citations = useMemo(() => parseBibliography(bibliographySource), [bibliographySource]);
   const inlineTextEditor = useRef<InlineTextEditorHandle>(null);
   const pendingTextFormat = useRef<TextFormatCommand | undefined>(undefined);
   const moveableRef = useRef<Moveable | null>(null);
@@ -78,7 +86,7 @@ export default function App() {
   const collaboration = useSyncExternalStore(subscribeCollaboration, collaborationView, collaborationView);
   const presenceSentAt = useRef(0);
 
-  useEffect(() => onHostMessage((message) => handleHostMessage(message, store.setFromHost, store.setInvalid, store.handleEditResult, store.handleHistoryResult)), []);
+  useEffect(() => onHostMessage((message) => handleHostMessage(message, store.setFromHost, store.setInvalid, store.handleEditResult, store.handleHistoryResult, setBibliographySource)), []);
   useEffect(() => { postMessage({ type: "ready" }); }, []);
   useEffect(() => {
     if (!store.historyError) return;
@@ -460,7 +468,7 @@ export default function App() {
         manimLocked={guest}
         sharing={collaboration.status === "hosting"}
       />
-      <SlideRail collapsed={railCollapsed} onToggleCollapse={() => setRailCollapsed((value) => !value)} deck={deck} selectedId={slide.id} peerColors={peerMarks(collaboration.peers)} select={(id) => { store.commit(); setEditingTextId(undefined); store.selectSlide(id); }} mutate={store.mutate} resolveAsset={assetUrl} />
+      <SlideRail collapsed={railCollapsed} onToggleCollapse={() => setRailCollapsed((value) => !value)} deck={deck} selectedId={slide.id} peerColors={peerMarks(collaboration.peers)} citations={citations} select={(id) => { store.commit(); setEditingTextId(undefined); store.selectSlide(id); }} mutate={store.mutate} resolveAsset={assetUrl} />
       <main className={`workspace ${notesCollapsed ? "notes-collapsed" : ""}`}>
         {liveOn && <div className="live-banner" role="status">
           <span>{collaboration.status === "hosting" ? "Sharing this deck" : collaboration.status === "reconnecting" ? "Reconnecting…" : collaboration.status === "ended" ? `Session ended — ${collaboration.hostName ?? "the host"} closed it` : `Connected to ${collaboration.hostName ?? "the host"}`}</span>
@@ -479,7 +487,7 @@ export default function App() {
               className="canvas-scale"
               style={{ width: deck.size.width, height: deck.size.height, zoom: store.zoom }}
             >
-              <SlideView
+              <SlideView citations={citations}
                 deck={deck}
                 slide={slide}
                 interactive
@@ -627,13 +635,13 @@ export default function App() {
         </section>
       </main>
       <Inspector collapsed={inspectorCollapsed} onToggleCollapse={() => setInspectorCollapsed((value) => !value)} tab={tab} setTab={setTab} deck={deck} slide={slide} element={selected} cropping={cropping} batchShapeEdit={batchShapeEdit} setBatchShapeEdit={setBatchShapeEdit} assetUrl={assetUrl} mutate={store.mutate} preview={store.preview} scheduleCommit={store.scheduleCommit} commit={store.commit} selectElement={store.selectElement} editText={(id) => { store.commit(); setEditingTextId(undefined); setAdvancedTextId(id); }} editImage={(id) => setCroppingId((current) => current === id ? undefined : id)} relinkMedia={(kind, id) => requestMedia(kind, undefined, id)} chooseBackgroundImage={requestBackgroundImage} />
-      {advancedTextId && <TextEditor deck={deck} slideId={slide.id} elementId={advancedTextId} preview={store.preview} scheduleCommit={store.scheduleCommit} commit={store.commit} close={() => setAdvancedTextId(undefined)} />}
+      {advancedTextId && <TextEditor deck={deck} slideId={slide.id} elementId={advancedTextId} citations={citations} preview={store.preview} scheduleCommit={store.scheduleCommit} commit={store.commit} close={() => setAdvancedTextId(undefined)} />}
       {store.mergeState && <MergeConflictDialog conflict={store.mergeState.conflicts[0]} resolve={store.resolveMergeConflict} useLatest={store.useLatestDeck} />}
       <ToastStack />
       <div id="hidden-export-container" aria-hidden="true" style={{ position: "fixed", left: -10000, top: 0, zIndex: -1, pointerEvents: "none" }}>
         {deck.slides.map((s) => (
           <div key={s.id} id={`export-slide-${s.id}`} style={{ width: deck.size.width, height: deck.size.height, overflow: "hidden", position: "relative", flexShrink: 0 }}>
-            <SlideView deck={deck} slide={s} resolveAsset={assetUrl} />
+            <SlideView deck={deck} slide={s} citations={citations} resolveAsset={assetUrl} />
           </div>
         ))}
       </div>
@@ -894,7 +902,7 @@ function AlignControls({ count, unlocked, align, distribute }: { count: number; 
   </div>;
 }
 
-function SlideRail({ collapsed, onToggleCollapse, deck, selectedId, peerColors, select, mutate, resolveAsset }: { collapsed: boolean; onToggleCollapse(): void; deck: Deck; selectedId: string; peerColors: Map<string, string[]>; select(id: string): void; mutate(fn: (deck: Deck) => void): void; resolveAsset(source: string, storage: MediaStorage): string }) {
+function SlideRail({ collapsed, onToggleCollapse, deck, selectedId, peerColors, citations, select, mutate, resolveAsset }: { collapsed: boolean; onToggleCollapse(): void; deck: Deck; selectedId: string; peerColors: Map<string, string[]>; citations: readonly Citation[]; select(id: string): void; mutate(fn: (deck: Deck) => void): void; resolveAsset(source: string, storage: MediaStorage): string }) {
   const [transitionSlideId, setTransitionSlideId] = useState<string>();
   const [drag, setDrag] = useState<{ id: string; from: number; dy: number; to: number }>();
   const listRef = useRef<HTMLDivElement>(null);
@@ -903,7 +911,7 @@ function SlideRail({ collapsed, onToggleCollapse, deck, selectedId, peerColors, 
   const addSlide = (index?: number) => {
     const id = crypto.randomUUID();
     mutate((draft) => {
-      const slide = { id, title: `Slide ${draft.slides.length + 1}`, notes: "", hidden: false, hidePageNumber: false, transition: { type: "none" as const, durationMs: 500, easing: "ease-in-out" }, timeline: [], elements: [] };
+      const slide = { id, title: `Slide ${draft.slides.length + 1}`, notes: "", hidden: false, bibliography: false, hidePageNumber: false, transition: { type: "none" as const, durationMs: 500, easing: "ease-in-out" }, timeline: [], elements: [] };
       if (index === undefined) draft.slides.push(slide);
       else draft.slides.splice(index, 0, slide);
     });
@@ -968,7 +976,7 @@ function SlideRail({ collapsed, onToggleCollapse, deck, selectedId, peerColors, 
         {index > 0 && transitionSlideId === slide.id && <TransitionEditor transition={slide.transition} update={(patch) => mutate((draft) => Object.assign(draft.slides[index]!.transition, patch))} applyAll={() => mutate((draft) => { const transition = { ...draft.slides[index]!.transition }; for (const item of draft.slides) item.transition = { ...transition }; })} close={() => setTransitionSlideId(undefined)} />}
         <button className={`thumbnail ${selectedId === slide.id ? "active" : ""}`} title="Drag up or down to reorder" onPointerDown={(event) => beginDrag(event, index, slide.id)} onPointerMove={moveDrag} onPointerUp={finishDrag} onPointerCancel={() => { dragGesture.current = undefined; setDrag(undefined); }} onClick={() => { if (suppressClick.current) { suppressClick.current = false; return; } select(slide.id); }}>
           <span className="slide-index">{index + 1}</span>
-          <div className="thumb-clip" style={{ width: 192, height: 108 }}><SlideView deck={deck} slide={slide} scale={0.1} resolveAsset={resolveAsset} /></div>
+          <div className="thumb-clip" style={{ width: 192, height: 108 }}><SlideView deck={deck} slide={slide} citations={citations} scale={0.1} resolveAsset={resolveAsset} /></div>
           <span className="slide-title">{slide.title}{slide.hidden ? " (hidden)" : ""}</span>
           {(peerColors.get(slide.id) ?? []).length > 0 && <span className="live-dots">{(peerColors.get(slide.id) ?? []).map((color, dot) => <i key={`${color}-${dot}`} style={{ background: color }} />)}</span>}
         </button>
@@ -1265,7 +1273,7 @@ function Inspector({ collapsed, onToggleCollapse, tab, setTab, deck, slide, elem
       <button type="button" className="icon-button panel-toggle" title={collapsed ? "Show properties" : "Collapse properties"} aria-label={collapsed ? "Show properties" : "Collapse properties"} aria-expanded={!collapsed} onClick={onToggleCollapse}>
         <span className={`codicon codicon-chevron-${collapsed ? "left" : "right"}`} />
       </button>
-      <nav>{(["properties", "layers", "animations"] as const).map((value) => <button className={tab === value ? "active" : ""} onClick={() => setTab(value)} key={value}>{value}</button>)}</nav>
+      <nav>{(["properties", "layers", "animations", ...(slide.bibliography ? ["bibliography"] as const : [])] as const).map((value) => <button className={tab === value ? "active" : ""} onClick={() => setTab(value)} key={value}>{value}</button>)}</nav>
     </div>
     <div className="inspector-body">
       {tab === "properties" && <>
@@ -1273,6 +1281,7 @@ function Inspector({ collapsed, onToggleCollapse, tab, setTab, deck, slide, elem
         {element ? <>
           <label>Element name<input autoComplete="off" value={element.name ?? ""} placeholder={elementLabel(element)} onChange={(event) => updateContinuous({ name: event.target.value.trimStart() || undefined })} onBlur={commit} /></label>
           <p className="panel-help">The same name on both slides morphs this object. A blank name, or the same name twice on one slide, does not morph.</p>
+          <button className="edit-text-button" disabled={deck.slides.findIndex((item) => item.id === slide.id) >= deck.slides.length - 1} onClick={() => mutate((draft) => duplicateElementOntoFollowingSlides(draft, slide.id, element.id))}>Duplicate on following slides</button>
           <h4 className="property-heading">Geometry</h4>
           <div className="field-grid geometry-grid">
             <NumberField label="X" value={element.x} onChange={(x) => updateContinuous({ x })} onCommit={commit} />
@@ -1365,11 +1374,43 @@ function Inspector({ collapsed, onToggleCollapse, tab, setTab, deck, slide, elem
           <ColorField label="Background" value={slide.background ?? deck.theme.background} onChange={(background) => continuous((draft) => { draft.slides.find((item) => item.id === slide.id)!.background = background; })} onCommit={commit} />
           <h4 className="property-heading">Background image</h4>
           {slide.backgroundImage ? <div className="media-source-card"><span className={`storage-badge ${slide.backgroundImage.storage}`}>{slide.backgroundImage.storage}</span><code title={slide.backgroundImage.src}>{slide.backgroundImage.src}</code><div><button onClick={chooseBackgroundImage}>Replace image…</button><button className="danger-quiet" onClick={() => mutate((draft) => { delete draft.slides.find((item) => item.id === slide.id)!.backgroundImage; })}>Remove</button></div></div> : <button className="edit-text-button" onClick={chooseBackgroundImage}><span className="codicon codicon-file-media" /> Choose background image…</button>}
+          <h4 className="property-heading">Header</h4>
+          <ChromeTextFields item={deck.header} onChange={(patch) => continuous((draft) => Object.assign(draft.header, patch))} onCommit={commit} />
+          <h4 className="property-heading">Footer</h4>
+          <ChromeTextFields item={deck.footer} onChange={(patch) => continuous((draft) => Object.assign(draft.footer, patch))} onCommit={commit} />
+          <h4 className="property-heading">Pagination</h4>
+          <CheckboxField label="Show page number" checked={deck.pageNumbers.enabled} onChange={(enabled) => mutate((draft) => { draft.pageNumbers.enabled = enabled; })} />
+          <CheckboxField label="Hide pagination on this slide" checked={slide.hidePageNumber} onChange={(hidePageNumber) => mutate((draft) => { const target = draft.slides.find((item) => item.id === slide.id); if (target) target.hidePageNumber = hidePageNumber; })} />
+          <label>Format<input value={deck.pageNumbers.format} onChange={(event) => { preview((draft) => { draft.pageNumbers.format = event.target.value; }); scheduleCommit(); }} onBlur={commit} /></label>
+          <p className="panel-help">Use {"{n}"} for the slide number and {"{total}"} for the number of visible slides. For example, {"{n}/{total}"}.</p>
+          <ColorField label="Number color" value={deck.pageNumbers.color} onChange={(color) => continuous((draft) => { draft.pageNumbers.color = color; })} onCommit={commit} />
+          <NumberField label="Number size" value={deck.pageNumbers.fontSize} onChange={(fontSize) => continuous((draft) => { draft.pageNumbers.fontSize = fontSize; })} onCommit={commit} />
+          <span className="inspector-control-label">Number alignment</span><AlignmentButtons label="Number alignment" value={deck.pageNumbers.align} values={["left", "center", "right"]} onChange={(value) => mutate((draft) => { draft.pageNumbers.align = value as "left" | "center" | "right"; })} />
+          <div className="field-grid geometry-grid">
+            <NumberField label="X" value={deck.pageNumbers.x} onChange={(x) => continuous((draft) => { draft.pageNumbers.x = x; })} onCommit={commit} />
+            <NumberField label="Y" value={deck.pageNumbers.y} onChange={(y) => continuous((draft) => { draft.pageNumbers.y = y; })} onCommit={commit} />
+            <NumberField label="W" value={deck.pageNumbers.width} min={0} onChange={(width) => continuous((draft) => { draft.pageNumbers.width = width; })} onCommit={commit} />
+            <NumberField label="H" value={deck.pageNumbers.height} min={0} onChange={(height) => continuous((draft) => { draft.pageNumbers.height = height; })} onCommit={commit} />
+          </div>
+          <CheckboxField label="Progress bar" checked={deck.pageNumbers.progress.enabled} onChange={(enabled) => mutate((draft) => { draft.pageNumbers.progress.enabled = enabled; })} />
+          {deck.pageNumbers.progress.enabled && <>
+            <ColorField label="Progress color" value={deck.pageNumbers.progress.color} onChange={(color) => continuous((draft) => { draft.pageNumbers.progress.color = color; })} onCommit={commit} />
+            <NumberField label="Thickness" value={deck.pageNumbers.progress.thickness} min={0} onChange={(thickness) => continuous((draft) => { draft.pageNumbers.progress.thickness = thickness; })} onCommit={commit} />
+            <div className="field-grid geometry-grid">
+              <NumberField label="X" value={deck.pageNumbers.progress.x} onChange={(x) => continuous((draft) => { draft.pageNumbers.progress.x = x; })} onCommit={commit} />
+              <NumberField label="Y" value={deck.pageNumbers.progress.y} onChange={(y) => continuous((draft) => { draft.pageNumbers.progress.y = y; })} onCommit={commit} />
+              <NumberField label="W" value={deck.pageNumbers.progress.width} min={0} onChange={(width) => continuous((draft) => { draft.pageNumbers.progress.width = width; })} onCommit={commit} />
+            </div>
+          </>}
+          <h4 className="property-heading">Bibliography</h4>
+          <CheckboxField label="Bibliography slide" checked={slide.bibliography} onChange={(bibliography) => { mutate((draft) => { const target = draft.slides.find((item) => item.id === slide.id); if (target) target.bibliography = bibliography; }); if (bibliography) setTab("bibliography"); }} />
+          <p className="panel-help">A tagged slide lists the reference file. Cite a work from any text with [@citation-key].</p>
           <h4 className="property-heading">Transition</h4>
           <TransitionControls transition={slide.transition} update={(patch) => mutate((draft) => Object.assign(draft.slides.find((item) => item.id === slide.id)!.transition, patch))} applyAll={() => mutate((draft) => { const source = draft.slides.find((item) => item.id === slide.id); if (!source) return; const transition = { ...source.transition }; for (const item of draft.slides) item.transition = { ...transition }; })} />
         </>}
       </>}
       {tab === "layers" && <><h3>Layers</h3><p className="panel-help">Shift-click to add items to the selection for align and distribute.</p>{[...slide.elements].sort((a, b) => b.z - a.z).map((item) => <div className={`layer-row ${selectedIds.includes(item.id) ? "active" : ""}`} key={item.id} onClick={(event) => selectElement(item.id, event.shiftKey)}><span>{item.name ?? `${item.type} ${item.id.slice(0, 4)}`}</span><button title={item.locked ? "Unlock" : "Lock"} aria-label={item.locked ? "Unlock" : "Lock"} onClick={(event) => { event.stopPropagation(); mutate((draft) => { const target = findElement(draft, slide.id, item.id); if (target) target.locked = !target.locked; }); }}><span className={`codicon codicon-${item.locked ? "lock" : "unlock"}`} /></button><button title={item.hidden ? "Show" : "Hide"} aria-label={item.hidden ? "Show" : "Hide"} onClick={(event) => { event.stopPropagation(); mutate((draft) => { const target = findElement(draft, slide.id, item.id); if (target) target.hidden = !target.hidden; }); }}><span className={`codicon codicon-${item.hidden ? "eye-closed" : "eye"}`} /></button><button title="Bring forward" aria-label="Bring forward" onClick={(event) => { event.stopPropagation(); mutate((draft) => { const target = findElement(draft, slide.id, item.id); if (target) target.z += 1; }); }}><span className="codicon codicon-arrow-up" /></button><button title="Send backward" aria-label="Send backward" onClick={(event) => { event.stopPropagation(); mutate((draft) => { const target = findElement(draft, slide.id, item.id); if (target) target.z -= 1; }); }}><span className="codicon codicon-arrow-down" /></button></div>)}</>}
+      {tab === "bibliography" && slide.bibliography && <BibliographyFields deck={deck} mutate={mutate} preview={preview} scheduleCommit={scheduleCommit} commit={commit} />}
       {tab === "animations" && <><h3>Animation timeline</h3><p className="panel-help">Select an element, then add its entrance. The cards run from top to bottom.</p><button className="add-animation" disabled={!element} onClick={() => element && mutate((draft) => draft.slides.find((item) => item.id === slide.id)!.timeline.push(defaultAnimation(element.id)))}><span className="codicon codicon-add" /> Add entrance{element ? ` for ${elementLabel(element)}` : ""}</button><div className="animation-list">{slide.timeline.map((step, index) => <AnimationRow key={step.id} step={step} index={index} flowLabel={animationFlowLabel(slide.timeline, index)} element={slide.elements.find((item) => item.id === step.targetElementId)} selectElement={selectElement} mutate={(patch) => mutate((draft) => Object.assign(draft.slides.find((item) => item.id === slide.id)!.timeline[index]!, patch))} remove={() => mutate((draft) => draft.slides.find((item) => item.id === slide.id)!.timeline.splice(index, 1))} />)}</div></>}
     </div>
   </aside>;
@@ -1386,13 +1427,54 @@ function AnimationRow({ step, index, flowLabel, element, selectElement, mutate, 
   </div>;
 }
 
-function TextEditor({ deck, slideId, elementId, preview, scheduleCommit, commit, close }: { deck: Deck; slideId: string; elementId: string; preview(fn: (deck: Deck) => void): void; scheduleCommit(): void; commit(): void; close(): void }) {
+function ChromeTextFields({ item, onChange, onCommit }: { item: Deck["header"]; onChange(patch: Partial<Deck["header"]>): void; onCommit(): void }) {
+  return <>
+    <CheckboxField label="Show" checked={item.enabled} onChange={(enabled) => onChange({ enabled })} />
+    <label>Text<input value={item.text} onChange={(event) => onChange({ text: event.target.value })} onBlur={onCommit} /></label>
+    <ColorField label="Color" value={item.color} onChange={(color) => onChange({ color })} />
+    <NumberField label="Font size" value={item.fontSize} onChange={(fontSize) => onChange({ fontSize })} />
+    <span className="inspector-control-label">Alignment</span><AlignmentButtons label="Alignment" value={item.align} values={["left", "center", "right"]} onChange={(value) => onChange({ align: value as Deck["header"]["align"] })} />
+    <div className="field-grid geometry-grid">
+      <NumberField label="X" value={item.x} onChange={(x) => onChange({ x })} />
+      <NumberField label="Y" value={item.y} onChange={(y) => onChange({ y })} />
+      <NumberField label="W" value={item.width} min={0} onChange={(width) => onChange({ width })} />
+      <NumberField label="H" value={item.height} min={0} onChange={(height) => onChange({ height })} />
+    </div>
+  </>;
+}
+
+function BibliographyFields({ deck, mutate, preview, scheduleCommit, commit }: { deck: Deck; mutate(fn: (deck: Deck) => void): void; preview(fn: (deck: Deck) => void): void; scheduleCommit(): void; commit(): void }) {
+  const choose = () => {
+    const requestId = crypto.randomUUID();
+    pendingBibliography.set(requestId, (message) => {
+      if (message.file) mutate((draft) => { draft.bibliography.file = message.file ?? ""; });
+      else if (message.error) notifyToast({ id: requestId, kind: "error", message: message.error });
+    });
+    postMessage({ type: "selectBibliography", requestId });
+  };
+  return <>
+    <h3>Bibliography</h3>
+    <label>Displayed name<input value={deck.bibliography.title} onChange={(event) => { preview((draft) => { draft.bibliography.title = event.target.value; }); scheduleCommit(); }} onBlur={commit} /></label>
+    <div className="media-source-card">{deck.bibliography.file ? <code title={deck.bibliography.file}>{deck.bibliography.file}</code> : <span>No reference file</span>}<div><button onClick={choose}>Choose reference file…</button>{deck.bibliography.file && <button className="danger-quiet" onClick={() => mutate((draft) => { draft.bibliography.file = ""; })}>Remove</button>}</div></div>
+    <label>Citation format<textarea value={deck.bibliography.format} onChange={(event) => { preview((draft) => { draft.bibliography.format = event.target.value; }); scheduleCommit(); }} onBlur={commit} /></label>
+    <NumberField label="Indent spaces" value={deck.bibliography.indent} min={0} max={32} onChange={(indent) => continuousIndent(preview, scheduleCommit, indent)} onCommit={commit} />
+    <p className="panel-help">#indent in the format inserts this many spaces.</p>
+    <p className="cheat-sheet">{CITATION_CHEAT_SHEET}</p>
+  </>;
+}
+
+function continuousIndent(preview: (fn: (deck: Deck) => void) => void, scheduleCommit: () => void, indent: number) {
+  preview((draft) => { draft.bibliography.indent = Math.max(0, Math.min(32, Math.round(indent))); });
+  scheduleCommit();
+}
+
+function TextEditor({ deck, slideId, elementId, citations, preview, scheduleCommit, commit, close }: { deck: Deck; slideId: string; elementId: string; citations: readonly Citation[]; preview(fn: (deck: Deck) => void): void; scheduleCommit(): void; commit(): void; close(): void }) {
   const element = findElement(deck, slideId, elementId);
   const slide = deck.slides.find((item) => item.id === slideId);
   if (element?.type !== "text") return null;
   const background = slide?.background ?? deck.layouts[slide?.layout ?? ""]?.background ?? deck.theme.background;
   const finish = () => { commit(); close(); };
-  return <div className="modal-backdrop" onMouseDown={finish}><div className="text-editor" onMouseDown={(event) => event.stopPropagation()}><header><strong>Markdown · LaTeX · Code</strong><button onClick={finish}>Done</button></header><textarea autoFocus value={element.markdown} onKeyDown={(event) => { if (applyTextTab(event, element.markdown, (markdown) => { preview((draft) => { const target = findElement(draft, slideId, elementId); if (target?.type === "text") target.markdown = markdown; }); scheduleCommit(); })) return; if (event.key === "Escape" || ((event.ctrlKey || event.metaKey) && event.key === "Enter")) { event.preventDefault(); finish(); } }} onChange={(event) => { preview((draft) => { const target = findElement(draft, slideId, elementId); if (target?.type === "text") target.markdown = event.target.value; }); scheduleCommit(); }} onBlur={commit} /><section className="text-preview-panel"><strong>Live preview</strong><div className="text-preview" style={{ background, fontFamily: element.style.fontFamily, fontSize: Math.min(element.style.fontSize, 34), fontWeight: element.style.fontWeight, color: element.style.color, textAlign: element.style.textAlign, lineHeight: element.style.lineHeight }} dangerouslySetInnerHTML={{ __html: renderMarkdown(element.markdown) }} /></section><p>Use <code>$x^2$</code>, <code>$$…$$</code>, and fenced code blocks. Press <code>Tab</code> for a tab stop. Press <code>Ctrl/Cmd+Enter</code> or <code>Escape</code> to finish.</p></div></div>;
+  return <div className="modal-backdrop" onMouseDown={finish}><div className="text-editor" onMouseDown={(event) => event.stopPropagation()}><header><strong>Markdown · LaTeX · Code</strong><button onClick={finish}>Done</button></header><textarea autoFocus value={element.markdown} onKeyDown={(event) => { if (applyTextTab(event, element.markdown, (markdown) => { preview((draft) => { const target = findElement(draft, slideId, elementId); if (target?.type === "text") target.markdown = markdown; }); scheduleCommit(); })) return; if (event.key === "Escape" || ((event.ctrlKey || event.metaKey) && event.key === "Enter")) { event.preventDefault(); finish(); } }} onChange={(event) => { preview((draft) => { const target = findElement(draft, slideId, elementId); if (target?.type === "text") target.markdown = event.target.value; }); scheduleCommit(); }} onBlur={commit} /><section className="text-preview-panel"><strong>Live preview</strong><div className="text-preview" style={{ background, fontFamily: element.style.fontFamily, fontSize: Math.min(element.style.fontSize, 34), fontWeight: element.style.fontWeight, color: element.style.color, textAlign: element.style.textAlign, lineHeight: element.style.lineHeight }} dangerouslySetInnerHTML={{ __html: renderMarkdown(expandCitationMarkers(element.markdown, citations)) }} /></section><p>Use <code>$x^2$</code>, <code>$$…$$</code>, and fenced code blocks. Press <code>Tab</code> for a tab stop. Press <code>Ctrl/Cmd+Enter</code> or <code>Escape</code> to finish.</p></div></div>;
 }
 
 const InlineTextEditor = forwardRef<InlineTextEditorHandle, {
@@ -1630,8 +1712,9 @@ function deleteElements(slideId: string, elementIds: string[], mutate: (fn: (dec
   });
   select();
 }
-function handleHostMessage(message: HostToWebviewMessage, setDeck: (deck: Deck, revision: string, uri: string, linkedUri: string, history?: { canUndo?: boolean; canRedo?: boolean }) => void, setInvalid: (message: string, gitConflict: boolean, uri: string, linkedUri: string) => void, handleEditResult: (message: Extract<HostToWebviewMessage, { type: "documentEditResult" }>) => void, handleHistoryResult: (message: Extract<HostToWebviewMessage, { type: "historyResult" }>) => void) {
+function handleHostMessage(message: HostToWebviewMessage, setDeck: (deck: Deck, revision: string, uri: string, linkedUri: string, history?: { canUndo?: boolean; canRedo?: boolean }) => void, setInvalid: (message: string, gitConflict: boolean, uri: string, linkedUri: string) => void, handleEditResult: (message: Extract<HostToWebviewMessage, { type: "documentEditResult" }>) => void, handleHistoryResult: (message: Extract<HostToWebviewMessage, { type: "historyResult" }>) => void, setBibliography: (source: string) => void) {
   if (message.type === "deck") setDeck(message.deck, message.revision, message.uri, message.linkedUri, { canUndo: message.canUndo, canRedo: message.canRedo });
+  else if (message.type === "bibliography") setBibliography(message.source);
   else if (message.type === "invalidDeck") setInvalid(message.message, message.gitConflict, message.uri, message.linkedUri);
   else if (message.type === "documentEditResult") handleEditResult(message);
   else if (message.type === "historyResult") handleHistoryResult(message);
@@ -1639,6 +1722,7 @@ function handleHostMessage(message: HostToWebviewMessage, setDeck: (deck: Deck, 
     pendingAssets.get(message.requestId)?.(message.reference && message.storage ? { reference: message.reference, storage: message.storage } : undefined, message.error);
     pendingAssets.delete(message.requestId);
   } else if (message.type === "fontSelected") pendingFonts.get(message.requestId)?.(message.family, message.error);
+  else if (message.type === "bibliographySelected") { pendingBibliography.get(message.requestId)?.(message); pendingBibliography.delete(message.requestId); }
   else if (message.type === "manimScriptSelected") { pendingManimScripts.get(message.requestId)?.(message); pendingManimScripts.delete(message.requestId); }
   else if (message.type === "manimScriptCreated") { pendingManimCreates.get(message.requestId)?.(message); pendingManimCreates.delete(message.requestId); }
   else if (message.type === "manimScenesListed") { pendingManimScenes.get(message.requestId)?.(message); pendingManimScenes.delete(message.requestId); }

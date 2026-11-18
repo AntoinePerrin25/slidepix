@@ -91,8 +91,12 @@
           "default": true,
           "type": "boolean"
         },
+        "format": {
+          "default": "{n}",
+          "type": "string"
+        },
         "color": {
-          "default": "#94a3b8",
+          "default": "#64748b",
           "type": "string",
           "minLength": 1
         },
@@ -100,12 +104,277 @@
           "default": 24,
           "type": "number",
           "minimum": 0
+        },
+        "align": {
+          "default": "right",
+          "type": "string",
+          "enum": [
+            "left",
+            "center",
+            "right"
+          ]
+        },
+        "x": {
+          "default": 1520,
+          "type": "number"
+        },
+        "y": {
+          "default": 1012,
+          "type": "number"
+        },
+        "width": {
+          "default": 368,
+          "type": "number",
+          "minimum": 0
+        },
+        "height": {
+          "default": 48,
+          "type": "number",
+          "minimum": 0
+        },
+        "progress": {
+          "default": {
+            "enabled": false,
+            "color": "#2563eb",
+            "thickness": 8,
+            "x": 64,
+            "y": 1064,
+            "width": 1792
+          },
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "default": false,
+              "type": "boolean"
+            },
+            "color": {
+              "default": "#2563eb",
+              "type": "string",
+              "minLength": 1
+            },
+            "thickness": {
+              "default": 8,
+              "type": "number",
+              "minimum": 0
+            },
+            "x": {
+              "default": 64,
+              "type": "number"
+            },
+            "y": {
+              "default": 1064,
+              "type": "number"
+            },
+            "width": {
+              "default": 1792,
+              "type": "number",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "enabled",
+            "color",
+            "thickness",
+            "x",
+            "y",
+            "width"
+          ],
+          "additionalProperties": false
         }
       },
       "required": [
         "enabled",
+        "format",
         "color",
-        "fontSize"
+        "fontSize",
+        "align",
+        "x",
+        "y",
+        "width",
+        "height",
+        "progress"
+      ],
+      "additionalProperties": false
+    },
+    "header": {
+      "default": {
+        "enabled": false,
+        "text": "",
+        "color": "#64748b",
+        "fontSize": 28,
+        "align": "left",
+        "x": 64,
+        "y": 28,
+        "width": 1400,
+        "height": 48
+      },
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "default": false,
+          "type": "boolean"
+        },
+        "text": {
+          "default": "",
+          "type": "string"
+        },
+        "color": {
+          "default": "#64748b",
+          "type": "string",
+          "minLength": 1
+        },
+        "fontSize": {
+          "default": 28,
+          "type": "number",
+          "minimum": 0
+        },
+        "align": {
+          "default": "left",
+          "type": "string",
+          "enum": [
+            "left",
+            "center",
+            "right"
+          ]
+        },
+        "x": {
+          "default": 64,
+          "type": "number"
+        },
+        "y": {
+          "default": 28,
+          "type": "number"
+        },
+        "width": {
+          "default": 1400,
+          "type": "number",
+          "minimum": 0
+        },
+        "height": {
+          "default": 48,
+          "type": "number",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "enabled",
+        "text",
+        "color",
+        "fontSize",
+        "align",
+        "x",
+        "y",
+        "width",
+        "height"
+      ],
+      "additionalProperties": false
+    },
+    "footer": {
+      "default": {
+        "enabled": false,
+        "text": "",
+        "color": "#64748b",
+        "fontSize": 28,
+        "align": "left",
+        "x": 64,
+        "y": 1008,
+        "width": 1400,
+        "height": 48
+      },
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "default": false,
+          "type": "boolean"
+        },
+        "text": {
+          "default": "",
+          "type": "string"
+        },
+        "color": {
+          "default": "#64748b",
+          "type": "string",
+          "minLength": 1
+        },
+        "fontSize": {
+          "default": 28,
+          "type": "number",
+          "minimum": 0
+        },
+        "align": {
+          "default": "left",
+          "type": "string",
+          "enum": [
+            "left",
+            "center",
+            "right"
+          ]
+        },
+        "x": {
+          "default": 64,
+          "type": "number"
+        },
+        "y": {
+          "default": 1008,
+          "type": "number"
+        },
+        "width": {
+          "default": 1400,
+          "type": "number",
+          "minimum": 0
+        },
+        "height": {
+          "default": 48,
+          "type": "number",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "enabled",
+        "text",
+        "color",
+        "fontSize",
+        "align",
+        "x",
+        "y",
+        "width",
+        "height"
+      ],
+      "additionalProperties": false
+    },
+    "bibliography": {
+      "default": {
+        "file": "",
+        "title": "Bibliography",
+        "format": "#indent@author (@year). @title. @url.",
+        "indent": 4
+      },
+      "type": "object",
+      "properties": {
+        "file": {
+          "default": "",
+          "type": "string"
+        },
+        "title": {
+          "default": "Bibliography",
+          "type": "string"
+        },
+        "format": {
+          "default": "#indent@author (@year). @title. @url.",
+          "type": "string"
+        },
+        "indent": {
+          "default": 4,
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 32
+        }
+      },
+      "required": [
+        "file",
+        "title",
+        "format",
+        "indent"
       ],
       "additionalProperties": false
     },
@@ -180,6 +449,10 @@
             "type": "string"
           },
           "hidden": {
+            "default": false,
+            "type": "boolean"
+          },
+          "bibliography": {
             "default": false,
             "type": "boolean"
           },
@@ -1332,6 +1605,7 @@
           "title",
           "notes",
           "hidden",
+          "bibliography",
           "hidePageNumber",
           "transition",
           "timeline",
@@ -1348,6 +1622,9 @@
     "size",
     "theme",
     "pageNumbers",
+    "header",
+    "footer",
+    "bibliography",
     "layouts",
     "slides"
   ],

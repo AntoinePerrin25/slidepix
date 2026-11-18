@@ -3,3 +3,4 @@ export * from "./merge.js";
 export * from "./render.js";
 export * from "./schema.js";
 export * from "./manim.js";
+export * from "./bibliography.js";

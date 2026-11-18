@@ -3,8 +3,13 @@ import { access, readFile, rename, rm, writeFile } from "node:fs/promises";
 import * as path from "node:path";
 import PptxGenJS from "pptxgenjs";
 import {
+  expandCitationMarkers,
+  formatBibliography,
+  formatPageLabel,
   morphMatchToken,
+  parseBibliography,
   parsePresentationMarkdown,
+  type Citation,
   type Deck,
   type PresentationMarkdownBlock,
   type PresentationTextRun,
@@ -14,6 +19,7 @@ import {
   type TextElement,
   type VideoElement
 } from "@slidepix/core";
+import { readLinkedBibliography } from "./bibliography-file";
 import { resolveMediaPath } from "@slidepix/core/assets";
 import {
   addPptxWarning,
@@ -37,6 +43,7 @@ interface BuildContext {
   warnings: PptxExportWarning[];
   nativeObjectCount: number;
   mathSequence: number;
+  citations: readonly Citation[];
 }
 
 export async function buildPptxExport(
@@ -49,7 +56,8 @@ export async function buildPptxExport(
   if (!visibleSlides.length) throw new Error("The deck has no visible slides to export.");
   await validateMedia(deck, deckPath, allowedLinkedRoots);
 
-  const context: BuildContext = { deck, deckPath, allowedLinkedRoots, warnings: [], nativeObjectCount: 0, mathSequence: 0 };
+  const citations = parseBibliography(await readLinkedBibliography(deckPath, deck.bibliography.file, allowedLinkedRoots));
+  const context: BuildContext = { deck, deckPath, allowedLinkedRoots, warnings: [], nativeObjectCount: 0, mathSequence: 0, citations };
   addFontWarnings(context);
   const pptx = createPresentation(deck);
   const patches: PptxSlidePatch[] = [];
@@ -73,7 +81,8 @@ export async function buildPptxExport(
     for (const element of [...sourceSlide.elements].filter((item) => !item.hidden).sort((left, right) => left.z - right.z)) {
       patch.animationTargets.set(element.id, await addNativeElement(pptx, slide, element, sourceSlide, patch, context));
     }
-    addPageNumber(slide, deck, sourceSlide, visibleIndex, context);
+    addPageNumber(slide, deck, sourceSlide, visibleIndex, visibleSlides.length, context);
+    addBibliography(slide, deck, sourceSlide, context);
     patches.push(patch);
   }
 
@@ -173,7 +182,7 @@ function addTextElement(
   patch: PptxSlidePatch,
   context: BuildContext
 ): string[] {
-  const blocks = parsePresentationMarkdown(element.markdown);
+  const blocks = parsePresentationMarkdown(expandCitationMarkers(element.markdown, context.citations));
   const tables = blocks.filter((block): block is Extract<PresentationMarkdownBlock, { type: "table" }> => block.type === "table");
   const textBlocks = blocks.filter((block): block is Exclude<PresentationMarkdownBlock, { type: "table" }> => block.type !== "table");
   const names: string[] = [];
@@ -311,7 +320,7 @@ function addTable(
   const border = borderPaint.visible && element.style.borderWidth > 0 ? { type: "solid" as const, color: borderPaint.color, pt: points(element.style.borderWidth) } : { type: "none" as const };
   const rows: PptxGenJS.TableRow[] = Array.from({ length: element.rows }, (_, row) => Array.from({ length: element.columns }, (_, column) => {
     const fill = pptxColor(row === 0 && element.headerRow ? element.style.headerFill : element.style.cellFill, element.opacity, context.warnings, sourceSlide.id, element.id);
-    const blocks = parsePresentationMarkdown(element.cells[row]?.[column] ?? "");
+    const blocks = parsePresentationMarkdown(expandCitationMarkers(element.cells[row]?.[column] ?? "", context.citations));
     const containsMath = blocks.some((block) => block.type === "math" || ((block.type === "paragraph" || block.type === "heading" || block.type === "list-item") && block.runs.some((run) => run.kind === "math")));
     if (containsMath) addPptxWarning(context.warnings, "math-linearized", "Math inside a table cell is exported as editable linear text because PowerPoint table cells cannot contain OfficeMath objects.", sourceSlide.id, element.id);
     return { text: blocks.map(blockPlainText).join("\n"), options: {
@@ -337,12 +346,42 @@ async function addVideo(slide: PptxGenJS.Slide, element: VideoElement, name: str
   if (element.playback.muted || element.playback.loop || !element.playback.controls || element.playback.mode === "autoplay") addPptxWarning(context.warnings, "video-playback-approximated", "The video remains embedded and editable, but PowerPoint may not preserve every SlidePix mute, loop, controls, or autoplay preference.", sourceSlide.id, element.id);
 }
 
-function addPageNumber(slide: PptxGenJS.Slide, deck: Deck, sourceSlide: Slide, visibleIndex: number, context: BuildContext): void {
-  const paint = pptxColor(deck.pageNumbers.color, 1, context.warnings, sourceSlide.id);
-  slide.addText(String(visibleIndex + 1), {
-    x: inches(deck.size.width - 160), y: inches(deck.size.height - 64), w: inches(128), h: inches(44), margin: 0,
-    align: "right", valign: "bottom", fontSize: points(deck.pageNumbers.fontSize), fontFace: fontFace(deck.theme.fontFamily),
-    color: paint.color, transparency: paint.transparency, objectName: `SlidePix page number ${visibleIndex + 1}`
+function addPageNumber(slide: PptxGenJS.Slide, deck: Deck, sourceSlide: Slide, visibleIndex: number, total: number, context: BuildContext): void {
+  if (deck.header.enabled && deck.header.text) addChromeText(slide, deck.header, deck.header.text, "SlidePix header", sourceSlide, context);
+  if (deck.footer.enabled && deck.footer.text) addChromeText(slide, deck.footer, deck.footer.text, "SlidePix footer", sourceSlide, context);
+  if (sourceSlide.hidePageNumber || !deck.pageNumbers.enabled) return;
+  const page = deck.pageNumbers;
+  addChromeText(slide, page, formatPageLabel(page.format, visibleIndex, total), `SlidePix page number ${visibleIndex + 1}`, sourceSlide, context);
+  if (!page.progress.enabled || page.progress.thickness <= 0 || page.progress.width <= 0) return;
+  const paint = pptxColor(page.progress.color, 1, context.warnings, sourceSlide.id);
+  const ratio = Math.min(1, Math.max(0, (visibleIndex + 1) / Math.max(1, total)));
+  slide.addShape("rect", {
+    x: inches(page.progress.x), y: inches(page.progress.y), w: inches(page.progress.width * ratio), h: inches(page.progress.thickness),
+    fill: { color: paint.color, transparency: paint.transparency }, line: { type: "none" }, objectName: "SlidePix progress"
+  });
+  context.nativeObjectCount += 1;
+}
+
+function addChromeText(slide: PptxGenJS.Slide, box: { x: number; y: number; width: number; height: number; color: string; fontSize: number; align: "left" | "center" | "right" }, text: string, name: string, sourceSlide: Slide, context: BuildContext): void {
+  const paint = pptxColor(box.color, 1, context.warnings, sourceSlide.id);
+  slide.addText(text, {
+    x: inches(box.x), y: inches(box.y), w: inches(box.width), h: inches(box.height), margin: 0,
+    align: box.align, valign: "middle", fontSize: points(box.fontSize), fontFace: fontFace(context.deck.theme.fontFamily),
+    color: paint.color, transparency: paint.transparency, objectName: name
+  });
+  context.nativeObjectCount += 1;
+}
+
+function addBibliography(slide: PptxGenJS.Slide, deck: Deck, sourceSlide: Slide, context: BuildContext): void {
+  if (!sourceSlide.bibliography) return;
+  const body = context.citations.length
+    ? formatBibliography(context.citations, deck.bibliography.format, deck.bibliography.indent)
+    : deck.bibliography.file ? "No citations in the reference file." : "Choose a reference file in the Bibliography tab.";
+  const paint = pptxColor(deck.theme.foreground, 1, context.warnings, sourceSlide.id);
+  slide.addText(`${deck.bibliography.title || "Bibliography"}\n${body}`, {
+    x: inches(72), y: inches(72), w: inches(Math.max(1, deck.size.width - 144)), h: inches(Math.max(1, deck.size.height - 144)),
+    margin: 0, align: "left", valign: "top", fontSize: points(28), fontFace: fontFace(deck.theme.fontFamily),
+    color: paint.color, transparency: paint.transparency, objectName: "SlidePix bibliography"
   });
   context.nativeObjectCount += 1;
 }
