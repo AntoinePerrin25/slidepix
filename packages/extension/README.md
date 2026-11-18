@@ -1,49 +1,99 @@
-# SlidePix
+# SlidePix Deck
 
-SlidePix opens `*.slidepix.json` files as visual presentations inside desktop
-VS Code and Cursor.
+SlidePix is a visual presentation editor for desktop VS Code, Cursor, and their forks. A presentation is a readable `*.slidepix.json` file, with pictures and videos in a sibling folder.
 
-## Start without writing code
+![SlidePix editor: slide rail, canvas, toolbar, properties, and speaker notes](https://github.com/antoineperrin25/slidepix/raw/HEAD/packages/extension/images/editor.png)
 
-1. Open the Command Palette with `Ctrl+Shift+P` on Windows/Linux or
-   `Cmd+Shift+P` on macOS.
+
+## Install the extension
+
+[Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=AntoinePERRIN.slidepix-deck)
+[Open VSX Registry](https://open-vsx.org/extension/antoineperrin/slidepix-deck)
+
+
+## Create a deck
+
+1. Open the Command Palette (`Ctrl+Shift+P` on Windows and Linux, `Cmd+Shift+P` on macOS).
 2. Run **SlidePix: Create Deck**.
-3. The editor opens `untitled.slidepix.json` next to the selected Explorer
-   item, or in the workspace folder.
-4. Use the left rail for slides, the center canvas for editing, the top toolbar
-   for content/export/presentation, and the right panel for properties, layers,
-   and animations.
+3. SlidePix writes `untitled.slidepix.json` next to the file selected in Explorer, or in the workspace folder, and opens the visual editor.
 
-Text supports Markdown, inline/display LaTeX, and fenced code. Images and videos
-can be chosen or dropped from the workspace Explorer and stay relatively linked
-by default. Use **Embed all** to copy them into the sibling `.assets` folder.
-Selected SlidePix elements can be copied between slides; clipboard images and
-plain text can also be pasted. Properties provides system-font selection and
-image border/crop controls. Undo and redo work from the toolbar or standard
-VS Code/Cursor shortcuts.
+If a deck opens as JSON, right-click the tab and choose **Reopen Editor With… → SlidePix Editor**.
 
-PDF/PNG export asks once before downloading the optional Chromium renderer.
-**PPTX** needs no renderer and creates native editable text, highlighted code,
-OfficeMath equations, shapes, tables, pictures, and embedded video. It also maps
-SlidePix transitions, Morph identity, and appear/fade/fly timeline steps to
-PowerPoint motion. The `.pptx` is generated directly; LibreOffice is not an
-export dependency. Browser-only details use the closest native PowerPoint
-equivalent and are listed in the export report; content is never replaced with
-slide or element screenshots. Fonts are referenced but not bundled.
-**Web** creates an offline `index.html` folder with copied media and needs no
-renderer download; the folder can be opened directly or hosted by a static web
-server. System fonts are not bundled and may fall back on another computer.
-Run **SlidePix: Configure MCP** to preview configuration for the bundled
-read-only slide inspection and rendering tools.
+## What you are looking at
 
-For teams using Git, run **SlidePix: Configure Git Collaboration** with a deck
-open. The explicitly confirmed, repository-local setup adds stable line endings
-and an ID-aware deck merge driver. Independent slide/element changes and
-concurrent additions merge automatically; true value, delete/edit, and order
-conflicts can be resolved with **SlidePix: Resolve Git Conflict**. Removal is
-available through **SlidePix: Remove Git Collaboration**.
+- **Left:** slide previews. Drag to reorder. Use the gap between slides to insert a slide or set the incoming transition.
+- **Center:** the current slide. Click an item to move, resize, or rotate it. Double-click text to edit it on the slide, or an image to crop it.
+- **Top:** add text, images, videos, tables, shapes, and Manim scenes. **Present**, **Presenter**, **Export**, and **Share** are on the same bar.
+- **Right:** slide and item properties, layer order, and the animation timeline.
+- **Bottom:** speaker notes. Save with `Ctrl+S` or `Cmd+S`. Undo and redo use the usual shortcuts and the toolbar buttons.
 
-If a deck opens as text, choose **Reopen Editor With… → SlidePix Editor**.
+![Moving through a SlidePix deck](https://github.com/antoineperrin25/slidepix/raw/HEAD/packages/extension/images/walkthrough.gif)
 
-For full usage, troubleshooting, development, and architecture documentation,
-open the project repository's root `README.md` and `architecture.md`.
+## Write on the slide
+
+Add text with **Text** and type immediately. The contextual bar sets bold, italic, lists, alignment, font, size, and color. **Advanced editor** is for longer Markdown, inline and display LaTeX such as `$x^2$`, and fenced code.
+
+Tables use Markdown cells. Add or remove rows and columns from **Properties**.
+
+![A SlidePix table with centered headers and speaker notes](https://github.com/antoineperrin25/slidepix/raw/HEAD/packages/extension/images/tables.png)
+
+## Pictures, video, and shapes
+
+Use **Image** or **Video**, or drag a file from Explorer. Workspace media stays linked by a relative path. **Embed all** copies it into the sibling `.assets` folder when the deck needs to travel.
+
+Select an image to set its border, corner radius, and edge fade. Double-click it to crop: drag the picture to reposition it, and drag an edge to change the frame.
+
+**Shape** adds rectangles, ellipses, and lines. Shift-click a second item to multi-select, then align or distribute from the contextual bar.
+
+## Motion
+
+Select an item and open **Animations** to add an entrance. The cards run from top to bottom. Set the incoming transition from the labelled gap between two slide previews, or from **Properties**. **Apply to all slides** copies that transition.
+
+![Animation timeline for a fade entrance](https://github.com/antoineperrin25/slidepix/raw/HEAD/packages/extension/images/animations.png)
+
+## Present
+
+**Present** opens one audience window. The shortcut is `Ctrl+Shift+F5` (`Cmd+Shift+F5` on macOS).
+
+**Presenter** keeps the current slide, the next slide, notes, and a timer beside the audience window.
+
+## Export
+
+Open **Export** in the toolbar.
+
+![Export menu: PNG, PDF, PowerPoint, Web, and Project](https://github.com/antoineperrin25/slidepix/raw/HEAD/packages/extension/images/export.png)
+
+| Format | What you get |
+| --- | --- |
+| **PNG** | One image of the current slide. The first export may ask to download a Chromium renderer. |
+| **PDF** | The deck, with a video shown as its first frame and a play control. |
+| **PowerPoint** | A native `.pptx`: editable text, highlighted code, equations, shapes, tables, pictures, video, transitions, and common animations. LibreOffice is not required. |
+| **Web** | An offline folder with `index.html` and copied media. Open it in a browser or host it as static files. |
+| **Project** | A zip of the deck, its `.assets` folder, and the linked media needed to open it elsewhere. |
+
+Fonts are referenced, not bundled, so another computer may substitute a system font.
+
+## Take the deck with you
+
+Copy both items together:
+
+```text
+my-talk.slidepix.json
+my-talk.assets/
+```
+
+The asset folder appears after media is imported. Its name has to match the deck.
+
+## Work with Git
+
+With a deck open, run **SlidePix: Configure Git Collaboration** and confirm the preview. SlidePix adds a repository-local merge driver that understands slide and element IDs. Changes to different slides combine. A real clash opens **SlidePix: Resolve Git Conflict**, where you pick base, ours, or theirs. **SlidePix: Remove Git Collaboration** removes only that setup.
+
+## Edit together
+
+**Share** copies a live invitation. The other person runs **SlidePix: Join Live Collaboration** and pastes it. You approve them, then both editors stay on the same deck until **Stop**.
+
+## Ask an assistant to look
+
+**AI**, or **SlidePix: Configure MCP**, installs a read-only inspector for Cursor, VS Code, Codex, Claude Code, and Claude Desktop. A new chat can list and inspect slides. It cannot change the deck.
+
+The longer guide for install, Git, live sessions, and export details is in the [SlidePix repository](https://github.com/antoineperrin25/slidepix).
