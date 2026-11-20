@@ -16,7 +16,7 @@ import xml from "highlight.js/lib/languages/xml";
 // markdown-it-katex does not publish TypeScript declarations.
 // @ts-ignore The plugin follows MarkdownIt's standard PluginSimple shape.
 import markdownItKatex from "markdown-it-katex";
-import { expandCitationMarkers, formatBibliography, parseBibliography, type Citation } from "./bibliography.js";
+import { bibliographyBody, citedEntries, expandCitationMarkers, parseBibliography, type Citation } from "./bibliography.js";
 import { manimScriptFileLabel } from "./manim.js";
 import { morphMatchToken, type Deck, type ImageElement, type ManimElement, type MediaStorage, type Slide, type SlideElement } from "./schema.js";
 
@@ -387,7 +387,7 @@ export function renderDeckDocument(
   const mode = options.mode ?? "print";
   const selected = options.selectedSlideIds?.length ? new Set(options.selectedSlideIds) : undefined;
   const slides = deck.slides.filter((slide) => !slide.hidden && (!selected || selected.has(slide.id)));
-  const citations = parseBibliography(options.bibliographySource ?? "");
+  const citations = citedEntries(deck.slides, parseBibliography(options.bibliographySource ?? ""));
   const markup = slides.map((slide) => {
     const visibleIndex = deck.slides.filter((item) => !item.hidden).findIndex((item) => item.id === slide.id);
     return renderSlideMarkup(deck, slide, visibleIndex, resolveAsset, citations);
@@ -412,12 +412,11 @@ function renderChrome(deck: Deck, slide: Slide, visibleIndex: number, total: num
     }
   }
   if (slide.bibliography) {
-    const body = citations.length
-      ? formatBibliography(citations, deck.bibliography.format, deck.bibliography.indent)
-      : deck.bibliography.file ? "No citations in the reference file." : "Choose a reference file in the Bibliography tab.";
-    const width = Math.max(1, deck.size.width - 144);
-    const height = Math.max(1, deck.size.height - 144);
-    parts.push(`<div class="slidepix-bibliography" style="${attr(`left:72px;top:72px;width:${width}px;height:${height}px;color:${css(deck.theme.foreground)};font-family:${css(deck.theme.fontFamily)}`)}"><div class="slidepix-bibliography-title">${escapeHtml(deck.bibliography.title || "Bibliography")}</div><div class="slidepix-bibliography-body">${escapeHtml(body)}</div></div>`);
+    const bibliography = deck.bibliography;
+    const body = bibliographyBody(citations, bibliography.format, bibliography.indent, Boolean(bibliography.file.trim() || bibliography.source.trim()));
+    const paint = `color:${css(deck.theme.foreground)};font-family:${css(deck.theme.fontFamily)}`;
+    parts.push(`<div class="slidepix-bibliography" style="${attr(`${chromeBox(bibliography.titleBox, deck.theme.foreground, 48, "left")};font-weight:700;${paint}`)}">${escapeHtml(bibliography.title || "Bibliography")}</div>`);
+    parts.push(`<div class="slidepix-citations" style="${attr(`${chromeBox(bibliography.listBox, deck.theme.foreground, 28, "left")};${paint}`)}">${escapeHtml(body)}</div>`);
   }
   return parts.join("");
 }
@@ -522,10 +521,9 @@ main{${contact ? `display:grid;grid-template-columns:repeat(${columns},${deck.si
 .slidepix-image-clip{overflow:hidden}.slidepix-image-clip img{max-width:none;object-fit:fill}.slidepix-manim-still img{object-fit:contain}
 .slidepix-video video,.slidepix-manim video{object-fit:contain}.slidepix-manim-placeholder{position:absolute;inset:0;box-sizing:border-box;display:flex;align-items:center;justify-content:center;border:2px solid #64748b;background:#f1f5f9;color:#334155;text-align:center;padding:16px}.slidepix-manim-placeholder-label{display:block;max-width:100%;font-size:clamp(16px,2.8vmin,30px);font-weight:600;line-height:1.25;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;word-break:break-word}
 .slidepix-shape-content{inset:0}
-.slidepix-page-number,.slidepix-header,.slidepix-footer,.slidepix-bibliography{position:absolute;z-index:2147483646;display:flex;flex-direction:column;justify-content:center;white-space:pre-wrap;overflow:hidden;pointer-events:none}
+.slidepix-page-number,.slidepix-header,.slidepix-footer,.slidepix-bibliography,.slidepix-citations{position:absolute;z-index:2147483646;display:flex;flex-direction:column;justify-content:center;white-space:pre-wrap;overflow:hidden;pointer-events:none}
 .slidepix-citation-sup{font-size:.65em;line-height:0;vertical-align:super}.slidepix-citation-small{font-size:.75em}
-.slidepix-bibliography{justify-content:flex-start;font-size:28px;line-height:1.35}
-.slidepix-bibliography-title{font-size:48px;font-weight:700;line-height:1.1;margin-bottom:24px}
+.slidepix-bibliography,.slidepix-citations{justify-content:flex-start;line-height:1.35}
 .slidepix-progress{position:absolute;z-index:2147483646;background:#e2e8f0;pointer-events:none;overflow:hidden}
 .slidepix-progress-fill{height:100%}
 @page{size:${deck.size.width}px ${deck.size.height}px;margin:0}

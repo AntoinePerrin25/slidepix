@@ -23,6 +23,15 @@ export const transitionSchema = z.object({
   easing: z.string().default("ease-in-out")
 });
 
+function chromeBoxSchema(x: number, y: number, width: number, height: number) {
+  return z.object({
+    x: finite.default(x),
+    y: finite.default(y),
+    width: nonNegative.default(width),
+    height: nonNegative.default(height)
+  }).default({ x, y, width, height });
+}
+
 function chromeTextSchema(y: number) {
   return z.object({
     enabled: z.boolean().default(false),
@@ -295,8 +304,20 @@ export const deckSchema = z.object({
     title: z.string().default("Bibliography"),
     format: z.string().default(CHICAGO_CITATION_FORMAT),
     citationFormat: z.string().default(CHICAGO_INLINE_FORMAT),
-    indent: z.number().int().min(0).max(32).default(4)
-  }).default({ file: "", storage: "linked", source: "", title: "Bibliography", format: CHICAGO_CITATION_FORMAT, citationFormat: CHICAGO_INLINE_FORMAT, indent: 4 }),
+    indent: z.number().int().min(0).max(32).default(4),
+    titleBox: chromeBoxSchema(72, 72, 1776, 88),
+    listBox: chromeBoxSchema(72, 172, 1776, 836)
+  }).default({
+    file: "",
+    storage: "linked",
+    source: "",
+    title: "Bibliography",
+    format: CHICAGO_CITATION_FORMAT,
+    citationFormat: CHICAGO_INLINE_FORMAT,
+    indent: 4,
+    titleBox: { x: 72, y: 72, width: 1776, height: 88 },
+    listBox: { x: 72, y: 172, width: 1776, height: 836 }
+  }),
   layouts: z.record(z.string(), z.object({
     name: z.string(),
     background: color.optional()
@@ -506,13 +527,15 @@ export function duplicateSlide(slide: Slide): Slide {
   };
 }
 
-/** Copy one element onto every later slide. The name and morph key stay so a morph can match the copies. */
-export function duplicateElementOntoFollowingSlides(deck: Deck, slideId: string, elementId: string): Deck {
+/** Copy one element onto later slides. Omit `every` to copy onto each later slide; otherwise copy every `every` slides, counting from the current one. */
+export function duplicateElementOntoFollowingSlides(deck: Deck, slideId: string, elementId: string, every?: number): Deck {
   const index = deck.slides.findIndex((slide) => slide.id === slideId);
   const source = index < 0 ? undefined : deck.slides[index]?.elements.find((element) => element.id === elementId);
   if (!source) return deck;
-  for (const slide of deck.slides.slice(index + 1)) {
-    slide.elements.push({ ...structuredClone(source), id: crypto.randomUUID() });
+  const step = every === undefined ? 1 : Math.floor(every);
+  if (step < 1) return deck;
+  for (let offset = step; index + offset < deck.slides.length; offset += step) {
+    deck.slides[index + offset]!.elements.push({ ...structuredClone(source), id: crypto.randomUUID() });
   }
   return deck;
 }

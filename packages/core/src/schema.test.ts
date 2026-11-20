@@ -218,6 +218,20 @@ describe("deck schema", () => {
     }, parsed.deck.slides[0]!.id, parsed.deck.slides[0]!.elements[0]!.id);
     expect(copy.slides[1]!.elements[0]?.name).toBe(parsed.deck.slides[0]!.elements[0]?.name);
     expect(copy.slides[1]!.elements[0]?.id).not.toBe(parsed.deck.slides[0]!.elements[0]?.id);
+    const stepped = duplicateElementOntoFollowingSlides({
+      ...parsed.deck,
+      slides: [
+        parsed.deck.slides[0]!,
+        { ...parsed.deck.slides[0]!, id: "next", elements: [] },
+        { ...parsed.deck.slides[0]!, id: "after", elements: [] },
+        { ...parsed.deck.slides[0]!, id: "third", elements: [] },
+        { ...parsed.deck.slides[0]!, id: "fourth", elements: [] }
+      ]
+    }, parsed.deck.slides[0]!.id, parsed.deck.slides[0]!.elements[0]!.id, 2);
+    expect(stepped.slides[1]!.elements).toHaveLength(0);
+    expect(stepped.slides[2]!.elements).toHaveLength(1);
+    expect(stepped.slides[3]!.elements).toHaveLength(0);
+    expect(stepped.slides[4]!.elements).toHaveLength(1);
     const fitted = fitAspectBoxInSlide({ x: 100, y: 900, width: 1000, height: 100 }, 0.5, { width: 1920, height: 1080 });
     expect(fitted).toEqual({ x: 100, y: 0, width: 540, height: 1080 });
   });

@@ -87,8 +87,12 @@ invalid inputs fall back to ordinary Git conflict markers.
   format, and the number of spaces inserted for `#indent`. The list defaults
   to Chicago author-date. `[@key]` defaults to `(@shortauthor @year)`, the
   family names and year. `@author` keeps the names as written in the file.
-  `#sup{...}` is a small superscript and `#small{...}` is smaller text.
-  `source` is merged by citation key.
+  `@number` follows the first appearance of each cited key, from the top of
+  each visible slide downward. The bibliography slide lists only those cited
+  entries, in that same order. `#sup{...}` is a small superscript and
+  `#small{...}` is smaller text in slide text. `titleBox` and `listBox` place
+  the bibliography title and the citation list. `source` is merged by citation
+  key.
 - `layouts`: reusable named background definitions. The UI designer is not yet
   implemented.
 - `slides`: at least one ordered slide.

@@ -3,8 +3,9 @@ import { access, readFile, rename, rm, writeFile } from "node:fs/promises";
 import * as path from "node:path";
 import PptxGenJS from "pptxgenjs";
 import {
+  bibliographyBody,
+  citedEntries,
   expandCitationMarkers,
-  formatBibliography,
   formatPageLabel,
   morphMatchToken,
   parseBibliography,
@@ -56,7 +57,7 @@ export async function buildPptxExport(
   if (!visibleSlides.length) throw new Error("The deck has no visible slides to export.");
   await validateMedia(deck, deckPath, allowedLinkedRoots);
 
-  const citations = parseBibliography(await readDeckBibliography(deckPath, deck.bibliography, allowedLinkedRoots));
+  const citations = citedEntries(deck.slides, parseBibliography(await readDeckBibliography(deckPath, deck.bibliography, allowedLinkedRoots)));
   const context: BuildContext = { deck, deckPath, allowedLinkedRoots, warnings: [], nativeObjectCount: 0, mathSequence: 0, citations };
   addFontWarnings(context);
   const pptx = createPresentation(deck);
@@ -374,16 +375,19 @@ function addChromeText(slide: PptxGenJS.Slide, box: { x: number; y: number; widt
 
 function addBibliography(slide: PptxGenJS.Slide, deck: Deck, sourceSlide: Slide, context: BuildContext): void {
   if (!sourceSlide.bibliography) return;
-  const body = context.citations.length
-    ? formatBibliography(context.citations, deck.bibliography.format, deck.bibliography.indent)
-    : deck.bibliography.file ? "No citations in the reference file." : "Choose a reference file in the Bibliography tab.";
+  const bibliography = deck.bibliography;
+  const body = bibliographyBody(context.citations, bibliography.format, bibliography.indent, Boolean(bibliography.file.trim() || bibliography.source.trim()));
   const paint = pptxColor(deck.theme.foreground, 1, context.warnings, sourceSlide.id);
-  slide.addText(`${deck.bibliography.title || "Bibliography"}\n${body}`, {
-    x: inches(72), y: inches(72), w: inches(Math.max(1, deck.size.width - 144)), h: inches(Math.max(1, deck.size.height - 144)),
-    margin: 0, align: "left", valign: "top", fontSize: points(28), fontFace: fontFace(deck.theme.fontFamily),
-    color: paint.color, transparency: paint.transparency, objectName: "SlidePix bibliography"
+  const shared = { margin: 0, align: "left" as const, valign: "top" as const, fontFace: fontFace(deck.theme.fontFamily), color: paint.color, transparency: paint.transparency };
+  slide.addText(bibliography.title || "Bibliography", {
+    x: inches(bibliography.titleBox.x), y: inches(bibliography.titleBox.y), w: inches(bibliography.titleBox.width), h: inches(bibliography.titleBox.height),
+    ...shared, fontSize: points(48), bold: true, objectName: "SlidePix bibliography"
   });
-  context.nativeObjectCount += 1;
+  slide.addText(body, {
+    x: inches(bibliography.listBox.x), y: inches(bibliography.listBox.y), w: inches(bibliography.listBox.width), h: inches(bibliography.listBox.height),
+    ...shared, fontSize: points(28), objectName: "SlidePix citations"
+  });
+  context.nativeObjectCount += 2;
 }
 
 function nativeObjectName(element: SlideElement, slide: Slide, warnings: PptxExportWarning[]): string {

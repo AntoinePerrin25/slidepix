@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   CHICAGO_CITATION_FORMAT,
+  citedEntries,
   expandCitationMarkers,
   formatCitation,
   inlineCitation,
@@ -32,6 +33,21 @@ describe("bibliography", () => {
     expect(inlineCitation(entry!)).toBe("(Smith and Johnson 2024)");
     expect(formatCitation(entry!, "@author", 0)).toContain("Smith, John R., and Johnson, Mary L.");
     expect(expandCitationMarkers("[@smith2024quantum]", [entry!], "#sup{@number} (@author @year)", 0)).toBe("#sup{1} (Smith, John R., and Johnson, Mary L. 2024)");
+  });
+
+  it("numbers citations by first appearance and keeps only those", () => {
+    const slides = [{
+      hidden: false,
+      elements: [
+        { hidden: false, type: "text", x: 0, y: 10, markdown: "See [@alpha]." },
+        { hidden: false, type: "text", x: 0, y: 400, markdown: "[@beta] and [@alpha]." },
+        { hidden: true, type: "text", x: 0, y: 0, markdown: "[@gamma]" }
+      ]
+    }];
+    const entries = parseBibliography("@misc{gamma, title={Gamma}}\n@misc{alpha, title={Alpha}}\n@misc{beta, title={Beta}}\n@misc{unused, title={Unused}}");
+    const cited = citedEntries(slides, entries);
+    expect(cited.map((entry) => entry.key)).toEqual(["alpha", "beta"]);
+    expect(expandCitationMarkers("[@beta] [@alpha]", cited, "@number", 0)).toBe("2 1");
   });
 
   it("keeps citation entries added on either side", () => {

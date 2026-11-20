@@ -394,6 +394,10 @@ export class SlidePixEditorProvider implements vscode.CustomTextEditorProvider {
     }
     if (message.type === "selectFont") return this.selectFont(panel, message);
     if (message.type === "selectBibliography") return this.selectBibliography(document, panel, message);
+    if (message.type === "copyText") {
+      await vscode.env.clipboard.writeText(message.text);
+      return;
+    }
     if (message.type === "embedBibliography") {
       if (await this.live?.embedBibliographyOnHost(document)) return;
       return this.embedBibliography(document);

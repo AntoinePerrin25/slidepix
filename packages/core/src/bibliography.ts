@@ -127,6 +127,57 @@ export function parseBibliography(source: string): Citation[] {
   return entries;
 }
 
+const citationMarker = /\[@([A-Za-z0-9_.:-]+)\]/g;
+
+type CitationSource = {
+  hidden: boolean;
+  elements: readonly {
+    hidden: boolean;
+    type: string;
+    x: number;
+    y: number;
+    markdown?: string;
+    cells?: readonly (readonly string[])[];
+  }[];
+};
+
+/** Citations in first-appearance order, top to bottom across visible slides. */
+export function citedEntries(slides: readonly CitationSource[], entries: readonly Citation[]): Citation[] {
+  const byKey = new Map(entries.map((entry) => [entry.key, entry]));
+  const seen = new Set<string>();
+  const ordered: Citation[] = [];
+  for (const slide of slides) {
+    if (slide.hidden) continue;
+    const elements = slide.elements
+      .map((element, index) => ({ element, index }))
+      .filter((item) => !item.element.hidden)
+      .sort((left, right) => left.element.y - right.element.y || left.element.x - right.element.x || left.index - right.index);
+    for (const { element } of elements) {
+      const chunks = element.type === "text" && element.markdown
+        ? [element.markdown]
+        : element.type === "table"
+          ? (element.cells ?? []).flatMap((row) => [...row])
+          : [];
+      for (const chunk of chunks) {
+        for (const match of chunk.matchAll(citationMarker)) {
+          const key = match[1] ?? "";
+          if (!key || seen.has(key)) continue;
+          const entry = byKey.get(key);
+          if (!entry) continue;
+          seen.add(key);
+          ordered.push(entry);
+        }
+      }
+    }
+  }
+  return ordered;
+}
+
+export function bibliographyBody(entries: readonly Citation[], template: string, indent: number, hasReference: boolean): string {
+  if (entries.length) return formatBibliography(entries, template, indent);
+  return hasReference ? "No citations are used in the slides." : "Choose a reference file in the Bibliography tab.";
+}
+
 export function formatBibliography(entries: readonly Citation[], template: string, indent: number): string {
   return entries.map((entry, index) => formatCitation(entry, template, indent, { number: index + 1 })).join("\n");
 }

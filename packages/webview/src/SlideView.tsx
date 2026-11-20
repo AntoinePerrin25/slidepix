@@ -1,5 +1,5 @@
-import { expandCitationMarkers, formatBibliography, formatPageLabel, manimScriptFileLabel, renderMarkdown, roundedEdgeFadeMask, type Citation, type Deck, type MediaStorage, type Slide, type SlideElement } from "@slidepix/core";
-import { useEffect, useState, type CSSProperties, type MouseEvent } from "react";
+import { bibliographyBody, expandCitationMarkers, formatPageLabel, manimScriptFileLabel, renderMarkdown, roundedEdgeFadeMask, type Citation, type Deck, type MediaStorage, type Slide, type SlideElement } from "@slidepix/core";
+import { useEffect, useState, type CSSProperties, type MouseEvent, type PointerEvent as ReactPointerEvent } from "react";
 
 type Props = {
   deck: Deck;
@@ -10,6 +10,8 @@ type Props = {
   editingElementId?: string;
   resolveAsset?: (source: string, storage: MediaStorage) => string;
   citations?: readonly Citation[];
+  onChromeGeometry?: (kind: ChromeKind, box: ChromeBox) => void;
+  onChromeCommit?: () => void;
   onSelectElement?: (id?: string, additive?: boolean) => void;
   onEditText?: (id: string) => void;
   onEditImage?: (id: string) => void;
@@ -24,6 +26,8 @@ export function SlideView({
   editingElementId,
   resolveAsset = (value) => value,
   citations = [],
+  onChromeGeometry,
+  onChromeCommit,
   onSelectElement,
   onEditText,
   onEditImage
@@ -62,7 +66,7 @@ export function SlideView({
           }}
         />
       ))}
-      <SlideChrome deck={deck} slide={slide} pageIndex={pageIndex} total={visibleSlides.length} citations={citations} />
+      <SlideChrome deck={deck} slide={slide} pageIndex={pageIndex} total={visibleSlides.length} citations={citations} interactive={interactive} onChromeGeometry={onChromeGeometry} onChromeCommit={onChromeCommit} />
     </div>
   );
 }
@@ -272,21 +276,79 @@ function ImageView({ element, src }: { element: Extract<SlideElement, { type: "i
   );
 }
 
-function SlideChrome({ deck, slide, pageIndex, total, citations }: { deck: Deck; slide: Slide; pageIndex: number; total: number; citations: readonly Citation[] }) {
+export type ChromeKind = "header" | "footer" | "bibliography" | "citations";
+export type ChromeBox = { x: number; y: number; width: number; height: number };
+
+function SlideChrome({ deck, slide, pageIndex, total, citations, interactive, onChromeGeometry, onChromeCommit }: { deck: Deck; slide: Slide; pageIndex: number; total: number; citations: readonly Citation[]; interactive: boolean; onChromeGeometry?: (kind: ChromeKind, box: ChromeBox) => void; onChromeCommit?: () => void }) {
   const showPage = pageIndex >= 0 && !slide.hidePageNumber && deck.pageNumbers.enabled;
   const ratio = Math.min(1, Math.max(0, (pageIndex + 1) / Math.max(1, total)));
-  const bibliography = slide.bibliography
-    ? citations.length
-      ? formatBibliography(citations, deck.bibliography.format, deck.bibliography.indent)
-      : deck.bibliography.file ? "No citations in the reference file." : "Choose a reference file in the Bibliography tab."
+  const bibliography = deck.bibliography;
+  const body = slide.bibliography
+    ? bibliographyBody(citations, bibliography.format, bibliography.indent, Boolean(bibliography.file.trim() || bibliography.source.trim()))
     : "";
+  const change = (kind: ChromeKind) => (box: ChromeBox) => onChromeGeometry?.(kind, box);
   return <>
-    {deck.header.enabled && deck.header.text && <div className="slide-header" style={chromeStyle(deck.header)}>{deck.header.text}</div>}
-    {deck.footer.enabled && deck.footer.text && <div className="slide-footer" style={chromeStyle(deck.footer)}>{deck.footer.text}</div>}
+    {deck.header.enabled && (interactive || deck.header.text) && <EditableChrome label="header" className="slide-header" box={deck.header} textStyle={chromeStyle(deck.header)} interactive={interactive} slideWidth={deck.size.width} onChange={change("header")} onCommit={onChromeCommit}>{deck.header.text}</EditableChrome>}
+    {deck.footer.enabled && (interactive || deck.footer.text) && <EditableChrome label="footer" className="slide-footer" box={deck.footer} textStyle={chromeStyle(deck.footer)} interactive={interactive} slideWidth={deck.size.width} onChange={change("footer")} onCommit={onChromeCommit}>{deck.footer.text}</EditableChrome>}
     {showPage && <div className="page-number" style={chromeStyle(deck.pageNumbers)}>{formatPageLabel(deck.pageNumbers.format, pageIndex, total)}</div>}
     {showPage && deck.pageNumbers.progress.enabled && <div className="slide-progress" style={{ left: deck.pageNumbers.progress.x, top: deck.pageNumbers.progress.y, width: deck.pageNumbers.progress.width, height: deck.pageNumbers.progress.thickness }}><div className="slide-progress-fill" style={{ width: `${ratio * 100}%`, background: deck.pageNumbers.progress.color }} /></div>}
-    {slide.bibliography && <div className="slide-bibliography" style={{ left: 72, top: 72, width: Math.max(1, deck.size.width - 144), height: Math.max(1, deck.size.height - 144), color: deck.theme.foreground, fontFamily: deck.theme.fontFamily }}><div className="slide-bibliography-title">{deck.bibliography.title || "Bibliography"}</div><div>{bibliography}</div></div>}
+    {slide.bibliography && <EditableChrome label="bibliography" className="slide-bibliography" box={bibliography.titleBox} textStyle={{ ...boxStyle(bibliography.titleBox), color: deck.theme.foreground, fontFamily: deck.theme.fontFamily, fontSize: 48, fontWeight: 700, textAlign: "left" }} interactive={interactive} slideWidth={deck.size.width} onChange={change("bibliography")} onCommit={onChromeCommit}>{bibliography.title || "Bibliography"}</EditableChrome>}
+    {slide.bibliography && <EditableChrome label="citations" className="slide-citations" box={bibliography.listBox} textStyle={{ ...boxStyle(bibliography.listBox), color: deck.theme.foreground, fontFamily: deck.theme.fontFamily, fontSize: 28, textAlign: "left" }} interactive={interactive} slideWidth={deck.size.width} onChange={change("citations")} onCommit={onChromeCommit}>{body}</EditableChrome>}
   </>;
+}
+
+function EditableChrome({ label, className, box, textStyle, interactive, slideWidth, onChange, onCommit, children }: { label: string; className: string; box: ChromeBox; textStyle: CSSProperties; interactive: boolean; slideWidth: number; onChange(box: ChromeBox): void; onCommit?: () => void; children: string }) {
+  const drag = (event: ReactPointerEvent, edges: { move?: boolean; left?: boolean; right?: boolean; top?: boolean; bottom?: boolean }) => {
+    if (!interactive) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const bounds = event.currentTarget.closest(".slide")?.getBoundingClientRect();
+    const scale = bounds && bounds.width > 0 ? bounds.width / slideWidth : 1;
+    const startX = event.clientX;
+    const startY = event.clientY;
+    const origin = { ...box };
+    let moved = false;
+    const move = (next: PointerEvent) => {
+      const dx = (next.clientX - startX) / scale;
+      const dy = (next.clientY - startY) / scale;
+      if (Math.hypot(dx, dy) < 1) return;
+      moved = true;
+      let { x, y, width, height } = origin;
+      if (edges.move) { x += dx; y += dy; }
+      if (edges.left) { x += dx; width -= dx; }
+      if (edges.right) width += dx;
+      if (edges.top) { y += dy; height -= dy; }
+      if (edges.bottom) height += dy;
+      onChange({ x, y, width: Math.max(24, width), height: Math.max(24, height) });
+    };
+    const end = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", end);
+      if (moved) onCommit?.();
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", end);
+  };
+  return <div className={`${className}${interactive ? " chrome-edit" : ""}`} style={textStyle} onPointerDown={(event) => drag(event, { move: true })}>
+    {interactive && <span className="chrome-edit-label">{label}</span>}
+    {children}
+    {interactive && chromeHandles.map((handle) => <button key={handle.key} type="button" className={`chrome-handle chrome-handle-${handle.key}`} aria-label={`Resize ${label}`} onPointerDown={(event) => drag(event, handle.edges)} />)}
+  </div>;
+}
+
+const chromeHandles: { key: string; edges: { left?: boolean; right?: boolean; top?: boolean; bottom?: boolean } }[] = [
+  { key: "nw", edges: { left: true, top: true } },
+  { key: "n", edges: { top: true } },
+  { key: "ne", edges: { right: true, top: true } },
+  { key: "e", edges: { right: true } },
+  { key: "se", edges: { right: true, bottom: true } },
+  { key: "s", edges: { bottom: true } },
+  { key: "sw", edges: { left: true, bottom: true } },
+  { key: "w", edges: { left: true } }
+];
+
+function boxStyle(box: ChromeBox): CSSProperties {
+  return { left: box.x, top: box.y, width: box.width, height: box.height };
 }
 
 function chromeStyle(item: { x: number; y: number; width: number; height: number; color: string; fontSize: number; align: "left" | "center" | "right" }): CSSProperties {

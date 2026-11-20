@@ -46,6 +46,7 @@ export type WebviewToHostMessage =
   | { version: 2; type: "selectFont"; requestId: string; current: string }
   | { version: 2; type: "selectBibliography"; requestId: string }
   | { version: 2; type: "embedBibliography" }
+  | { version: 2; type: "copyText"; text: string }
   | { version: 2; type: "selectManimScript"; requestId: string; elementId: string }
   | { version: 2; type: "createManimScript"; requestId: string; elementId: string }
   | { version: 2; type: "openManimScript"; script: string }

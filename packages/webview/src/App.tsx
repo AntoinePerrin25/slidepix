@@ -3,6 +3,8 @@ import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useMemo, u
 import { flushSync } from "react-dom";
 import {
   CITATION_CHEAT_SHEET,
+  bibliographyBody,
+  citedEntries,
   duplicateElementOntoFollowingSlides,
   duplicateSlide,
   expandCitationMarkers,
@@ -27,7 +29,7 @@ import {
   type ManimOrientation,
   type ManimQuality
 } from "@slidepix/core";
-import { SlideView } from "./SlideView";
+import { SlideView, type ChromeBox, type ChromeKind } from "./SlideView";
 import { clamp, cropBoxByEdges, localPointerDelta, panCrop, type CropBox } from "./geometry";
 import { applyAlign, applyDistribute, type AlignAction, type AlignRelativeTo, type DistributeAction } from "./align";
 import { peerBoxes, resizeEdges, snapMove, snapResize, snapThreshold, type SnapGuide } from "./snap";
@@ -75,7 +77,6 @@ export default function App() {
   const [inspectorCollapsed, setInspectorCollapsed] = useState(false);
   const [batchShapeEdit, setBatchShapeEdit] = useState(false);
   const [bibliographySource, setBibliographySource] = useState("");
-  const citations = useMemo(() => parseBibliography(bibliographySource), [bibliographySource]);
   const inlineTextEditor = useRef<InlineTextEditorHandle>(null);
   const pendingTextFormat = useRef<TextFormatCommand | undefined>(undefined);
   const moveableRef = useRef<Moveable | null>(null);
@@ -95,6 +96,7 @@ export default function App() {
   }, [store.historyError]);
 
   const deck = store.deck;
+  const citations = useMemo(() => deck ? citedEntries(deck.slides, parseBibliography(bibliographySource)) : [], [deck, bibliographySource]);
   const slide = deck?.slides.find((item) => item.id === store.selectedSlideId) ?? deck?.slides[0];
   const selectedElements = slide?.elements.filter((item) => store.selectedElementIds.includes(item.id)) ?? [];
   const selected = selectedElements.find((item) => item.id === store.selectedElementId) ?? selectedElements[0];
@@ -491,6 +493,8 @@ export default function App() {
                 deck={deck}
                 slide={slide}
                 interactive
+                onChromeGeometry={(kind, box) => store.preview((draft) => assignChromeBox(draft, kind, box))}
+                onChromeCommit={() => store.commit()}
                 selectedElementIds={store.selectedElementIds}
                 editingElementId={editingTextId}
                 resolveAsset={assetUrl}
@@ -634,7 +638,7 @@ export default function App() {
           {!notesCollapsed && <textarea aria-label="Speaker notes" value={slide.notes} onChange={(event) => { store.preview((draft) => { draft.slides.find((item) => item.id === slide.id)!.notes = event.target.value; }); store.scheduleCommit(); }} onBlur={store.commit} />}
         </section>
       </main>
-      <Inspector collapsed={inspectorCollapsed} onToggleCollapse={() => setInspectorCollapsed((value) => !value)} tab={tab} setTab={setTab} deck={deck} slide={slide} element={selected} cropping={cropping} batchShapeEdit={batchShapeEdit} setBatchShapeEdit={setBatchShapeEdit} assetUrl={assetUrl} mutate={store.mutate} preview={store.preview} scheduleCommit={store.scheduleCommit} commit={store.commit} selectElement={store.selectElement} editText={(id) => { store.commit(); setEditingTextId(undefined); setAdvancedTextId(id); }} editImage={(id) => setCroppingId((current) => current === id ? undefined : id)} relinkMedia={(kind, id) => requestMedia(kind, undefined, id)} chooseBackgroundImage={requestBackgroundImage} />
+      <Inspector collapsed={inspectorCollapsed} onToggleCollapse={() => setInspectorCollapsed((value) => !value)} tab={tab} setTab={setTab} deck={deck} slide={slide} element={selected} citations={citations} cropping={cropping} batchShapeEdit={batchShapeEdit} setBatchShapeEdit={setBatchShapeEdit} assetUrl={assetUrl} mutate={store.mutate} preview={store.preview} scheduleCommit={store.scheduleCommit} commit={store.commit} selectElement={store.selectElement} editText={(id) => { store.commit(); setEditingTextId(undefined); setAdvancedTextId(id); }} editImage={(id) => setCroppingId((current) => current === id ? undefined : id)} relinkMedia={(kind, id) => requestMedia(kind, undefined, id)} chooseBackgroundImage={requestBackgroundImage} />
       {advancedTextId && <TextEditor deck={deck} slideId={slide.id} elementId={advancedTextId} citations={citations} preview={store.preview} scheduleCommit={store.scheduleCommit} commit={store.commit} close={() => setAdvancedTextId(undefined)} />}
       {store.mergeState && <MergeConflictDialog conflict={store.mergeState.conflicts[0]} resolve={store.resolveMergeConflict} useLatest={store.useLatestDeck} />}
       <ToastStack />
@@ -1243,8 +1247,8 @@ function ManimInspector({ slideId, slideSize, element, mutate, preview, schedule
   </>;
 }
 
-function Inspector({ collapsed, onToggleCollapse, tab, setTab, deck, slide, element, cropping, batchShapeEdit, setBatchShapeEdit, assetUrl, mutate, preview, scheduleCommit, commit, selectElement, editText, editImage, relinkMedia, chooseBackgroundImage }: {
-  collapsed: boolean; onToggleCollapse(): void; tab: Tab; setTab(tab: Tab): void; deck: Deck; slide: Slide; element?: SlideElement; cropping: boolean; batchShapeEdit: boolean; setBatchShapeEdit(enabled: boolean): void; assetUrl(reference: string, storage: MediaStorage): string; mutate(fn: (deck: Deck) => void): void; preview(fn: (deck: Deck) => void): void; scheduleCommit(): void; commit(): void; selectElement(id?: string, additive?: boolean): void; editText(id: string): void; editImage(id: string): void; relinkMedia(kind: "image" | "video", id: string): void; chooseBackgroundImage(): void;
+function Inspector({ collapsed, onToggleCollapse, tab, setTab, deck, slide, element, citations, cropping, batchShapeEdit, setBatchShapeEdit, assetUrl, mutate, preview, scheduleCommit, commit, selectElement, editText, editImage, relinkMedia, chooseBackgroundImage }: {
+  collapsed: boolean; onToggleCollapse(): void; tab: Tab; setTab(tab: Tab): void; deck: Deck; slide: Slide; element?: SlideElement; citations: readonly Citation[]; cropping: boolean; batchShapeEdit: boolean; setBatchShapeEdit(enabled: boolean): void; assetUrl(reference: string, storage: MediaStorage): string; mutate(fn: (deck: Deck) => void): void; preview(fn: (deck: Deck) => void): void; scheduleCommit(): void; commit(): void; selectElement(id?: string, additive?: boolean): void; editText(id: string): void; editImage(id: string): void; relinkMedia(kind: "image" | "video", id: string): void; chooseBackgroundImage(): void;
 }) {
   const selectedIds = useDeckStore((state) => state.selectedElementIds);
   const update = (patch: Partial<SlideElement>) => element && mutate((draft) => Object.assign(findElement(draft, slide.id, element.id)!, patch));
@@ -1281,7 +1285,7 @@ function Inspector({ collapsed, onToggleCollapse, tab, setTab, deck, slide, elem
         {element ? <>
           <label>Element name<input autoComplete="off" value={element.name ?? ""} placeholder={elementLabel(element)} onChange={(event) => updateContinuous({ name: event.target.value.trimStart() || undefined })} onBlur={commit} /></label>
           <p className="panel-help">The same name on both slides morphs this object. A blank name, or the same name twice on one slide, does not morph.</p>
-          <button className="edit-text-button" disabled={deck.slides.findIndex((item) => item.id === slide.id) >= deck.slides.length - 1} onClick={() => mutate((draft) => duplicateElementOntoFollowingSlides(draft, slide.id, element.id))}>Duplicate on following slides</button>
+          <DuplicateFollowing deck={deck} slideId={slide.id} elementId={element.id} mutate={mutate} />
           <h4 className="property-heading">Geometry</h4>
           <div className="field-grid geometry-grid">
             <NumberField label="X" value={element.x} onChange={(x) => updateContinuous({ x })} onCommit={commit} />
@@ -1413,7 +1417,7 @@ function Inspector({ collapsed, onToggleCollapse, tab, setTab, deck, slide, elem
         </>}
       </>}
       {tab === "layers" && <><h3>Layers</h3><p className="panel-help">Shift-click to add items to the selection for align and distribute.</p>{[...slide.elements].sort((a, b) => b.z - a.z).map((item) => <div className={`layer-row ${selectedIds.includes(item.id) ? "active" : ""}`} key={item.id} onClick={(event) => selectElement(item.id, event.shiftKey)}><span>{item.name ?? `${item.type} ${item.id.slice(0, 4)}`}</span><button title={item.locked ? "Unlock" : "Lock"} aria-label={item.locked ? "Unlock" : "Lock"} onClick={(event) => { event.stopPropagation(); mutate((draft) => { const target = findElement(draft, slide.id, item.id); if (target) target.locked = !target.locked; }); }}><span className={`codicon codicon-${item.locked ? "lock" : "unlock"}`} /></button><button title={item.hidden ? "Show" : "Hide"} aria-label={item.hidden ? "Show" : "Hide"} onClick={(event) => { event.stopPropagation(); mutate((draft) => { const target = findElement(draft, slide.id, item.id); if (target) target.hidden = !target.hidden; }); }}><span className={`codicon codicon-${item.hidden ? "eye-closed" : "eye"}`} /></button><button title="Bring forward" aria-label="Bring forward" onClick={(event) => { event.stopPropagation(); mutate((draft) => { const target = findElement(draft, slide.id, item.id); if (target) target.z += 1; }); }}><span className="codicon codicon-arrow-up" /></button><button title="Send backward" aria-label="Send backward" onClick={(event) => { event.stopPropagation(); mutate((draft) => { const target = findElement(draft, slide.id, item.id); if (target) target.z -= 1; }); }}><span className="codicon codicon-arrow-down" /></button></div>)}</>}
-      {tab === "bibliography" && slide.bibliography && <BibliographyFields deck={deck} mutate={mutate} preview={preview} scheduleCommit={scheduleCommit} commit={commit} />}
+      {tab === "bibliography" && slide.bibliography && <BibliographyFields deck={deck} citations={citations} mutate={mutate} preview={preview} scheduleCommit={scheduleCommit} commit={commit} />}
       {tab === "animations" && <><h3>Animation timeline</h3><p className="panel-help">Select an element, then add its entrance. The cards run from top to bottom.</p><button className="add-animation" disabled={!element} onClick={() => element && mutate((draft) => draft.slides.find((item) => item.id === slide.id)!.timeline.push(defaultAnimation(element.id)))}><span className="codicon codicon-add" /> Add entrance{element ? ` for ${elementLabel(element)}` : ""}</button><div className="animation-list">{slide.timeline.map((step, index) => <AnimationRow key={step.id} step={step} index={index} flowLabel={animationFlowLabel(slide.timeline, index)} element={slide.elements.find((item) => item.id === step.targetElementId)} selectElement={selectElement} mutate={(patch) => mutate((draft) => Object.assign(draft.slides.find((item) => item.id === slide.id)!.timeline[index]!, patch))} remove={() => mutate((draft) => draft.slides.find((item) => item.id === slide.id)!.timeline.splice(index, 1))} />)}</div></>}
     </div>
   </aside>;
@@ -1457,7 +1461,33 @@ function ChromeTextFields({ item, onChange, onCommit }: { item: Deck["header"]; 
   </>;
 }
 
-function BibliographyFields({ deck, mutate, preview, scheduleCommit, commit }: { deck: Deck; mutate(fn: (deck: Deck) => void): void; preview(fn: (deck: Deck) => void): void; scheduleCommit(): void; commit(): void }) {
+function DuplicateFollowing({ deck, slideId, elementId, mutate }: { deck: Deck; slideId: string; elementId: string; mutate(fn: (deck: Deck) => void): void }) {
+  const [custom, setCustom] = useState("");
+  const last = deck.slides.findIndex((item) => item.id === slideId) >= deck.slides.length - 1;
+  const copy = (every?: number) => mutate((draft) => duplicateElementOntoFollowingSlides(draft, slideId, elementId, every));
+  return <div className="duplicate-split">
+    <button type="button" className="edit-text-button" disabled={last} title="Duplicate on all following slides" onClick={() => copy()}><span className="duplicate-rest">Duplicate on following slides</span><span className="duplicate-hover">All following slides</span></button>
+    <button type="button" className="edit-text-button duplicate-next" disabled={last} title="Duplicate on every 2nd following slide" onClick={() => copy(2)}>Every 2 slides</button>
+    <input className="duplicate-custom" aria-label="Duplicate every n following slides" placeholder="Every n" disabled={last} value={custom} onChange={(event) => setCustom(event.target.value)} onKeyDown={(event) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      const every = Number(custom.trim());
+      if (!Number.isInteger(every) || every < 1) return;
+      copy(every);
+      setCustom("");
+    }} />
+  </div>;
+}
+
+function assignChromeBox(deck: Deck, kind: ChromeKind, box: ChromeBox): void {
+  if (kind === "header") Object.assign(deck.header, box);
+  else if (kind === "footer") Object.assign(deck.footer, box);
+  else if (kind === "bibliography") Object.assign(deck.bibliography.titleBox, box);
+  else Object.assign(deck.bibliography.listBox, box);
+}
+
+function BibliographyFields({ deck, citations, mutate, preview, scheduleCommit, commit }: { deck: Deck; citations: readonly Citation[]; mutate(fn: (deck: Deck) => void): void; preview(fn: (deck: Deck) => void): void; scheduleCommit(): void; commit(): void }) {
+  const bibliographyText = [deck.bibliography.title || "Bibliography", bibliographyBody(citations, deck.bibliography.format, deck.bibliography.indent, Boolean(deck.bibliography.file.trim() || deck.bibliography.source.trim()))].join("\n");
   const choose = () => {
     const requestId = crypto.randomUUID();
     pendingBibliography.set(requestId, (message) => {
@@ -1476,6 +1506,7 @@ function BibliographyFields({ deck, mutate, preview, scheduleCommit, commit }: {
     <div className="media-source-card">{deck.bibliography.file ? <code title={deck.bibliography.file}>{deck.bibliography.file}</code> : <span>No reference file</span>}<div><button onClick={choose}>Choose reference file…</button>{deck.bibliography.storage !== "embedded" && (deck.bibliography.file || deck.bibliography.source) && <button onClick={() => postMessage({ type: "embedBibliography" })}>Embed in assets</button>}{deck.bibliography.file && <button className="danger-quiet" onClick={() => mutate((draft) => { draft.bibliography.file = ""; draft.bibliography.storage = "linked"; })}>Remove</button>}</div>{deck.bibliography.storage === "embedded" && <span>Embedded in the deck assets.</span>}</div>
     <label>Bibliography format<textarea value={deck.bibliography.format} onChange={(event) => { preview((draft) => { draft.bibliography.format = event.target.value; }); scheduleCommit(); }} onBlur={commit} /></label>
     <label>In-slide citation<textarea value={deck.bibliography.citationFormat} onChange={(event) => { preview((draft) => { draft.bibliography.citationFormat = event.target.value; }); scheduleCommit(); }} onBlur={commit} /></label>
+    <button type="button" onClick={() => { postMessage({ type: "copyText", text: bibliographyText }); notifyToast({ id: "copy-bibliography", kind: "success", message: "Bibliography copied" }); }}>Copy bibliography</button>
     <NumberField label="Indent spaces" value={deck.bibliography.indent} min={0} max={32} onChange={(indent) => continuousIndent(preview, scheduleCommit, indent)} onCommit={commit} />
     <p className="panel-help">#indent in the format inserts this many spaces.</p>
     <p className="cheat-sheet">{CITATION_CHEAT_SHEET}</p>

@@ -173,20 +173,25 @@ always calls its resolver with both `src` and `storage`, including thumbnails.
 - Image and video Properties include **Keep original aspect ratio**, on by
   default for newly inserted media. Turning it on measures the source ratio
   and fits the box inside the slide. Later width edits, including a width
-  written into the deck, keep that ratio. Header, footer, pagination, and the
+  written into the deck, keep that ratio.   Header, footer, pagination, and the
   progress bar are edited in Slide Properties and painted on every slide.
+  In the editor, header, footer, bibliography, and citations show a violet
+  frame and their name on the top border. Dragging or resizing one updates
+  the deck-wide box, so every slide uses the new place.
   Header, Footer, and Pagination start collapsed; the heading arrow opens them.
   **Hide pagination on this slide** suppresses the number and the bar.
   Text renders past its box; the slide still clips at the page edge.
 - **Element name** is the morph link. The same name on both slides morphs
   that object. A blank name, or the same name twice on one slide, does not.
-  **Duplicate on following slides** copies the element onto every later slide
-  and keeps that name.
+  **Duplicate on following slides** copies the element and keeps that name.
+  Hovering the button offers every later slide, every second following slide,
+  or a custom interval confirmed with Enter.
 - Slide Properties exposes the same incoming transition controls as the rail,
   including **Apply to all slides**, and can choose, replace, or remove a
   storage-aware background image. Tagging **Bibliography slide** opens a
   Bibliography tab for the reference file, displayed title, bibliography
   format, in-slide citation format, indent, and a short citation cheat sheet.
+  **Copy bibliography** copies the displayed title and the cited entries.
   **Embed in assets** stores that file in
   the deck `.assets` folder.
 - Blocking browser alerts are not used. Success toasts auto-dismiss after 2.5

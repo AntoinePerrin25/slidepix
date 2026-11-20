@@ -350,7 +350,19 @@
         "title": "Bibliography",
         "format": "#indent@author (@year). @title. @url.",
         "citationFormat": "(@shortauthor @year)",
-        "indent": 4
+        "indent": 4,
+        "titleBox": {
+          "x": 72,
+          "y": 72,
+          "width": 1776,
+          "height": 88
+        },
+        "listBox": {
+          "x": 72,
+          "y": 172,
+          "width": 1776,
+          "height": 836
+        }
       },
       "type": "object",
       "properties": {
@@ -387,6 +399,78 @@
           "type": "integer",
           "minimum": 0,
           "maximum": 32
+        },
+        "titleBox": {
+          "default": {
+            "x": 72,
+            "y": 72,
+            "width": 1776,
+            "height": 88
+          },
+          "type": "object",
+          "properties": {
+            "x": {
+              "default": 72,
+              "type": "number"
+            },
+            "y": {
+              "default": 72,
+              "type": "number"
+            },
+            "width": {
+              "default": 1776,
+              "type": "number",
+              "minimum": 0
+            },
+            "height": {
+              "default": 88,
+              "type": "number",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "x",
+            "y",
+            "width",
+            "height"
+          ],
+          "additionalProperties": false
+        },
+        "listBox": {
+          "default": {
+            "x": 72,
+            "y": 172,
+            "width": 1776,
+            "height": 836
+          },
+          "type": "object",
+          "properties": {
+            "x": {
+              "default": 72,
+              "type": "number"
+            },
+            "y": {
+              "default": 172,
+              "type": "number"
+            },
+            "width": {
+              "default": 1776,
+              "type": "number",
+              "minimum": 0
+            },
+            "height": {
+              "default": 836,
+              "type": "number",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "x",
+            "y",
+            "width",
+            "height"
+          ],
+          "additionalProperties": false
         }
       },
       "required": [
@@ -396,7 +480,9 @@
         "title",
         "format",
         "citationFormat",
-        "indent"
+        "indent",
+        "titleBox",
+        "listBox"
       ],
       "additionalProperties": false
     },

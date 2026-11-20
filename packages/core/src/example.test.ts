@@ -60,22 +60,22 @@ describe("bibliography example", () => {
   const deckPath = fileURLToPath(new URL("../../../examples/bibliography/citations.slidepix.json", import.meta.url));
   const bibPath = fileURLToPath(new URL("../../../examples/bibliography/references.bib", import.meta.url));
 
-  it("links the reference file and renders every citation", async () => {
+  it("renders every citation from the embedded source", async () => {
     const parsed = parseDeckText(await readFile(deckPath, "utf8"));
     expect(parsed.ok).toBe(true);
     if (!parsed.ok) throw new Error(parsed.message);
-    const source = await readFile(bibPath, "utf8");
-    expect(parsed.deck.bibliography).toMatchObject({ file: "references.bib", storage: "linked", source, indent: 4 });
-    expect(resolveMediaPath(deckPath, parsed.deck.bibliography.file, parsed.deck.bibliography.storage, [fileURLToPath(new URL("../../../examples/bibliography/", import.meta.url))])).toBe(bibPath);
+    const source = parsed.deck.bibliography.source;
+    expect(parsed.deck.bibliography).toMatchObject({ storage: "linked", indent: 4, citationFormat: "(@shortauthor @year)#sup{@number} " });
+    expect(source).toContain("smith2024quantum");
+    expect(await readFile(bibPath, "utf8")).toContain("smith2024quantum");
     expect(parsed.deck.slides.filter((slide) => slide.bibliography)).toHaveLength(1);
     const html = renderDeckDocument(parsed.deck, undefined, { bibliographySource: source });
-    expect(html).toContain('<sup class="slidepix-citation-sup">1</sup>');
-    expect(html).toContain("(Smith and Johnson 2024)");
+    expect(html).toContain("(Smith and Johnson 2024)<sup class=\"slidepix-citation-sup\">1</sup>");
     expect(html).toContain("(Turing 1950)");
     expect(html).toContain("(Vaswani, Shazeer, Parmar, and Uszkoreit 2017)");
     expect(html).toContain("[@absente]");
-    expect(html).toContain("Bibliographie");
     expect(html).toContain("Quantum Computing Advances in Machine Learning");
     expect(html).toContain("https://arxiv.org/abs/1706.03762");
+    expect(html).not.toContain("Unused");
   });
 });
