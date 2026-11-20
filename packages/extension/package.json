@@ -2,7 +2,7 @@
   "name": "slidepix-deck",
   "displayName": "SlidePix Deck",
   "description": "A Git-friendly visual presentation editor for VS Code, Cursor and Forks.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publisher": "antoineperrin",
   "repository": "https://github.com/antoineperrin25/slidepix",
   "homepage": "https://github.com/antoineperrin25/slidepix",
