@@ -118,16 +118,16 @@ pnpm docs:check
 pnpm package
 ```
 
-The artifact is `packages/extension/slidepix-0.1.0.vsix`.
+The artifact is `packages/extension/slidepix-0.2.0.vsix`.
 
 ## 6. Install the VSIX on Ubuntu (or macOS)
 
 From the repository root, with VS Code or Cursor already installed:
 
 ```zsh
-code --install-extension packages/extension/slidepix-0.1.0.vsix
+code --install-extension packages/extension/slidepix-0.2.0.vsix
 # or
-cursor --install-extension packages/extension/slidepix-0.1.0.vsix
+cursor --install-extension packages/extension/slidepix-0.2.0.vsix
 ```
 
 If `code` or `cursor` is not found, open the editor and run **Shell Command:
@@ -139,7 +139,7 @@ Without a CLI:
 1. Open VS Code or Cursor.
 2. Open the Extensions view.
 3. Choose **… → Install from VSIX…**.
-4. Select `packages/extension/slidepix-0.1.0.vsix`.
+4. Select `packages/extension/slidepix-0.2.0.vsix`.
 5. Reload the window if the editor asks.
 
 After install, run **SlidePix: Create Deck** from the Command Palette

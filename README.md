@@ -12,7 +12,7 @@ You need:
 
 - desktop [VS Code](https://code.visualstudio.com/) or
   [Cursor](https://www.cursor.com/);
-- the `slidepix-0.1.0.vsix` installation file from the project release or from
+- the `slidepix-0.2.0.vsix` installation file from the project release or from
   the person who built SlidePix.
 
 Then:
@@ -22,7 +22,7 @@ Then:
    squares.
 3. Click the **…** menu at the top of the Extensions panel.
 4. Choose **Install from VSIX…**.
-5. Select `slidepix-0.1.0.vsix` and approve the installation.
+5. Select `slidepix-0.2.0.vsix` and approve the installation.
 6. Click **Reload Window** if the editor asks you to reload.
 
 The installation file is built for one operating system and CPU. Use the VSIX
