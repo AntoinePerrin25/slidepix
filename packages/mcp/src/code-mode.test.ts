@@ -1,4 +1,5 @@
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -49,6 +50,25 @@ describe("code mode", () => {
     const before = await readFile(file, "utf8");
     await expect(executeDeck(file, "slidepix.addElement(1, { type: 'image' }); return true")).rejects.toThrow();
     expect(await readFile(file, "utf8")).toBe(before);
+  });
+
+  it("runs the authoring skill script in one execute", async () => {
+    const reference = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../.agents/skills/slidepix-pres/reference.md");
+    const script = /```javascript\n([\s\S]*?)```/.exec(await readFile(reference, "utf8"))?.[1];
+    if (!script) throw new Error("reference.md has no javascript block");
+    const directory = await mkdtemp(path.join(tmpdir(), "slidepix-code-"));
+    directories.push(directory);
+    const file = path.join(directory, "oneshot.slidepix.json");
+    const created = await executeDeck(file, script, true);
+    expect(created.changed).toBe(true);
+    expect(created.result).toEqual(["Opening", "Evidence", "Before", "After", "Steps", "Diagram", "References"]);
+    const parsed = parseDeckText(await readFile(file, "utf8"));
+    if (!parsed.ok) throw new Error(parsed.message);
+    expect(parsed.deck.pageNumbers.progress).toMatchObject({ enabled: true, color: "#f97316" });
+    expect(parsed.deck.bibliography.titleBox).toMatchObject({ x: 96, y: 96, width: 1728, height: 80 });
+    expect(parsed.deck.slides[0]!.elements.every((element) => element.type !== "text" || !element.markdown.startsWith("#"))).toBe(true);
+    const names = parsed.deck.slides.flatMap((slide) => slide.elements.map((element) => element.name).filter(Boolean));
+    expect(names.filter((name) => name === "card")).toHaveLength(2);
   });
 
   it("creates a missing deck and keeps host process out of the guest", async () => {

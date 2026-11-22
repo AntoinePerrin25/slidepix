@@ -60,6 +60,6 @@ not read or write asset bytes.
 ## Tests and security boundary
 
 `src/tools.test.ts` covers selection. `src/code-mode.test.ts` covers a saved
-edit, an unchanged read, a rejected invalid element, catalog search, and the
-absence of the host process inside guest code. No MCP code may write, rename,
+edit, an unchanged read, a rejected invalid element, catalog search, the
+authoring skill script, and the absence of the host process inside guest code. No MCP code may write, rename,
 or delete an asset file.
