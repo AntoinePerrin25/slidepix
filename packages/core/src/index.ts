@@ -4,3 +4,7 @@ export * from "./render.js";
 export * from "./schema.js";
 export * from "./manim.js";
 export * from "./bibliography.js";
+export * from "./charts.js";
+export * from "./compose.js";
+export * from "./groups.js";
+export * from "./vector.js";

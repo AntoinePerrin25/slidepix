@@ -31,7 +31,11 @@ export const codemodeCatalog = {
     { name: "setFooter", signature: "slidepix.setFooter({ enabled, text, color, fontSize, align, x, y, width, height })" },
     { name: "setPageNumbers", signature: "slidepix.setPageNumbers({ enabled, format, color, fontSize, align, x, y, width, height, progress })" },
     { name: "setBibliography", signature: "slidepix.setBibliography({ file, storage, source, title, format, citationFormat, indent, titleBox, listBox })" },
-    { name: "addAnimation", signature: "slidepix.addAnimation(ref, { targetElementId, phase, effect, trigger, direction, delayMs, durationMs })" }
+    { name: "addAnimation", signature: "slidepix.addAnimation(ref, { targetElementId, phase, effect, trigger, direction, delayMs, durationMs })" },
+    { name: "defineLayout", signature: "slidepix.defineLayout({ id?, name, background, elements })", note: "elements use the same input as addElement. Text, image, and chart elements can set placeholder: { role, prompt }." },
+    { name: "defineComponent", signature: "slidepix.defineComponent({ id?, name, width, height, elements })", note: "element coordinates are local to the component box. A component cannot contain another component." },
+    { name: "applyLayout", signature: "slidepix.applyLayout(ref, layoutId | null)" },
+    { name: "setSlot", signature: "slidepix.setSlot(ref, placeholderId, { markdown?, src?, storage? })", note: "fills one layout placeholder on that slide" }
   ],
   defaults: {
     textColor: "#111827",
@@ -63,7 +67,11 @@ export const codemodeCatalog = {
     image: { fields: ["src", "storage", "crop", "lockAspectRatio", "borderRadius"], storage: ["linked", "embedded"], note: "src is a non-empty string. Saving does not check that the file exists and does not copy bytes. A missing file is stored, then broken at display." },
     video: { fields: ["src", "storage", "poster", "playback.mode", "playback.muted", "playback.loop"], playback: ["autoplay", "manual"], note: "Same src rule as image." },
     table: { fields: ["rows", "columns", "cells", "headerRow", "style"], note: "cells are markdown strings" },
-    manim: { fields: ["script", "scene", "output", "orientation", "quality"], optional: ["script", "scene"], output: ["image", "video"], note: "Without a render, the editor shows a placeholder labeled with the script string. Leave script empty or use a short path; do not paste a long script into the label." }
+    manim: { fields: ["script", "scene", "output", "orientation", "quality"], optional: ["script", "scene"], output: ["image", "video"], note: "Without a render, the editor shows a placeholder labeled with the script string. Leave script empty or use a short path; do not paste a long script into the label." },
+    vector: { fields: ["kind", "d", "svg", "fill", "stroke", "strokeWidth", "markerStart", "markerEnd", "routing", "from", "to"], kind: ["path", "connector", "svg"], routing: ["straight", "elbow", "curve"], note: "path d uses a 0–100 box. connector from/to may set elementId and anchor (center, top, right, bottom, left). svg must be one safe <svg> document." },
+    group: { fields: ["parentId"], note: "Members point at the group with parentId. Groups can contain groups." },
+    component: { fields: ["componentId"], note: "An instance of a component created with defineComponent." },
+    chart: { fields: ["chart", "categories", "series", "legend", "valueLabels", "dataLink"], chart: ["bar", "line", "area", "pie"], note: "dataLink: { elementId } reads a table on the same slide. Otherwise series is [{ name, values }]." }
   },
   transitions: ["none", "fade", "slide-left", "slide-right", "slide-up", "slide-down", "morph"],
   effects: ["appear", "fade", "fly"],

@@ -1,5 +1,7 @@
 import { z } from "zod";
 import { CHICAGO_CITATION_FORMAT, CHICAGO_INLINE_FORMAT } from "./bibliography.js";
+import { parentCycle, reidentifyElements } from "./groups.js";
+import { isSafePath, isSafeSvg } from "./vector.js";
 
 export const CURRENT_SCHEMA_VERSION = 1 as const;
 
@@ -69,7 +71,12 @@ const baseElementSchema = z.object({
   locked: z.boolean().default(false),
   hidden: z.boolean().default(false),
   name: z.string().optional(),
-  alt: z.string().optional()
+  alt: z.string().optional(),
+  parentId: z.string().min(1).optional(),
+  placeholder: z.object({
+    role: z.enum(["title", "subtitle", "body", "content", "image", "chart"]),
+    prompt: z.string().max(200).default("Edit")
+  }).optional()
 });
 
 export const textElementSchema = baseElementSchema.extend({
@@ -222,13 +229,64 @@ export const tableElementSchema = baseElementSchema.extend({
   })
 });
 
+const vectorAnchorSchema = z.object({
+  x: finite.default(0),
+  y: finite.default(0),
+  elementId: z.string().min(1).optional(),
+  anchor: z.enum(["center", "top", "right", "bottom", "left"]).default("center")
+});
+
+export const vectorElementSchema = baseElementSchema.extend({
+  type: z.literal("vector"),
+  kind: z.enum(["path", "connector", "svg"]),
+  d: z.string().max(20_000).default(""),
+  svg: z.string().max(100_000).default(""),
+  fill: color.default("transparent"),
+  stroke: color.default("#111827"),
+  strokeWidth: nonNegative.default(4),
+  markerStart: z.enum(["none", "arrow"]).default("none"),
+  markerEnd: z.enum(["none", "arrow"]).default("none"),
+  routing: z.enum(["straight", "elbow", "curve"]).default("straight"),
+  from: vectorAnchorSchema.optional(),
+  to: vectorAnchorSchema.optional()
+});
+
+export const groupElementSchema = baseElementSchema.extend({
+  type: z.literal("group")
+});
+
+export const componentInstanceSchema = baseElementSchema.extend({
+  type: z.literal("component"),
+  componentId: z.string().min(1)
+});
+
+const chartSeriesSchema = z.object({
+  name: z.string().max(80).default("Series"),
+  values: z.array(finite).max(50).default([]),
+  color: color.optional()
+});
+
+export const chartElementSchema = baseElementSchema.extend({
+  type: z.literal("chart"),
+  chart: z.enum(["bar", "line", "area", "pie"]),
+  categories: z.array(z.string().max(80)).max(50).default(["A", "B", "C", "D"]),
+  series: z.array(chartSeriesSchema).min(1).max(8).default([{ name: "Series", values: [1, 2, 3] }]),
+  legend: z.boolean().default(true),
+  valueLabels: z.boolean().default(false),
+  dataLink: z.object({ elementId: z.string().min(1) }).optional()
+});
+
 export const elementSchema = z.discriminatedUnion("type", [
   textElementSchema,
   imageElementSchema,
   videoElementSchema,
   manimElementSchema,
   shapeElementSchema,
-  tableElementSchema
+  tableElementSchema,
+  vectorElementSchema,
+  groupElementSchema,
+  componentInstanceSchema,
+  chartElementSchema
 ]);
 
 export const animationStepSchema = z.object({
@@ -255,6 +313,11 @@ export const slideSchema = z.object({
   hidePageNumber: z.boolean().default(false),
   transition: transitionSchema.default({ type: "none", durationMs: 500, easing: "ease-in-out" }),
   timeline: z.array(animationStepSchema).default([]),
+  slots: z.record(z.string(), z.object({
+    markdown: z.string().optional(),
+    src: z.string().optional(),
+    storage: mediaStorageSchema.optional()
+  })).default({}),
   elements: z.array(elementSchema).default([])
 });
 
@@ -320,7 +383,15 @@ export const deckSchema = z.object({
   }),
   layouts: z.record(z.string(), z.object({
     name: z.string(),
-    background: color.optional()
+    background: color.optional(),
+    backgroundImage: slideBackgroundImageSchema.optional(),
+    elements: z.array(elementSchema).default([])
+  })).default({}),
+  components: z.record(z.string(), z.object({
+    name: z.string(),
+    width: finite.positive().default(640),
+    height: finite.positive().default(360),
+    elements: z.array(elementSchema).default([])
   })).default({}),
   slides: z.array(slideSchema).min(1)
 }).superRefine((deck, context) => {
@@ -339,13 +410,11 @@ export const deckSchema = z.object({
     }
 
     const slideElementIds = new Set<string>();
-    slide.elements.forEach((element, elementIndex) => {
-      if (elementIds.has(element.id)) {
-        context.addIssue({ code: "custom", path: ["slides", slideIndex, "elements", elementIndex, "id"], message: `Duplicate element id: ${element.id}` });
-      }
-      elementIds.add(element.id);
-      slideElementIds.add(element.id);
+    checkOwnedElements(slide.elements, ["slides", slideIndex, "elements"], elementIds, context, {
+      allowComponents: true,
+      componentIds: new Set(Object.keys(deck.components))
     });
+    for (const element of slide.elements) slideElementIds.add(element.id);
 
     slide.timeline.forEach((step, stepIndex) => {
       if (animationIds.has(step.id)) {
@@ -357,7 +426,63 @@ export const deckSchema = z.object({
       }
     });
   });
+
+  for (const [layoutId, layout] of Object.entries(deck.layouts)) {
+    checkOwnedElements(layout.elements, ["layouts", layoutId, "elements"], elementIds, context, {
+      allowComponents: true,
+      componentIds: new Set(Object.keys(deck.components))
+    });
+  }
+  for (const [componentId, component] of Object.entries(deck.components)) {
+    checkOwnedElements(component.elements, ["components", componentId, "elements"], elementIds, context, { allowComponents: false });
+  }
 });
+
+function checkOwnedElements(
+  elements: z.infer<typeof elementSchema>[],
+  path: (string | number)[],
+  elementIds: Set<string>,
+  context: z.RefinementCtx,
+  options: { allowComponents: boolean; componentIds?: ReadonlySet<string> }
+): void {
+  elements.forEach((element, index) => {
+    if (elementIds.has(element.id)) {
+      context.addIssue({ code: "custom", path: [...path, index, "id"], message: `Duplicate element id: ${element.id}` });
+    }
+    elementIds.add(element.id);
+    if (element.type === "vector") {
+      if (element.kind === "path" && element.d && !isSafePath(element.d)) {
+        context.addIssue({ code: "custom", path: [...path, index, "d"], message: "Path data contains unsupported commands" });
+      }
+      if (element.kind === "svg" && element.svg && !isSafeSvg(element.svg)) {
+        context.addIssue({ code: "custom", path: [...path, index, "svg"], message: "SVG contains unsupported markup" });
+      }
+      for (const end of ["from", "to"] as const) {
+        const anchor = element[end];
+        if (anchor?.elementId && !elements.some((item) => item.id === anchor.elementId && item.id !== element.id)) {
+          context.addIssue({ code: "custom", path: [...path, index, end, "elementId"], message: `Unknown connector target: ${anchor.elementId}` });
+        }
+      }
+    }
+    if (element.type === "chart" && element.dataLink && !elements.some((item) => item.id === element.dataLink?.elementId && item.type === "table")) {
+      context.addIssue({ code: "custom", path: [...path, index, "dataLink"], message: `Chart data link is not a table: ${element.dataLink.elementId}` });
+    }
+    if (element.type === "component") {
+      if (!options.allowComponents) {
+        context.addIssue({ code: "custom", path: [...path, index, "type"], message: "A component cannot contain another component" });
+      } else if (options.componentIds && !options.componentIds.has(element.componentId)) {
+        context.addIssue({ code: "custom", path: [...path, index, "componentId"], message: `Unknown component: ${element.componentId}` });
+      }
+    }
+    if (!element.parentId) return;
+    const parent = elements.find((item) => item.id === element.parentId);
+    if (!parent || parent.type !== "group") {
+      context.addIssue({ code: "custom", path: [...path, index, "parentId"], message: `Unknown group: ${element.parentId}` });
+    } else if (parentCycle(elements, element.id)) {
+      context.addIssue({ code: "custom", path: [...path, index, "parentId"], message: "Group parenting has a cycle" });
+    }
+  });
+}
 
 export type Deck = z.infer<typeof deckSchema>;
 export type Slide = z.infer<typeof slideSchema>;
@@ -378,6 +503,10 @@ export type ManimOrientation = z.infer<typeof manimOrientationSchema>;
 export type ManimOutputMedia = z.infer<typeof manimOutputMediaSchema>;
 export type ShapeElement = z.infer<typeof shapeElementSchema>;
 export type TableElement = z.infer<typeof tableElementSchema>;
+export type VectorElement = z.infer<typeof vectorElementSchema>;
+export type GroupElement = z.infer<typeof groupElementSchema>;
+export type ComponentInstanceElement = z.infer<typeof componentInstanceSchema>;
+export type ChartElement = z.infer<typeof chartElementSchema>;
 export type MediaStorage = z.infer<typeof mediaStorageSchema>;
 export type AnimationStep = z.infer<typeof animationStepSchema>;
 export type Transition = z.infer<typeof transitionSchema>;
@@ -481,6 +610,7 @@ export function createDeck(title = "Untitled deck"): Deck {
     },
     pageNumbers: { enabled: true, color: "#64748b", fontSize: 24 },
     layouts: {},
+    components: {},
     slides: [{
       id: slideId,
       title: "Title slide",
@@ -522,7 +652,7 @@ export function duplicateSlide(slide: Slide): Slide {
     ...structuredClone(slide),
     id: crypto.randomUUID(),
     title: `${slide.title} copy`,
-    elements: slide.elements.map((element) => ({ ...element, id: crypto.randomUUID() })),
+    elements: reidentifyElements(structuredClone(slide.elements), true),
     timeline: []
   };
 }
@@ -530,12 +660,21 @@ export function duplicateSlide(slide: Slide): Slide {
 /** Copy one element onto later slides. Omit `every` to copy onto each later slide; otherwise copy every `every` slides, counting from the current one. */
 export function duplicateElementOntoFollowingSlides(deck: Deck, slideId: string, elementId: string, every?: number): Deck {
   const index = deck.slides.findIndex((slide) => slide.id === slideId);
-  const source = index < 0 ? undefined : deck.slides[index]?.elements.find((element) => element.id === elementId);
-  if (!source) return deck;
+  const sourceSlide = index < 0 ? undefined : deck.slides[index];
+  const source = sourceSlide?.elements.find((element) => element.id === elementId);
+  if (!source || !sourceSlide) return deck;
   const step = every === undefined ? 1 : Math.floor(every);
   if (step < 1) return deck;
+  const members = source.type === "group" ? collectGroupCopy(sourceSlide.elements, source.id) : [structuredClone(source)];
   for (let offset = step; index + offset < deck.slides.length; offset += step) {
-    deck.slides[index + offset]!.elements.push({ ...structuredClone(source), id: crypto.randomUUID() });
+    deck.slides[index + offset]!.elements.push(...reidentifyElements(structuredClone(members), true));
   }
   return deck;
+}
+
+function collectGroupCopy(elements: readonly SlideElement[], id: string): SlideElement[] {
+  const group = elements.find((element) => element.id === id);
+  if (!group) return [];
+  const children = elements.filter((element) => element.parentId === id);
+  return [structuredClone(group), ...children.flatMap((child) => child.type === "group" ? collectGroupCopy(elements, child.id) : [structuredClone(child)])];
 }

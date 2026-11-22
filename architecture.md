@@ -156,8 +156,9 @@ For any nontrivial change:
 
 Do not assume every planned feature is complete. Current known gaps include:
 
-- grouping is not implemented;
-- layouts exist in the schema but have no layout designer;
+- groups stay axis-aligned, and a component instance has no per-instance text
+  overrides (edit the definition, or detach it);
+- vector paths are edited as commands, not with a freehand pen;
 - **Export Project** writes a zip of the deck JSON, its `.assets` folder, and
   the linked media needed to reopen that project. Rendered Manim media is
   included only when the export prompt says so. A single-file `.slidepix`

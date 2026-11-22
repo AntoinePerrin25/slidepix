@@ -1,6 +1,6 @@
 import { readdir, readFile, realpath } from "node:fs/promises";
 import * as path from "node:path";
-import { serializeDeck, type Deck, type MediaStorage, type SlideElement } from "@slidepix/core";
+import { isPlaceholderImage, serializeDeck, type Deck, type MediaStorage, type SlideElement } from "@slidepix/core";
 import { deckAssetDirectory, resolveMediaPath } from "@slidepix/core/assets";
 
 type StoredFile = { src: string; storage: MediaStorage };
@@ -28,9 +28,22 @@ export async function buildProjectArchive(
   if (options?.includeManimMedia === false) omitManimMedia(exported, assetFolder, files);
   const assetRoots = await canonicalRoots([assetDirectory]);
 
+  for (const layout of Object.values(exported.layouts)) {
+    if (layout.backgroundImage) layout.backgroundImage = await placeMedia(layout.backgroundImage, deckPath, deckDirectory, assetFolder, allowedLinkedRoots, canonicalLinkedRoots, assetRoots, files, copiedOutside);
+    for (const element of layout.elements) await placeElementMedia(element, deckPath, deckDirectory, assetFolder, allowedLinkedRoots, canonicalLinkedRoots, assetRoots, files, copiedOutside);
+  }
+  for (const component of Object.values(exported.components)) {
+    for (const element of component.elements) await placeElementMedia(element, deckPath, deckDirectory, assetFolder, allowedLinkedRoots, canonicalLinkedRoots, assetRoots, files, copiedOutside);
+  }
   for (const slide of exported.slides) {
     if (slide.backgroundImage) {
       slide.backgroundImage = await placeMedia(slide.backgroundImage, deckPath, deckDirectory, assetFolder, allowedLinkedRoots, canonicalLinkedRoots, assetRoots, files, copiedOutside);
+    }
+    for (const slot of Object.values(slide.slots)) {
+      if (!slot.src || !slot.storage || slot.src === "placeholder") continue;
+      const placed = await placeMedia({ src: slot.src, storage: slot.storage }, deckPath, deckDirectory, assetFolder, allowedLinkedRoots, canonicalLinkedRoots, assetRoots, files, copiedOutside);
+      slot.src = placed.src;
+      slot.storage = placed.storage;
     }
     for (const element of slide.elements) {
       await placeElementMedia(element, deckPath, deckDirectory, assetFolder, allowedLinkedRoots, canonicalLinkedRoots, assetRoots, files, copiedOutside);
@@ -168,6 +181,7 @@ async function placeElementMedia(
   files: Map<string, Uint8Array>,
   copiedOutside: Map<string, string>
 ): Promise<void> {
+  if (isPlaceholderImage(element)) return;
   if (element.type === "image" || element.type === "video") {
     const placed = await placeMedia(element, deckPath, deckDirectory, assetFolder, allowedLinkedRoots, canonicalLinkedRoots, assetRoots, files, copiedOutside);
     element.src = placed.src;
