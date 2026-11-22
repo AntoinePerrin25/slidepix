@@ -2,6 +2,7 @@ import { create } from "zustand";
 import {
   mergeDecks,
   serializeDeck,
+  syncDeckGeometry,
   type Deck,
   type DeckMergeConflict,
   type DeckMergeResolution,
@@ -40,6 +41,7 @@ export type DeckStore = {
   selectedSlideId?: string;
   selectedElementId?: string;
   selectedElementIds: string[];
+  designTarget?: { kind: "layout" | "component"; id: string };
   zoom: number;
   dirty: boolean;
   pending?: PendingEdit;
@@ -57,6 +59,7 @@ export type DeckStore = {
   clearHistoryError(): void;
   selectSlide(id: string): void;
   selectElement(id?: string, additive?: boolean): void;
+  setDesignTarget(target?: { kind: "layout" | "component"; id: string }): void;
   setZoom(zoom: number): void;
   preview(mutator: (draft: Deck) => void): void;
   scheduleCommit(): void;
@@ -112,7 +115,9 @@ export const useDeckStore = create<DeckStore>((set, get) => {
     postMessage({ type: "replaceDocument", requestId, baseRevision: state.revision, text });
   };
 
-  const acceptHostDeck = (deck: Deck, revision: string) => {
+  const acceptHostDeck = (incoming: Deck, revision: string) => {
+    const deck = structuredClone(incoming);
+    syncDeckGeometry(deck);
     const state = get();
     if (state.pending?.text === serializeDeck(deck)) {
       set({
@@ -213,12 +218,14 @@ export const useDeckStore = create<DeckStore>((set, get) => {
         : [...state.selectedElementIds, id];
       return { selectedElementId: selected.at(-1), selectedElementIds: selected };
     }),
+    setDesignTarget: (target) => set({ designTarget: target, selectedElementId: undefined, selectedElementIds: [] }),
     setZoom: (zoom) => set({ zoom: Math.min(1.5, Math.max(0.1, zoom)) }),
     preview: (mutator) => {
       const deck = get().deck;
       if (!canEditDocument() || !deck || get().mergeState) return;
       const next = structuredClone(deck);
       mutator(next);
+      syncDeckGeometry(next);
       set({ deck: next, dirty: true });
     },
     scheduleCommit: () => {
@@ -237,6 +244,7 @@ export const useDeckStore = create<DeckStore>((set, get) => {
       if (!canEditDocument() || !deck || get().mergeState) return;
       const next = structuredClone(deck);
       mutator(next);
+      syncDeckGeometry(next);
       set({ deck: next, dirty: true });
       flush();
     },

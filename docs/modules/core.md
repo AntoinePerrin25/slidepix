@@ -65,6 +65,12 @@ so a conflicting key can be chosen without dropping entries the other side added
 All extension, presentation, export, and MCP asset reads must use these helpers.
 Add security tests for path-handling changes.
 
+`src/vector.ts`, `src/charts.ts`, `src/groups.ts`, and `src/compose.ts` own
+connector geometry, chart markup, group membership, and the layout/component
+paint order. `render.ts` and the editor call those helpers instead of keeping
+a second implementation. `syncDeckGeometry` rewrites connector boxes from
+their anchors before a deck is painted or saved.
+
 ### `src/render.ts`
 
 | Export | Contract |

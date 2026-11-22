@@ -18,7 +18,10 @@ import xml from "highlight.js/lib/languages/xml";
 import markdownItKatex from "markdown-it-katex";
 import { bibliographyBody, citedEntries, expandCitationMarkers, parseBibliography, type Citation } from "./bibliography.js";
 import { manimScriptFileLabel } from "./manim.js";
+import { isPlaceholderImage, paintLayoutElements, vectorsForPaint } from "./compose.js";
+import { chartMarkup } from "./charts.js";
 import { morphMatchToken, type Deck, type ImageElement, type ManimElement, type MediaStorage, type Slide, type SlideElement } from "./schema.js";
+import { vectorMarkup } from "./vector.js";
 
 for (const [name, language] of Object.entries({ bash, c, cpp, css: cssLanguage, java, javascript, json, markdown: markdownLanguage, python, rust, typescript, xml })) {
   hljs.registerLanguage(name, language);
@@ -365,14 +368,17 @@ export function renderSlideMarkup(
   resolveAsset: AssetResolver = (value) => value,
   citations: readonly Citation[] = []
 ): string {
-  const elements = [...slide.elements]
-    .filter((element) => !element.hidden)
-    .sort((a, b) => a.z - b.z)
-    .map((element) => renderElement(element, slide.elements, resolveAsset, citations, deck.bibliography.citationFormat, deck.bibliography.indent))
+  const layout = deck.layouts[slide.layout ?? ""];
+  const layoutSource = paintLayoutElements(slide, layout, "blank");
+  const layoutElements = vectorsForPaint(layoutSource.filter((element) => !element.hidden), layoutSource).sort((a, b) => a.z - b.z);
+  const ownElements = vectorsForPaint(slide.elements.filter((element) => !element.hidden), slide.elements).sort((a, b) => a.z - b.z);
+  const elements = [...layoutElements, ...ownElements]
+    .map((element) => renderElement(element, elementListFor(element, layoutSource, slide.elements), resolveAsset, citations, deck.bibliography.citationFormat, deck.bibliography.indent, deck.components))
     .join("");
-  const background = slide.background ?? deck.layouts[slide.layout ?? ""]?.background ?? deck.theme.background;
-  const backgroundImage = slide.backgroundImage
-    ? `;background-image:url('${cssUrl(resolveAsset(slide.backgroundImage.src, slide.backgroundImage.storage))}');background-size:100% 100%;background-repeat:no-repeat`
+  const background = slide.background ?? layout?.background ?? deck.theme.background;
+  const backgroundSource = slide.backgroundImage ?? layout?.backgroundImage;
+  const backgroundImage = backgroundSource
+    ? `;background-image:url('${cssUrl(resolveAsset(backgroundSource.src, backgroundSource.storage))}');background-size:100% 100%;background-repeat:no-repeat`
     : "";
   const total = deck.slides.filter((item) => !item.hidden).length;
   const chrome = renderChrome(deck, slide, visibleIndex, total, citations);
@@ -429,7 +435,11 @@ function chromeBox(item: { x: number; y: number; width: number; height: number }
   return `left:${item.x}px;top:${item.y}px;width:${item.width}px;height:${item.height}px;color:${css(color)};font-size:${fontSize}px;text-align:${align}`;
 }
 
-function renderElement(element: SlideElement, elements: readonly SlideElement[], resolveAsset: AssetResolver, citations: readonly Citation[], citationFormat: string, indent: number): string {
+function elementListFor(element: SlideElement, layoutElements: readonly SlideElement[], ownElements: readonly SlideElement[]): readonly SlideElement[] {
+  return layoutElements.some((item) => item.id === element.id) ? layoutElements : ownElements;
+}
+
+function renderElement(element: SlideElement, elements: readonly SlideElement[], resolveAsset: AssetResolver, citations: readonly Citation[], citationFormat: string, indent: number, components: Deck["components"]): string {
   const base = `left:${element.x}px;top:${element.y}px;width:${element.width}px;height:${element.height}px;transform:rotate(${element.rotation}deg);opacity:${element.opacity};z-index:${element.z}`;
   const common = `class="slidepix-element slidepix-${element.type}" data-element-id="${attr(element.id)}" data-morph-key="${attr(morphMatchToken(element, elements))}" style="${attr(base)}"`;
   switch (element.type) {
@@ -439,6 +449,7 @@ function renderElement(element: SlideElement, elements: readonly SlideElement[],
       return `<div ${common}><div class="slidepix-text-content" style="${attr(style)}">${renderMarkdown(expandCitationMarkers(element.markdown, citations, citationFormat, indent))}</div></div>`;
     }
     case "image":
+      if (isPlaceholderImage(element)) return `<div ${common}><div class="slidepix-placeholder">${escapeHtml(element.placeholder?.prompt || "Image")}</div></div>`;
       return `<div ${common}>${imageMarkup(element, resolveAsset)}</div>`;
     case "video": {
       const autoplay = element.playback.mode === "autoplay" ? " autoplay" : "";
@@ -470,6 +481,26 @@ function renderElement(element: SlideElement, elements: readonly SlideElement[],
       }).join("");
       const style = `font-family:${css(element.style.fontFamily)};font-size:${element.style.fontSize}px;font-weight:${css(String(element.style.fontWeight))};color:${css(element.style.color)}`;
       return `<div ${common}><table class="slidepix-table-content" style="${attr(style)}"><tbody>${rows}</tbody></table></div>`;
+    }
+    case "vector": {
+      const markup = vectorMarkup(element);
+      return `<div ${common}>${markup || `<div class="slidepix-placeholder">SVG</div>`}</div>`;
+    }
+    case "group":
+      return `<div ${common}></div>`;
+    case "chart":
+      return `<div ${common}>${chartMarkup(element, elements.filter((item) => item.type === "table"))}</div>`;
+    case "component": {
+      const component = components[element.componentId];
+      if (!component) return `<div ${common}><div class="slidepix-placeholder">Missing component</div></div>`;
+      const sx = element.width / component.width;
+      const sy = element.height / component.height;
+      const inner = component.elements
+        .filter((child) => !child.hidden)
+        .sort((a, b) => a.z - b.z)
+        .map((child) => renderElement(child, component.elements, resolveAsset, citations, citationFormat, indent, components))
+        .join("");
+      return `<div ${common}><div class="slidepix-component-scale" style="${attr(`width:${component.width}px;height:${component.height}px;transform:scale(${sx},${sy});transform-origin:top left`)}">${inner}</div></div>`;
     }
   }
 }
@@ -521,6 +552,9 @@ main{${contact ? `display:grid;grid-template-columns:repeat(${columns},${deck.si
 .slidepix-image-clip{overflow:hidden}.slidepix-image-clip img{max-width:none;object-fit:fill}.slidepix-manim-still img{object-fit:contain}
 .slidepix-video video,.slidepix-manim video{object-fit:contain}.slidepix-manim-placeholder{position:absolute;inset:0;box-sizing:border-box;display:flex;align-items:center;justify-content:center;border:2px solid #64748b;background:#f1f5f9;color:#334155;text-align:center;padding:16px}.slidepix-manim-placeholder-label{display:block;max-width:100%;font-size:clamp(16px,2.8vmin,30px);font-weight:600;line-height:1.25;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;word-break:break-word}
 .slidepix-shape-content{inset:0}
+.slidepix-vector-svg,.slidepix-chart{width:100%;height:100%;display:block;overflow:visible}
+.slidepix-element.slidepix-component{overflow:hidden}.slidepix-component-scale{position:relative}
+.slidepix-placeholder{position:absolute;inset:0;box-sizing:border-box;display:flex;align-items:center;justify-content:center;border:2px dashed #94a3b8;color:#64748b;font-size:24px;text-align:center;padding:12px}
 .slidepix-page-number,.slidepix-header,.slidepix-footer,.slidepix-bibliography,.slidepix-citations{position:absolute;z-index:2147483646;display:flex;flex-direction:column;justify-content:center;white-space:pre-wrap;overflow:hidden;pointer-events:none}
 .slidepix-citation-sup{font-size:.65em;line-height:0;vertical-align:super}.slidepix-citation-small{font-size:.75em}
 .slidepix-bibliography,.slidepix-citations{justify-content:flex-start;line-height:1.35}

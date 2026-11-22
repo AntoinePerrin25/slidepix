@@ -203,6 +203,9 @@ panel and out of audience HTML.
 - The extension generates OOXML directly with pinned PptxGenJS. LibreOffice is
   useful as a compatibility oracle in development but is not a runtime
   dependency or conversion step.
+- Vectors and charts become SVG pictures. Groups emit nothing. A component
+  instance expands into scaled copies of its definition. A missing component
+  is a warning.
 - Rich Markdown and Highlight.js tokens become editable PowerPoint text runs.
   Equations use native OfficeMath in an OOXML compatibility choice, with an
   editable linear-math fallback for readers that do not implement OfficeMath;

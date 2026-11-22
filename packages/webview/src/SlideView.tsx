@@ -1,5 +1,5 @@
-import { bibliographyBody, expandCitationMarkers, formatPageLabel, manimScriptFileLabel, renderMarkdown, roundedEdgeFadeMask, type Citation, type Deck, type MediaStorage, type Slide, type SlideElement } from "@slidepix/core";
-import { useEffect, useState, type CSSProperties, type MouseEvent, type PointerEvent as ReactPointerEvent } from "react";
+import { bibliographyBody, chartMarkup, expandCitationMarkers, formatPageLabel, isPlaceholderImage, manimScriptFileLabel, paintLayoutElements, renderMarkdown, roundedEdgeFadeMask, vectorMarkup, type Citation, type Deck, type MediaStorage, type Slide, type SlideElement } from "@slidepix/core";
+import { useEffect, useRef, useState, type CSSProperties, type MouseEvent, type PointerEvent as ReactPointerEvent } from "react";
 
 type Props = {
   deck: Deck;
@@ -15,6 +15,7 @@ type Props = {
   onSelectElement?: (id?: string, additive?: boolean) => void;
   onEditText?: (id: string) => void;
   onEditImage?: (id: string) => void;
+  onEditComponent?: (componentId: string) => void;
 };
 
 export function SlideView({
@@ -30,10 +31,13 @@ export function SlideView({
   onChromeCommit,
   onSelectElement,
   onEditText,
-  onEditImage
+  onEditImage,
+  onEditComponent
 }: Props) {
-  const background = slide.background ?? deck.layouts[slide.layout ?? ""]?.background ?? deck.theme.background;
-  const backgroundImage = slide.backgroundImage ? `url("${resolveAsset(slide.backgroundImage.src, slide.backgroundImage.storage)}")` : undefined;
+  const layout = deck.layouts[slide.layout ?? ""];
+  const background = slide.background ?? layout?.background ?? deck.theme.background;
+  const backgroundSource = slide.backgroundImage ?? layout?.backgroundImage;
+  const backgroundImage = backgroundSource ? `url("${resolveAsset(backgroundSource.src, backgroundSource.storage)}")` : undefined;
   const visibleSlides = deck.slides.filter((item) => !item.hidden);
   const pageIndex = visibleSlides.findIndex((item) => item.id === slide.id);
   const stop = (event: MouseEvent, id: string) => {
@@ -48,10 +52,34 @@ export function SlideView({
       style={{ width: deck.size.width, height: deck.size.height, backgroundColor: background, backgroundImage, backgroundSize: "100% 100%", backgroundRepeat: "no-repeat", transform: `scale(${scale})` }}
       onMouseDown={() => interactive && onSelectElement?.()}
     >
+      {paintLayoutElements(slide, layout, interactive ? "prompt" : "blank").sort((a, b) => a.z - b.z).map((element) => (
+        <ElementView
+          key={`layout-${element.id}`}
+          element={element}
+          peers={layout?.elements ?? []}
+          components={deck.components}
+          citations={citations}
+          citationFormat={deck.bibliography.citationFormat}
+          indent={deck.bibliography.indent}
+          interactive={interactive && Boolean(element.placeholder)}
+          selected={selectedElementIds.includes(`slot:${element.id}`)}
+          editing={false}
+          resolveAsset={resolveAsset}
+          layoutSlot
+          onMouseDown={(event) => {
+            if (!interactive || !element.placeholder) return;
+            event.stopPropagation();
+            onSelectElement?.(`slot:${element.id}`, event.shiftKey);
+          }}
+          onDoubleClick={() => undefined}
+        />
+      ))}
       {[...slide.elements].sort((a, b) => a.z - b.z).map((element) => (
         <ElementView
           key={element.id}
           element={element}
+          peers={slide.elements}
+          components={deck.components}
           citations={citations}
           citationFormat={deck.bibliography.citationFormat}
           indent={deck.bibliography.indent}
@@ -62,7 +90,8 @@ export function SlideView({
           onMouseDown={(event) => stop(event, element.id)}
           onDoubleClick={() => {
             if (element.type === "text") onEditText?.(element.id);
-            if (element.type === "image") onEditImage?.(element.id);
+            if (element.type === "image" && !isPlaceholderImage(element)) onEditImage?.(element.id);
+            if (element.type === "component") onEditComponent?.(element.componentId);
           }}
         />
       ))}
@@ -73,6 +102,8 @@ export function SlideView({
 
 function ElementView({
   element,
+  peers,
+  components,
   citations,
   citationFormat,
   indent,
@@ -80,10 +111,13 @@ function ElementView({
   selected,
   editing,
   resolveAsset,
+  layoutSlot = false,
   onMouseDown,
   onDoubleClick
 }: {
   element: SlideElement;
+  peers: readonly SlideElement[];
+  components: Deck["components"];
   citations: readonly Citation[];
   citationFormat: string;
   indent: number;
@@ -91,6 +125,7 @@ function ElementView({
   selected: boolean;
   editing: boolean;
   resolveAsset: (source: string, storage: MediaStorage) => string;
+  layoutSlot?: boolean;
   onMouseDown: (event: MouseEvent) => void;
   onDoubleClick: () => void;
 }) {
@@ -103,12 +138,12 @@ function ElementView({
     transform: `rotate(${element.rotation}deg)`,
     opacity: element.opacity,
     zIndex: element.z,
-    pointerEvents: element.locked ? "none" : undefined
+    pointerEvents: element.locked || (layoutSlot && !element.placeholder) ? "none" : undefined
   };
   return (
     <div
-      id={interactive ? `element-${element.id}` : undefined}
-      className={`slide-element ${selected ? "selected" : ""} ${editing ? "editing" : ""}`}
+      id={interactive && !layoutSlot ? `element-${element.id}` : undefined}
+      className={`slide-element ${selected ? "selected" : ""} ${editing ? "editing" : ""} ${layoutSlot ? "layout-slot" : ""} ${element.type === "group" ? "group-frame" : ""}`}
       title={interactive && element.type === "text" ? "Double-click to edit text" : undefined}
       data-element-id={element.id}
       style={style}
@@ -130,7 +165,7 @@ function ElementView({
           dangerouslySetInnerHTML={{ __html: renderMarkdown(expandCitationMarkers(element.markdown, citations, citationFormat, indent)) }}
         />
       )}
-      {element.type === "image" && <ImageView element={element} src={resolveAsset(element.src, element.storage)} />}
+      {element.type === "image" && (isPlaceholderImage(element) ? <div className="drawing-placeholder">{element.placeholder?.prompt || "Image"}</div> : <ImageView element={element} src={resolveAsset(element.src, element.storage)} />)}
       {element.type === "video" && (
         <video
           src={resolveAsset(element.src, element.storage)}
@@ -155,6 +190,9 @@ function ElementView({
           }}
         />
       )}
+      {element.type === "vector" && <div className="vector-frame" dangerouslySetInnerHTML={{ __html: vectorMarkup(element) || `<div class="drawing-placeholder">SVG</div>` }} />}
+      {element.type === "chart" && <div className="chart-frame" dangerouslySetInnerHTML={{ __html: chartMarkup(element, peers.filter((item) => item.type === "table")) }} />}
+      {element.type === "component" && <ComponentView element={element} component={components[element.componentId]} citations={citations} citationFormat={citationFormat} indent={indent} resolveAsset={resolveAsset} />}
       {element.type === "table" && (
         <table
           className="slidepix-table-content"
@@ -279,7 +317,54 @@ function ImageView({ element, src }: { element: Extract<SlideElement, { type: "i
 export type ChromeKind = "header" | "footer" | "bibliography" | "citations";
 export type ChromeBox = { x: number; y: number; width: number; height: number };
 
+function ComponentView({ element, component, citations, citationFormat, indent, resolveAsset }: { element: Extract<SlideElement, { type: "component" }>; component: Deck["components"][string] | undefined; citations: readonly Citation[]; citationFormat: string; indent: number; resolveAsset: (source: string, storage: MediaStorage) => string }) {
+  if (!component) return <div className="drawing-placeholder">Missing component</div>;
+  const sx = element.width / component.width;
+  const sy = element.height / component.height;
+  return <div className="component-frame"><div className="component-scale" style={{ width: component.width, height: component.height, transform: `scale(${sx}, ${sy})` }}>
+    {component.elements.filter((child) => !child.hidden).sort((a, b) => a.z - b.z).map((child) => (
+      <ElementView key={child.id} element={child} peers={component.elements} components={{}} citations={citations} citationFormat={citationFormat} indent={indent} interactive={false} selected={false} editing={false} resolveAsset={resolveAsset} onMouseDown={() => undefined} onDoubleClick={() => undefined} />
+    ))}
+  </div></div>;
+}
+
+const chromeNames: Record<ChromeKind, string> = { header: "Header", footer: "Footer", bibliography: "Bibliography", citations: "Citations" };
+
 function SlideChrome({ deck, slide, pageIndex, total, citations, interactive, onChromeGeometry, onChromeCommit }: { deck: Deck; slide: Slide; pageIndex: number; total: number; citations: readonly Citation[]; interactive: boolean; onChromeGeometry?: (kind: ChromeKind, box: ChromeBox) => void; onChromeCommit?: () => void }) {
+  const [pinned, setPinned] = useState<ChromeKind | undefined>();
+  const [hovered, setHovered] = useState<ChromeKind | undefined>();
+  const [fading, setFading] = useState<ChromeKind | undefined>();
+  const [fadeRun, setFadeRun] = useState<ChromeKind | undefined>();
+  const fadeTimer = useRef<number | undefined>(undefined);
+  useEffect(() => () => { if (fadeTimer.current) window.clearTimeout(fadeTimer.current); }, []);
+  useEffect(() => {
+    if (!interactive) return;
+    const clear = (event: PointerEvent) => {
+      const target = event.target;
+      if (target instanceof Element && target.closest(".chrome-edit")) return;
+      setPinned(undefined);
+    };
+    window.addEventListener("pointerdown", clear);
+    return () => window.removeEventListener("pointerdown", clear);
+  }, [interactive]);
+  const show = (kind: ChromeKind) => {
+    setHovered(kind);
+    setFading(undefined);
+    setFadeRun(undefined);
+    if (fadeTimer.current) window.clearTimeout(fadeTimer.current);
+  };
+  const hide = (kind: ChromeKind) => {
+    setHovered((current) => current === kind ? undefined : current);
+    if (fadeTimer.current) window.clearTimeout(fadeTimer.current);
+    setFading(kind);
+    setFadeRun(undefined);
+    window.requestAnimationFrame(() => setFadeRun(kind));
+    fadeTimer.current = window.setTimeout(() => {
+      setFading((current) => current === kind ? undefined : current);
+      setFadeRun((current) => current === kind ? undefined : current);
+    }, 5000);
+  };
+  const chromeState = (kind: ChromeKind): "visible" | "fade" | "armed" | "idle" => pinned === kind || hovered === kind ? "visible" : fadeRun === kind ? "fade" : fading === kind ? "armed" : "idle";
   const showPage = pageIndex >= 0 && !slide.hidePageNumber && deck.pageNumbers.enabled;
   const ratio = Math.min(1, Math.max(0, (pageIndex + 1) / Math.max(1, total)));
   const bibliography = deck.bibliography;
@@ -288,16 +373,16 @@ function SlideChrome({ deck, slide, pageIndex, total, citations, interactive, on
     : "";
   const change = (kind: ChromeKind) => (box: ChromeBox) => onChromeGeometry?.(kind, box);
   return <>
-    {deck.header.enabled && (interactive || deck.header.text) && <EditableChrome label="header" className="slide-header" box={deck.header} textStyle={chromeStyle(deck.header)} interactive={interactive} slideWidth={deck.size.width} onChange={change("header")} onCommit={onChromeCommit}>{deck.header.text}</EditableChrome>}
-    {deck.footer.enabled && (interactive || deck.footer.text) && <EditableChrome label="footer" className="slide-footer" box={deck.footer} textStyle={chromeStyle(deck.footer)} interactive={interactive} slideWidth={deck.size.width} onChange={change("footer")} onCommit={onChromeCommit}>{deck.footer.text}</EditableChrome>}
+    {deck.header.enabled && (interactive || deck.header.text) && <EditableChrome label={chromeNames.header} className="slide-header" box={deck.header} textStyle={chromeStyle(deck.header)} interactive={interactive} slideWidth={deck.size.width} frame={chromeState("header")} onArm={() => show("header")} onRelease={() => hide("header")} onPin={() => setPinned("header")} onChange={change("header")} onCommit={onChromeCommit}>{deck.header.text}</EditableChrome>}
+    {deck.footer.enabled && (interactive || deck.footer.text) && <EditableChrome label={chromeNames.footer} className="slide-footer" box={deck.footer} textStyle={chromeStyle(deck.footer)} interactive={interactive} slideWidth={deck.size.width} frame={chromeState("footer")} onArm={() => show("footer")} onRelease={() => hide("footer")} onPin={() => setPinned("footer")} onChange={change("footer")} onCommit={onChromeCommit}>{deck.footer.text}</EditableChrome>}
     {showPage && <div className="page-number" style={chromeStyle(deck.pageNumbers)}>{formatPageLabel(deck.pageNumbers.format, pageIndex, total)}</div>}
     {showPage && deck.pageNumbers.progress.enabled && <div className="slide-progress" style={{ left: deck.pageNumbers.progress.x, top: deck.pageNumbers.progress.y, width: deck.pageNumbers.progress.width, height: deck.pageNumbers.progress.thickness }}><div className="slide-progress-fill" style={{ width: `${ratio * 100}%`, background: deck.pageNumbers.progress.color }} /></div>}
-    {slide.bibliography && <EditableChrome label="bibliography" className="slide-bibliography" box={bibliography.titleBox} textStyle={{ ...boxStyle(bibliography.titleBox), color: deck.theme.foreground, fontFamily: deck.theme.fontFamily, fontSize: 48, fontWeight: 700, textAlign: "left" }} interactive={interactive} slideWidth={deck.size.width} onChange={change("bibliography")} onCommit={onChromeCommit}>{bibliography.title || "Bibliography"}</EditableChrome>}
-    {slide.bibliography && <EditableChrome label="citations" className="slide-citations" box={bibliography.listBox} textStyle={{ ...boxStyle(bibliography.listBox), color: deck.theme.foreground, fontFamily: deck.theme.fontFamily, fontSize: 28, textAlign: "left" }} interactive={interactive} slideWidth={deck.size.width} onChange={change("citations")} onCommit={onChromeCommit}>{body}</EditableChrome>}
+    {slide.bibliography && <EditableChrome label={chromeNames.bibliography} className="slide-bibliography" box={bibliography.titleBox} textStyle={{ ...boxStyle(bibliography.titleBox), color: deck.theme.foreground, fontFamily: deck.theme.fontFamily, fontSize: 48, fontWeight: 700, textAlign: "left" }} interactive={interactive} slideWidth={deck.size.width} frame={chromeState("bibliography")} onArm={() => show("bibliography")} onRelease={() => hide("bibliography")} onPin={() => setPinned("bibliography")} onChange={change("bibliography")} onCommit={onChromeCommit}>{bibliography.title || "Bibliography"}</EditableChrome>}
+    {slide.bibliography && <EditableChrome label={chromeNames.citations} className="slide-citations" box={bibliography.listBox} textStyle={{ ...boxStyle(bibliography.listBox), color: deck.theme.foreground, fontFamily: deck.theme.fontFamily, fontSize: 28, textAlign: "left" }} interactive={interactive} slideWidth={deck.size.width} frame={chromeState("citations")} onArm={() => show("citations")} onRelease={() => hide("citations")} onPin={() => setPinned("citations")} onChange={change("citations")} onCommit={onChromeCommit}>{body}</EditableChrome>}
   </>;
 }
 
-function EditableChrome({ label, className, box, textStyle, interactive, slideWidth, onChange, onCommit, children }: { label: string; className: string; box: ChromeBox; textStyle: CSSProperties; interactive: boolean; slideWidth: number; onChange(box: ChromeBox): void; onCommit?: () => void; children: string }) {
+function EditableChrome({ label, className, box, textStyle, interactive, slideWidth, frame, onArm, onRelease, onPin, onChange, onCommit, children }: { label: string; className: string; box: ChromeBox; textStyle: CSSProperties; interactive: boolean; slideWidth: number; frame: "visible" | "fade" | "armed" | "idle"; onArm(): void; onRelease(): void; onPin(): void; onChange(box: ChromeBox): void; onCommit?: () => void; children: string }) {
   const drag = (event: ReactPointerEvent, edges: { move?: boolean; left?: boolean; right?: boolean; top?: boolean; bottom?: boolean }) => {
     if (!interactive) return;
     event.preventDefault();
@@ -329,10 +414,10 @@ function EditableChrome({ label, className, box, textStyle, interactive, slideWi
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", end);
   };
-  return <div className={`${className}${interactive ? " chrome-edit" : ""}`} style={textStyle} onPointerDown={(event) => drag(event, { move: true })}>
-    {interactive && <span className="chrome-edit-label">{label}</span>}
-    {children}
-    {interactive && chromeHandles.map((handle) => <button key={handle.key} type="button" className={`chrome-handle chrome-handle-${handle.key}`} aria-label={`Resize ${label}`} onPointerDown={(event) => drag(event, handle.edges)} />)}
+  return <div className={`${className}${interactive ? ` chrome-edit chrome-${frame}` : ""}`} style={textStyle} onPointerEnter={() => interactive && onArm()} onPointerLeave={() => interactive && onRelease()} onPointerDown={(event) => { onPin(); drag(event, { move: true }); }}>
+    {interactive && <span className={`chrome-edit-label${box.y < 22 ? " inside" : ""}`}>{label}</span>}
+    <div className="chrome-edit-body">{children}</div>
+    {interactive && chromeHandles.map((handle) => <button key={handle.key} type="button" className={`chrome-handle chrome-handle-${handle.key}`} aria-label={`Resize ${label}`} onPointerDown={(event) => { onPin(); drag(event, handle.edges); }} />)}
   </div>;
 }
 

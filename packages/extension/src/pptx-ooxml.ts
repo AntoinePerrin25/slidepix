@@ -11,7 +11,9 @@ export type PptxExportWarningCode =
   | "video-playback-approximated"
   | "easing-approximated"
   | "morph-match-ambiguous"
-  | "manim-not-rendered";
+  | "manim-not-rendered"
+  | "drawn-as-svg"
+  | "missing-component";
 
 export interface PptxExportWarning {
   code: PptxExportWarningCode;

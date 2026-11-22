@@ -124,6 +124,12 @@ always calls its resolver with both `src` and `storage`, including thumbnails.
   the element **Render** button is not implemented yet.
   Until a render exists, image and video Manim elements both show the same
   bordered placeholder with the linked `.py` filename centered in the box.
+  The Insert ribbon also adds a line, arrow, elbow, or SVG shape, and a bar,
+  line, area, or pie chart. A chart can read a table on the same slide.
+  **Group** wraps the selection; groups can contain groups. **Component**
+  saves the selection as a reusable object or inserts one. Slide properties
+  can save the current slide as a layout and later slides can use it.
+  Editing a layout or a component replaces the canvas until **Done**.
   The Insert ribbon adds a 3×3 table. Properties provides direct cell editing,
   add/remove row and column actions, a header toggle, typography, and
   transparent header/cell/border colors. Limits match the core schema.
@@ -175,8 +181,10 @@ always calls its resolver with both `src` and `storage`, including thumbnails.
   and fits the box inside the slide. Later width edits, including a width
   written into the deck, keep that ratio.   Header, footer, pagination, and the
   progress bar are edited in Slide Properties and painted on every slide.
-  In the editor, header, footer, bibliography, and citations show a violet
-  frame and their name on the top border. Dragging or resizing one updates
+  In the editor, header, footer, bibliography, and citations show their name
+  just above the box (inside the page when the box sits on the top edge).
+  The violet frame appears while that chrome is selected, and for five
+  seconds after the pointer leaves it. Dragging or resizing one updates
   the deck-wide box, so every slide uses the new place.
   Header, Footer, and Pagination start collapsed; the heading arrow opens them.
   **Hide pagination on this slide** suppresses the number and the bar.

@@ -5,10 +5,19 @@ import {
   CITATION_CHEAT_SHEET,
   bibliographyBody,
   citedEntries,
+  collectMembers,
+  descendants,
   duplicateElementOntoFollowingSlides,
   duplicateSlide,
   expandCitationMarkers,
+  groupElements,
   parseBibliography,
+  reidentifyElements,
+  removedElementIds,
+  scaleMembers,
+  withoutElements,
+  ungroupElements,
+  unionBox,
   elementSchema,
   fitAspectBoxInSlide,
   fitLockedAspectBox,
@@ -80,7 +89,9 @@ export default function App() {
   const inlineTextEditor = useRef<InlineTextEditorHandle>(null);
   const pendingTextFormat = useRef<TextFormatCommand | undefined>(undefined);
   const moveableRef = useRef<Moveable | null>(null);
-  const dragOrigins = useRef<{ id: string; x: number; y: number }[]>([]);
+  const dragOrigins = useRef<{ id: string; x: number; y: number; from?: { x: number; y: number; bound: boolean }; to?: { x: number; y: number; bound: boolean } }[]>([]);
+  const groupResize = useRef<{ origin: { x: number; y: number; width: number; height: number }; members: { id: string; x: number; y: number; width: number; height: number; from?: { x: number; y: number }; to?: { x: number; y: number } }[] } | undefined>(undefined);
+  const pendingSlot = useRef<string | undefined>(undefined);
   const snapPeers = useRef<ReturnType<typeof peerBoxes>>([]);
   const snapHold = useRef<SnapGuide[]>([]);
   const [snapGuides, setSnapGuides] = useState<SnapGuide[]>([]);
@@ -98,9 +109,12 @@ export default function App() {
   const deck = store.deck;
   const citations = useMemo(() => deck ? citedEntries(deck.slides, parseBibliography(bibliographySource)) : [], [deck, bibliographySource]);
   const slide = deck?.slides.find((item) => item.id === store.selectedSlideId) ?? deck?.slides[0];
-  const selectedElements = slide?.elements.filter((item) => store.selectedElementIds.includes(item.id)) ?? [];
+  const designTarget = deck && store.designTarget && ((store.designTarget.kind === "layout" && deck.layouts[store.designTarget.id]) || (store.designTarget.kind === "component" && deck.components[store.designTarget.id])) ? store.designTarget : undefined;
+  const activeElements = !deck || !slide ? [] : designTarget?.kind === "layout" ? deck.layouts[designTarget.id]!.elements : designTarget?.kind === "component" ? deck.components[designTarget.id]!.elements : slide.elements;
+  const selectedElements = activeElements.filter((item) => store.selectedElementIds.includes(item.id));
   const selected = selectedElements.find((item) => item.id === store.selectedElementId) ?? selectedElements[0];
-  const editingText = slide?.elements.find((item): item is Extract<SlideElement, { type: "text" }> => item.id === editingTextId && item.type === "text");
+  const slotId = store.selectedElementId?.startsWith("slot:") ? store.selectedElementId.slice(5) : undefined;
+  const editingText = activeElements.find((item): item is Extract<SlideElement, { type: "text" }> => item.id === editingTextId && item.type === "text");
   const dragTarget = selectedElements.find((item) => !item.locked) ?? selected;
   const target = dragTarget && !dragTarget.locked ? document.getElementById(`element-${dragTarget.id}`) : null;
   const cropping = selected?.type === "image" && croppingId === selected.id;
@@ -177,14 +191,18 @@ export default function App() {
       if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) {
         event.preventDefault();
         store.preview((draft) => {
-          for (const current of selectedElements) {
-            if (current.locked) continue;
-            const element = findElement(draft, slide.id, current.id);
+          const elements = hostElements(draft, slide.id);
+          const dx = event.key === "ArrowLeft" ? -delta : event.key === "ArrowRight" ? delta : 0;
+          const dy = event.key === "ArrowUp" ? -delta : event.key === "ArrowDown" ? delta : 0;
+          for (const start of dragFamily(elements, selectedElements.filter((item) => !item.locked).map((item) => item.id))) {
+            const element = elements.find((item) => item.id === start.id);
             if (!element) continue;
-            if (event.key === "ArrowLeft") element.x -= delta;
-            if (event.key === "ArrowRight") element.x += delta;
-            if (event.key === "ArrowUp") element.y -= delta;
-            if (event.key === "ArrowDown") element.y += delta;
+            element.x += dx;
+            element.y += dy;
+            if (element.type === "vector" && element.kind === "connector") {
+              if (element.from && start.from && !start.from.bound) { element.from.x += dx; element.from.y += dy; }
+              if (element.to && start.to && !start.to.bound) { element.to.x += dx; element.to.y += dy; }
+            }
           }
         });
         store.scheduleCommit();
@@ -200,6 +218,10 @@ export default function App() {
 
   if (store.error) return <InvalidDeck message={store.error} gitConflict={store.gitConflict} />;
   if (!deck || !slide) return <div className="loading">Opening SlidePix…</div>;
+  const editorSlide: Slide = !designTarget ? slide : designTarget.kind === "layout"
+    ? { ...slide, elements: deck.layouts[designTarget.id]!.elements, background: deck.layouts[designTarget.id]!.background ?? slide.background, backgroundImage: deck.layouts[designTarget.id]!.backgroundImage, layout: undefined }
+    : { ...slide, elements: deck.components[designTarget.id]!.elements, background: deck.theme.background, backgroundImage: undefined, layout: undefined };
+  const slotElement = slotId ? deck.layouts[slide.layout ?? ""]?.elements.find((item) => item.id === slotId) : undefined;
 
   const assetUrl = (reference: string, storage: MediaStorage) => {
     const base = storage === "linked" ? store.linkedSourceUri : store.sourceUri;
@@ -214,16 +236,16 @@ export default function App() {
   const addMedia = (kind: "image" | "video", result: MediaResult, name?: string, elementId?: string) => {
     let fitId: string | undefined;
     store.mutate((draft) => {
-      const targetSlide = draft.slides.find((item) => item.id === slide.id)!;
-      const existing = elementId ? targetSlide.elements.find((item) => item.id === elementId) : undefined;
+      const targetElements = hostElements(draft, slide.id);
+      const existing = elementId ? targetElements.find((item) => item.id === elementId) : undefined;
       if (existing?.type === kind) {
         existing.src = result.reference;
         existing.storage = result.storage;
         if (existing.lockAspectRatio) fitId = existing.id;
         return;
       }
-      const common = baseElement(targetSlide.elements.length, kind);
-      targetSlide.elements.push(kind === "image"
+      const common = baseElement(targetElements.length, kind);
+      targetElements.push(kind === "image"
         ? { ...common, type: "image", src: result.reference, storage: result.storage, crop: { x: 0, y: 0, width: 1, height: 1 }, borderRadius: 0, edgeFade: 0, border: { width: 0, color: "transparent" }, alt: name ?? "", lockAspectRatio: true }
         : { ...common, type: "video", src: result.reference, storage: result.storage, poster: undefined, borderRadius: 0, playback: { mode: "manual", muted: false, loop: false, controls: true }, lockAspectRatio: true });
       fitId = common.id;
@@ -236,7 +258,16 @@ export default function App() {
   const requestMedia = (kind: "image" | "video", uri?: string, elementId?: string) => {
     const requestId = crypto.randomUUID();
     pendingAssets.set(requestId, (result, error) => {
+      const slot = pendingSlot.current;
+      pendingSlot.current = undefined;
       if (error) return void showError(error);
+      if (result && slot) {
+        store.mutate((draft) => {
+          const target = draft.slides.find((item) => item.id === slide.id);
+          if (target) target.slots[slot] = { ...target.slots[slot], src: result.reference, storage: result.storage };
+        });
+        return;
+      }
       if (result) addMedia(kind, result, undefined, elementId);
     });
     postMessage(uri ? { type: "linkMedia", requestId, kind, uri } : { type: "selectMedia", requestId, kind });
@@ -256,8 +287,8 @@ export default function App() {
   };
 
   const addText = () => {
-    const common = baseElement(slide.elements.length, "text");
-    store.mutate((draft) => draft.slides.find((item) => item.id === slide.id)!.elements.push({
+    const common = baseElement(activeElements.length, "text");
+    store.mutate((draft) => hostElements(draft, slide.id).push({
       ...common,
       type: "text",
       markdown: "Type here",
@@ -282,21 +313,32 @@ export default function App() {
     pendingTextFormat.current = command;
     beginTextEditing(selected.id, true);
   };
-  const addShape = (shape: "rectangle" | "ellipse" | "triangle") => store.mutate((draft) => draft.slides.find((item) => item.id === slide.id)!.elements.push({
-    ...baseElement(slide.elements.length, "shape"), type: "shape", shape, fill: deck.theme.accent, stroke: "transparent", strokeWidth: 0, borderRadius: 0,
+  const addShape = (shape: "rectangle" | "ellipse" | "triangle") => store.mutate((draft) => hostElements(draft, slide.id).push({
+    ...baseElement(activeElements.length, "shape"), type: "shape", shape, fill: deck.theme.accent, stroke: "transparent", strokeWidth: 0, borderRadius: 0,
     shadow: { enabled: false, color: "#00000040", offsetX: 0, offsetY: 12, blur: 24 }
   }));
-  const addTable = () => store.mutate((draft) => draft.slides.find((item) => item.id === slide.id)!.elements.push({
-    ...baseElement(slide.elements.length, "table"), type: "table", width: 960, height: 420, rows: 3, columns: 3, headerRow: true,
+  const addVector = (kind: "path" | "connector" | "elbow" | "svg") => store.mutate((draft) => hostElements(draft, slide.id).push(kind === "svg" ? {
+    ...baseElement(activeElements.length, "vector"), type: "vector", kind: "svg", width: 360, height: 360, d: "", svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="36" fill="${deck.theme.accent}" stroke="#0f172a" stroke-width="4"/></svg>`, fill: "transparent", stroke: "#111827", strokeWidth: 4, markerStart: "none", markerEnd: "none", routing: "straight"
+  } : kind === "path" ? {
+    ...baseElement(activeElements.length, "vector"), type: "vector", kind: "path", width: 480, height: 280, d: "M 8 72 C 28 8, 72 8, 92 72", svg: "", fill: "transparent", stroke: deck.theme.foreground, strokeWidth: 6, markerStart: "none", markerEnd: "arrow", routing: "curve"
+  } : {
+    ...baseElement(activeElements.length, "vector"), type: "vector", kind: "connector", x: 280, y: 420, width: 640, height: 48, d: "", svg: "", fill: "transparent", stroke: deck.theme.foreground, strokeWidth: 6, markerStart: "none", markerEnd: "arrow", routing: kind === "elbow" ? "elbow" : "straight",
+    from: { x: 300, y: 444, anchor: "center" }, to: { x: 900, y: 444, anchor: "center" }
+  }));
+  const addChart = (chart: "bar" | "line" | "area" | "pie") => store.mutate((draft) => hostElements(draft, slide.id).push({
+    ...baseElement(activeElements.length, "chart"), type: "chart", chart, width: 880, height: 520, categories: ["North", "South", "East", "West"], series: [{ name: "This year", values: [12, 18, 9, 15], color: deck.theme.accent }, { name: "Last year", values: [8, 11, 14, 10] }], legend: true, valueLabels: false
+  }));
+  const addTable = () => store.mutate((draft) => hostElements(draft, slide.id).push({
+    ...baseElement(activeElements.length, "table"), type: "table", width: 960, height: 420, rows: 3, columns: 3, headerRow: true,
     cells: [["Header 1", "Header 2", "Header 3"], ["", "", ""], ["", "", ""]],
     style: { fontFamily: deck.theme.fontFamily, fontSize: 30, fontWeight: 400, color: deck.theme.foreground, headerFill: "#e0e7ff", cellFill: "#ffffff", borderColor: "#94a3b8", borderWidth: 2, textAlign: "left", verticalAlign: "middle", padding: 10 }
   }));
   const addManim = (output: "image" | "video") => {
     const width = deck.size.width / 2;
     const height = width * 9 / 16;
-    const common = baseElement(slide.elements.length, "manim");
+    const common = baseElement(activeElements.length, "manim");
     store.mutate((draft) => {
-      draft.slides.find((item) => item.id === slide.id)!.elements.push({
+      hostElements(draft, slide.id).push({
         ...common,
         type: "manim",
         x: (deck.size.width - width) / 2,
@@ -368,8 +410,9 @@ export default function App() {
       event.preventDefault();
       if (payload.deckId !== deck.id) return void showError("Copying elements between different deck files is not supported yet. Embed and re-add the media instead.");
       const preserveMorphKey = payload.sourceSlideId !== slide.id;
-      const pasted = payload.elements.map((element) => cloneElementForPaste(element, preserveMorphKey));
-      store.mutate((draft) => draft.slides.find((item) => item.id === slide.id)!.elements.push(...pasted));
+      const pasted = reidentifyElements(payload.elements.map((element) => structuredClone(element)), preserveMorphKey);
+      if (!preserveMorphKey) for (const element of pasted) { element.name = `${element.name ?? element.type} copy`; element.x += 20; element.y += 20; }
+      store.mutate((draft) => hostElements(draft, slide.id).push(...pasted));
       const ids = pasted.map((item) => item.id);
       store.selectElement(ids[0]);
       ids.slice(1).forEach((id) => store.selectElement(id, true));
@@ -378,8 +421,8 @@ export default function App() {
     const text = event.clipboardData.getData("text/plain");
     if (text) {
       event.preventDefault();
-      store.mutate((draft) => draft.slides.find((item) => item.id === slide.id)!.elements.push({
-        ...baseElement(slide.elements.length, "text"), type: "text", markdown: text,
+      store.mutate((draft) => hostElements(draft, slide.id).push({
+        ...baseElement(activeElements.length, "text"), type: "text", markdown: text,
         style: { fontFamily: deck.theme.fontFamily, fontSize: 42, fontWeight: 400, color: deck.theme.foreground, textAlign: "left", verticalAlign: "top", lineHeight: 1.2, padding: 8 }
       }));
     }
@@ -405,7 +448,50 @@ export default function App() {
         element={selected}
         addText={addText}
         addShape={addShape}
+        addVector={addVector}
+        addChart={addChart}
         addTable={addTable}
+        components={Object.entries(deck.components).map(([id, component]) => ({ id, name: component.name }))}
+        insertComponent={(componentId) => {
+          const component = deck.components[componentId];
+          if (!component) return;
+          const common = baseElement(activeElements.length, "component");
+          store.mutate((draft) => hostElements(draft, slide.id).push({ ...common, type: "component", componentId, width: component.width, height: component.height }));
+          store.selectElement(common.id);
+        }}
+        saveComponent={() => {
+          const members = collectMembers(activeElements, selectedElements.map((item) => item.id)).filter((item) => item.type !== "component");
+          if (!members.length) return void showError("Select objects that can be saved as a component.");
+          const box = unionBox(members);
+          const id = crypto.randomUUID();
+          store.mutate((draft) => {
+            const copies = reidentifyElements(structuredClone(members), false);
+            for (const copy of copies) {
+              copy.x -= box.x;
+              copy.y -= box.y;
+              if (copy.type === "vector" && copy.kind === "connector") {
+                if (copy.from && !copy.from.elementId) { copy.from.x -= box.x; copy.from.y -= box.y; }
+                if (copy.to && !copy.to.elementId) { copy.to.x -= box.x; copy.to.y -= box.y; }
+              }
+            }
+            draft.components[id] = { name: members[0]?.name?.trim() || "Component", width: box.width, height: box.height, elements: copies };
+          });
+          notifyToast({ id: crypto.randomUUID(), kind: "success", message: "Saved a reusable component." });
+        }}
+        groupSelection={() => {
+          const id = crypto.randomUUID();
+          let created = false;
+          store.mutate((draft) => {
+            created = groupElements(hostElements(draft, slide.id), selectedElements.map((item) => item.id), { ...baseElement(activeElements.length, "group"), id, type: "group" });
+          });
+          if (!created) showError("Select at least two objects that are not already inside the same selection.");
+          else store.selectElement(id);
+        }}
+        ungroupSelection={() => {
+          if (selected?.type !== "group") return;
+          store.mutate((draft) => { ungroupElements(hostElements(draft, slide.id), selected.id); });
+          store.selectElement();
+        }}
         chooseImage={() => requestMedia("image")}
         chooseVideo={() => requestMedia("video")}
         addManim={addManim}
@@ -438,31 +524,22 @@ export default function App() {
         align={(action, relativeTo) => {
           const next = applyAlign(selectedElements, action, relativeTo, deck.size);
           flushSync(() => {
-            store.mutate((draft) => {
-              for (const box of next) {
-                const element = findElement(draft, slide.id, box.id);
-                if (element) { element.x = box.x; element.y = box.y; }
-              }
-            });
+            store.mutate((draft) => moveAligned(hostElements(draft, slide.id), next));
           });
           moveableRef.current?.updateRect();
         }}
         distribute={(action) => {
           const next = applyDistribute(selectedElements, action);
           flushSync(() => {
-            store.mutate((draft) => {
-              for (const box of next) {
-                const element = findElement(draft, slide.id, box.id);
-                if (element) { element.x = box.x; element.y = box.y; }
-              }
-            });
+            store.mutate((draft) => moveAligned(hostElements(draft, slide.id), next));
           });
           moveableRef.current?.updateRect();
         }}
         duplicateElement={() => {
           if (!selectedElements.length) return;
-          const copies = selectedElements.map((item) => cloneElementForPaste(item, false));
-          store.mutate((draft) => draft.slides.find((item) => item.id === slide.id)!.elements.push(...copies));
+          const copies = reidentifyElements(collectMembers(activeElements, selectedElements.map((item) => item.id)), false);
+          for (const copy of copies) { copy.name = `${copy.name ?? copy.type} copy`; copy.x += 20; copy.y += 20; }
+          store.mutate((draft) => hostElements(draft, slide.id).push(...copies));
           store.selectElement(copies[0]?.id);
           copies.slice(1).forEach((item) => store.selectElement(item.id, true));
         }}
@@ -489,9 +566,10 @@ export default function App() {
               className="canvas-scale"
               style={{ width: deck.size.width, height: deck.size.height, zoom: store.zoom }}
             >
+              {designTarget && <div className="design-banner"><span>Editing {designTarget.kind === "layout" ? `layout “${deck.layouts[designTarget.id]?.name ?? ""}”` : `component “${deck.components[designTarget.id]?.name ?? ""}”`}. Changes apply everywhere it is used.</span><button type="button" onClick={() => store.setDesignTarget(undefined)}>Done</button></div>}
               <SlideView citations={citations}
                 deck={deck}
-                slide={slide}
+                slide={editorSlide}
                 interactive
                 onChromeGeometry={(kind, box) => store.preview((draft) => assignChromeBox(draft, kind, box))}
                 onChromeCommit={() => store.commit()}
@@ -501,6 +579,7 @@ export default function App() {
                 onSelectElement={store.selectElement}
                 onEditText={(id) => beginTextEditing(id)}
                 onEditImage={setCroppingId}
+                onEditComponent={(componentId) => store.setDesignTarget({ kind: "component", id: componentId })}
               />
               {target && dragTarget && !cropping && editingTextId !== dragTarget.id && (
                 <Moveable
@@ -509,7 +588,7 @@ export default function App() {
                   dragTarget={target}
                   draggable
                   resizable={selectedElements.length === 1}
-                  rotatable={selectedElements.length === 1}
+                  rotatable={selectedElements.length === 1 && dragTarget.type !== "group" && !(dragTarget.type === "vector" && dragTarget.kind === "connector")}
                   clickable
                   origin={false}
                   zoom={1 / store.zoom}
@@ -519,8 +598,8 @@ export default function App() {
                     if (dragTarget.type === "image") setCroppingId(dragTarget.id);
                   }}
                   onDragStart={() => {
-                    dragOrigins.current = selectedElements.filter((item) => !item.locked).map((item) => ({ id: item.id, x: item.x, y: item.y }));
-                    snapPeers.current = peerBoxes(slide.elements, store.selectedElementIds);
+                    dragOrigins.current = dragFamily(activeElements, selectedElements.filter((item) => !item.locked).map((item) => item.id));
+                    snapPeers.current = peerBoxes(activeElements, new Set(dragOrigins.current.map((item) => item.id)));
                   }}
                   onDrag={({ left, top, inputEvent, target: elementTarget }) => {
                     const origin = dragOrigins.current.find((item) => item.id === dragTarget.id);
@@ -544,6 +623,10 @@ export default function App() {
                         if (!element) continue;
                         element.x = start.x + dx;
                         element.y = start.y + dy;
+                        if (element.type === "vector" && element.kind === "connector") {
+                          if (element.from && start.from && !start.from.bound) { element.from.x = start.from.x + dx; element.from.y = start.from.y + dy; }
+                          if (element.to && start.to && !start.to.bound) { element.to.x = start.to.x + dx; element.to.y = start.to.y + dy; }
+                        }
                         const node = document.getElementById(`element-${start.id}`);
                         if (node && start.id !== dragTarget.id) {
                           node.style.left = `${element.x}px`;
@@ -558,8 +641,16 @@ export default function App() {
                     store.commit();
                   }}
                   onResizeStart={() => {
-                    snapPeers.current = peerBoxes(slide.elements, store.selectedElementIds);
+                    snapPeers.current = peerBoxes(activeElements, store.selectedElementIds);
                     snapHold.current = [];
+                    groupResize.current = dragTarget.type === "group" ? {
+                      origin: { x: dragTarget.x, y: dragTarget.y, width: dragTarget.width, height: dragTarget.height },
+                      members: descendants(activeElements, dragTarget.id).map((item) => ({
+                        id: item.id, x: item.x, y: item.y, width: item.width, height: item.height,
+                        from: item.type === "vector" && item.from ? { x: item.from.x, y: item.from.y } : undefined,
+                        to: item.type === "vector" && item.to ? { x: item.to.x, y: item.to.y } : undefined
+                      }))
+                    } : undefined;
                   }}
                   onResize={({ width, height, drag, direction, inputEvent, target: elementTarget }) => {
                     const edges = resizeEdges(direction);
@@ -590,6 +681,7 @@ export default function App() {
                       element.height = fitted.height;
                       element.x = fitted.x;
                       element.y = fitted.y;
+                      if (groupResize.current && element.type === "group") scaleMembers(hostElements(draft, slide.id), groupResize.current.members, groupResize.current.origin, fitted);
                       if (batchShapeEdit) syncNamedShapes(draft, slide.id, dragTarget.id);
                     });
                   }}
@@ -638,7 +730,7 @@ export default function App() {
           {!notesCollapsed && <textarea aria-label="Speaker notes" value={slide.notes} onChange={(event) => { store.preview((draft) => { draft.slides.find((item) => item.id === slide.id)!.notes = event.target.value; }); store.scheduleCommit(); }} onBlur={store.commit} />}
         </section>
       </main>
-      <Inspector collapsed={inspectorCollapsed} onToggleCollapse={() => setInspectorCollapsed((value) => !value)} tab={tab} setTab={setTab} deck={deck} slide={slide} element={selected} citations={citations} cropping={cropping} batchShapeEdit={batchShapeEdit} setBatchShapeEdit={setBatchShapeEdit} assetUrl={assetUrl} mutate={store.mutate} preview={store.preview} scheduleCommit={store.scheduleCommit} commit={store.commit} selectElement={store.selectElement} editText={(id) => { store.commit(); setEditingTextId(undefined); setAdvancedTextId(id); }} editImage={(id) => setCroppingId((current) => current === id ? undefined : id)} relinkMedia={(kind, id) => requestMedia(kind, undefined, id)} chooseBackgroundImage={requestBackgroundImage} />
+      <Inspector collapsed={inspectorCollapsed} onToggleCollapse={() => setInspectorCollapsed((value) => !value)} tab={tab} setTab={setTab} deck={deck} slide={slide} element={selected} layers={activeElements} slotElement={slotElement} designTarget={designTarget} setDesignTarget={store.setDesignTarget} citations={citations} cropping={cropping} batchShapeEdit={batchShapeEdit} setBatchShapeEdit={setBatchShapeEdit} assetUrl={assetUrl} mutate={store.mutate} preview={store.preview} scheduleCommit={store.scheduleCommit} commit={store.commit} selectElement={store.selectElement} editText={(id) => { store.commit(); setEditingTextId(undefined); setAdvancedTextId(id); }} editImage={(id) => setCroppingId((current) => current === id ? undefined : id)} relinkMedia={(kind, id) => requestMedia(kind, undefined, id)} chooseBackgroundImage={requestBackgroundImage} chooseSlotImage={(id) => { pendingSlot.current = id; requestMedia("image"); }} />
       {advancedTextId && <TextEditor deck={deck} slideId={slide.id} elementId={advancedTextId} citations={citations} preview={store.preview} scheduleCommit={store.scheduleCommit} commit={store.commit} close={() => setAdvancedTextId(undefined)} />}
       {store.mergeState && <MergeConflictDialog conflict={store.mergeState.conflicts[0]} resolve={store.resolveMergeConflict} useLatest={store.useLatestDeck} />}
       <ToastStack />
@@ -653,12 +745,14 @@ export default function App() {
   );
 }
 
-function Toolbar({ slide, element, selectedElements, addText, addShape, addTable, chooseImage, chooseVideo, addManim, setManimQuality, renderAllManim, setupManim, hasLinkedMedia, historyBusy, canUndo, canRedo, mutate, preview, scheduleCommit, commit, editAdvanced, formatText, align, distribute, duplicateElement, deleteSelected, manimLocked, sharing }: {
+function Toolbar({ slide, element, selectedElements, addText, addShape, addVector, addChart, addTable, chooseImage, chooseVideo, addManim, setManimQuality, renderAllManim, setupManim, hasLinkedMedia, historyBusy, canUndo, canRedo, mutate, preview, scheduleCommit, commit, editAdvanced, formatText, align, distribute, duplicateElement, deleteSelected, manimLocked, sharing, components, insertComponent, saveComponent, groupSelection, ungroupSelection }: {
   slide: Slide;
   element?: SlideElement;
   selectedElements: SlideElement[];
   addText(): void;
   addShape(shape: "rectangle" | "ellipse" | "triangle"): void;
+  addVector(kind: "path" | "connector" | "elbow" | "svg"): void;
+  addChart(chart: "bar" | "line" | "area" | "pie"): void;
   addTable(): void;
   chooseImage(): void;
   chooseVideo(): void;
@@ -682,6 +776,11 @@ function Toolbar({ slide, element, selectedElements, addText, addShape, addTable
   deleteSelected(): void;
   manimLocked: boolean;
   sharing: boolean;
+  components: { id: string; name: string }[];
+  insertComponent(id: string): void;
+  saveComponent(): void;
+  groupSelection(): void;
+  ungroupSelection(): void;
 }) {
   const runCommand = useDeckStore((state) => state.runCommand);
   const zoom = useDeckStore((state) => state.zoom);
@@ -788,6 +887,22 @@ function Toolbar({ slide, element, selectedElements, addText, addShape, addTable
           { icon: "circle-large-outline", label: "Circle", onClick: () => addShape("ellipse") },
           { icon: "triangle-up", label: "Triangle", onClick: () => addShape("triangle") }
         ]} />
+        <RibbonMenu icon="edit" label="Draw" items={[
+          { icon: "edit", label: "Path", onClick: () => addVector("path") },
+          { icon: "arrow-right", label: "Arrow", onClick: () => addVector("connector") },
+          { icon: "arrow-both", label: "Elbow", onClick: () => addVector("elbow") },
+          { icon: "file-code", label: "SVG", onClick: () => addVector("svg") }
+        ]} />
+        <RibbonMenu icon="graph" label="Chart" items={[
+          { icon: "graph", label: "Bar", onClick: () => addChart("bar") },
+          { icon: "graph-line", label: "Line", onClick: () => addChart("line") },
+          { icon: "pulse", label: "Area", onClick: () => addChart("area") },
+          { icon: "pie-chart", label: "Pie", onClick: () => addChart("pie") }
+        ]} />
+        <RibbonMenu icon="symbol-misc" label="Component" items={[
+          { icon: "save", label: "Save selection", onClick: saveComponent },
+          ...components.map((component) => ({ icon: "symbol-misc", label: component.name || "Component", onClick: () => insertComponent(component.id) }))
+        ]} />
         <RibbonMenu icon="run-all" label="Manim" items={[
           { icon: "file-media", label: "Still image", onClick: () => addManim("image") },
           { icon: "device-camera-video", label: "Video", onClick: () => addManim("video") },
@@ -824,6 +939,8 @@ function Toolbar({ slide, element, selectedElements, addText, addShape, addTable
       {selectedElements.length > 0 && <AlignControls count={selectedElements.length} unlocked={selectedElements.filter((item) => !item.locked).length} align={align} distribute={distribute} />}
       {element && <div className="context-arrange">
         <ContextIcon icon="copy" label="Duplicate" onClick={duplicateElement} />
+        {selectedElements.length > 1 && <ContextIcon icon="group-by-ref-type" label="Group" onClick={groupSelection} />}
+        {element?.type === "group" && <ContextIcon icon="ungroup-by-ref-type" label="Ungroup" onClick={ungroupSelection} />}
         <ContextIcon icon="arrow-up" label="Bring forward" onClick={() => updateElement((target) => { target.z += 1; })} />
         <ContextIcon icon="arrow-down" label="Send backward" onClick={() => updateElement((target) => { target.z -= 1; })} />
         <ContextIcon icon={element.locked ? "lock" : "unlock"} label={element.locked ? "Unlock" : "Lock"} pressed={element.locked} onClick={() => updateElement((target) => { target.locked = !target.locked; })} />
@@ -915,7 +1032,7 @@ function SlideRail({ collapsed, onToggleCollapse, deck, selectedId, peerColors, 
   const addSlide = (index?: number) => {
     const id = crypto.randomUUID();
     mutate((draft) => {
-      const slide = { id, title: `Slide ${draft.slides.length + 1}`, notes: "", hidden: false, bibliography: false, hidePageNumber: false, transition: { type: "none" as const, durationMs: 500, easing: "ease-in-out" }, timeline: [], elements: [] };
+      const slide = { id, title: `Slide ${draft.slides.length + 1}`, notes: "", hidden: false, bibliography: false, hidePageNumber: false, transition: { type: "none" as const, durationMs: 500, easing: "ease-in-out" }, timeline: [], slots: {}, elements: [] };
       if (index === undefined) draft.slides.push(slide);
       else draft.slides.splice(index, 0, slide);
     });
@@ -1247,8 +1364,8 @@ function ManimInspector({ slideId, slideSize, element, mutate, preview, schedule
   </>;
 }
 
-function Inspector({ collapsed, onToggleCollapse, tab, setTab, deck, slide, element, citations, cropping, batchShapeEdit, setBatchShapeEdit, assetUrl, mutate, preview, scheduleCommit, commit, selectElement, editText, editImage, relinkMedia, chooseBackgroundImage }: {
-  collapsed: boolean; onToggleCollapse(): void; tab: Tab; setTab(tab: Tab): void; deck: Deck; slide: Slide; element?: SlideElement; citations: readonly Citation[]; cropping: boolean; batchShapeEdit: boolean; setBatchShapeEdit(enabled: boolean): void; assetUrl(reference: string, storage: MediaStorage): string; mutate(fn: (deck: Deck) => void): void; preview(fn: (deck: Deck) => void): void; scheduleCommit(): void; commit(): void; selectElement(id?: string, additive?: boolean): void; editText(id: string): void; editImage(id: string): void; relinkMedia(kind: "image" | "video", id: string): void; chooseBackgroundImage(): void;
+function Inspector({ collapsed, onToggleCollapse, tab, setTab, deck, slide, element, layers, slotElement, designTarget, setDesignTarget, citations, cropping, batchShapeEdit, setBatchShapeEdit, assetUrl, mutate, preview, scheduleCommit, commit, selectElement, editText, editImage, relinkMedia, chooseBackgroundImage, chooseSlotImage }: {
+  collapsed: boolean; onToggleCollapse(): void; tab: Tab; setTab(tab: Tab): void; deck: Deck; slide: Slide; element?: SlideElement; layers: SlideElement[]; slotElement?: SlideElement; designTarget?: { kind: "layout" | "component"; id: string }; setDesignTarget(target?: { kind: "layout" | "component"; id: string }): void; citations: readonly Citation[]; cropping: boolean; batchShapeEdit: boolean; setBatchShapeEdit(enabled: boolean): void; assetUrl(reference: string, storage: MediaStorage): string; mutate(fn: (deck: Deck) => void): void; preview(fn: (deck: Deck) => void): void; scheduleCommit(): void; commit(): void; selectElement(id?: string, additive?: boolean): void; editText(id: string): void; editImage(id: string): void; relinkMedia(kind: "image" | "video", id: string): void; chooseBackgroundImage(): void; chooseSlotImage(id: string): void;
 }) {
   const selectedIds = useDeckStore((state) => state.selectedElementIds);
   const update = (patch: Partial<SlideElement>) => element && mutate((draft) => Object.assign(findElement(draft, slide.id, element.id)!, patch));
@@ -1281,7 +1398,7 @@ function Inspector({ collapsed, onToggleCollapse, tab, setTab, deck, slide, elem
     </div>
     <div className="inspector-body">
       {tab === "properties" && <>
-        <h3>{selectedIds.length > 1 ? `${selectedIds.length} items` : element ? element.type : "Slide"}</h3>
+        <h3>{selectedIds.length > 1 ? `${selectedIds.length} items` : element ? element.type : slotElement ? "Placeholder" : designTarget ? designTarget.kind : "Slide"}</h3>
         {element ? <>
           <label>Element name<input autoComplete="off" value={element.name ?? ""} placeholder={elementLabel(element)} onChange={(event) => updateContinuous({ name: event.target.value.trimStart() || undefined })} onBlur={commit} /></label>
           <p className="panel-help">The same name on both slides morphs this object. A blank name, or the same name twice on one slide, does not morph.</p>
@@ -1373,11 +1490,21 @@ function Inspector({ collapsed, onToggleCollapse, tab, setTab, deck, slide, elem
             <CheckboxField label="Loop" checked={element.playback.loop} onChange={(loop) => mutate((draft) => { const target = findElement(draft, slide.id, element.id); if (target?.type === "video") target.playback.loop = loop; })} />
             <CheckboxField label="Controls" checked={element.playback.controls} onChange={(controls) => mutate((draft) => { const target = findElement(draft, slide.id, element.id); if (target?.type === "video") target.playback.controls = controls; })} />
           </>}
-        </> : <>
+          {element.type === "vector" && <VectorFields element={element} peers={layers} slideId={slide.id} mutate={mutate} preview={preview} scheduleCommit={scheduleCommit} commit={commit} />}
+          {element.type === "chart" && <ChartFields element={element} peers={layers} slideId={slide.id} mutate={mutate} preview={preview} scheduleCommit={scheduleCommit} commit={commit} />}
+          {element.type === "group" && <p className="panel-help">A group moves and scales every nested member, including groups inside it. The frame stays axis-aligned.</p>}
+          {element.type === "component" && <>
+            <p className="panel-help">{deck.components[element.componentId]?.name ?? "Missing component"}. Editing the component updates every instance.</p>
+            <button className="edit-text-button" onClick={() => setDesignTarget({ kind: "component", id: element.componentId })}>Edit component</button>
+            <button className="edit-text-button" onClick={() => mutate((draft) => detachComponent(draft, slide.id, element.id))}>Detach into objects</button>
+          </>}
+          {element.parentId && <button className="edit-text-button" onClick={() => selectElement(element.parentId)}>Select parent group</button>}
+        </> : slotElement ? <SlotFields slide={slide} element={slotElement} mutate={mutate} preview={preview} scheduleCommit={scheduleCommit} commit={commit} chooseSlotImage={chooseSlotImage} /> : designTarget ? <DesignFields deck={deck} target={designTarget} mutate={mutate} preview={preview} scheduleCommit={scheduleCommit} commit={commit} finish={() => setDesignTarget(undefined)} /> : <>
           <label>Slide title<input value={slide.title} onChange={(event) => { preview((draft) => { draft.slides.find((item) => item.id === slide.id)!.title = event.target.value; }); scheduleCommit(); }} onBlur={commit} /></label>
           <ColorField label="Background" value={slide.background ?? deck.theme.background} onChange={(background) => continuous((draft) => { draft.slides.find((item) => item.id === slide.id)!.background = background; })} onCommit={commit} />
           <h4 className="property-heading">Background image</h4>
           {slide.backgroundImage ? <div className="media-source-card"><span className={`storage-badge ${slide.backgroundImage.storage}`}>{slide.backgroundImage.storage}</span><code title={slide.backgroundImage.src}>{slide.backgroundImage.src}</code><div><button onClick={chooseBackgroundImage}>Replace image…</button><button className="danger-quiet" onClick={() => mutate((draft) => { delete draft.slides.find((item) => item.id === slide.id)!.backgroundImage; })}>Remove</button></div></div> : <button className="edit-text-button" onClick={chooseBackgroundImage}><span className="codicon codicon-file-media" /> Choose background image…</button>}
+          <LayoutFields deck={deck} slide={slide} mutate={mutate} setDesignTarget={setDesignTarget} />
           <CollapsibleOptions title="Header">
             <ChromeTextFields item={deck.header} onChange={(patch) => continuous((draft) => Object.assign(draft.header, patch))} onCommit={commit} />
           </CollapsibleOptions>
@@ -1416,7 +1543,7 @@ function Inspector({ collapsed, onToggleCollapse, tab, setTab, deck, slide, elem
           <TransitionControls transition={slide.transition} update={(patch) => mutate((draft) => Object.assign(draft.slides.find((item) => item.id === slide.id)!.transition, patch))} applyAll={() => mutate((draft) => { const source = draft.slides.find((item) => item.id === slide.id); if (!source) return; const transition = { ...source.transition }; for (const item of draft.slides) item.transition = { ...transition }; })} />
         </>}
       </>}
-      {tab === "layers" && <><h3>Layers</h3><p className="panel-help">Shift-click to add items to the selection for align and distribute.</p>{[...slide.elements].sort((a, b) => b.z - a.z).map((item) => <div className={`layer-row ${selectedIds.includes(item.id) ? "active" : ""}`} key={item.id} onClick={(event) => selectElement(item.id, event.shiftKey)}><span>{item.name ?? `${item.type} ${item.id.slice(0, 4)}`}</span><button title={item.locked ? "Unlock" : "Lock"} aria-label={item.locked ? "Unlock" : "Lock"} onClick={(event) => { event.stopPropagation(); mutate((draft) => { const target = findElement(draft, slide.id, item.id); if (target) target.locked = !target.locked; }); }}><span className={`codicon codicon-${item.locked ? "lock" : "unlock"}`} /></button><button title={item.hidden ? "Show" : "Hide"} aria-label={item.hidden ? "Show" : "Hide"} onClick={(event) => { event.stopPropagation(); mutate((draft) => { const target = findElement(draft, slide.id, item.id); if (target) target.hidden = !target.hidden; }); }}><span className={`codicon codicon-${item.hidden ? "eye-closed" : "eye"}`} /></button><button title="Bring forward" aria-label="Bring forward" onClick={(event) => { event.stopPropagation(); mutate((draft) => { const target = findElement(draft, slide.id, item.id); if (target) target.z += 1; }); }}><span className="codicon codicon-arrow-up" /></button><button title="Send backward" aria-label="Send backward" onClick={(event) => { event.stopPropagation(); mutate((draft) => { const target = findElement(draft, slide.id, item.id); if (target) target.z -= 1; }); }}><span className="codicon codicon-arrow-down" /></button></div>)}</>}
+      {tab === "layers" && <><h3>Layers</h3><p className="panel-help">Shift-click to add items to the selection for align and distribute. Indent shows nested groups.</p>{[...layers].sort((a, b) => b.z - a.z).map((item) => <div className={`layer-row ${selectedIds.includes(item.id) ? "active" : ""}`} key={item.id} style={{ paddingLeft: 8 + groupDepth(layers, item.id) * 12 }} onClick={(event) => selectElement(item.id, event.shiftKey)}><span>{item.name ?? `${item.type} ${item.id.slice(0, 4)}`}</span><button title={item.locked ? "Unlock" : "Lock"} aria-label={item.locked ? "Unlock" : "Lock"} onClick={(event) => { event.stopPropagation(); mutate((draft) => { const target = findElement(draft, slide.id, item.id); if (target) target.locked = !target.locked; }); }}><span className={`codicon codicon-${item.locked ? "lock" : "unlock"}`} /></button><button title={item.hidden ? "Show" : "Hide"} aria-label={item.hidden ? "Show" : "Hide"} onClick={(event) => { event.stopPropagation(); mutate((draft) => { const target = findElement(draft, slide.id, item.id); if (target) target.hidden = !target.hidden; }); }}><span className={`codicon codicon-${item.hidden ? "eye-closed" : "eye"}`} /></button><button title="Bring forward" aria-label="Bring forward" onClick={(event) => { event.stopPropagation(); mutate((draft) => { const target = findElement(draft, slide.id, item.id); if (target) target.z += 1; }); }}><span className="codicon codicon-arrow-up" /></button><button title="Send backward" aria-label="Send backward" onClick={(event) => { event.stopPropagation(); mutate((draft) => { const target = findElement(draft, slide.id, item.id); if (target) target.z -= 1; }); }}><span className="codicon codicon-arrow-down" /></button></div>)}</>}
       {tab === "bibliography" && slide.bibliography && <BibliographyFields deck={deck} citations={citations} mutate={mutate} preview={preview} scheduleCommit={scheduleCommit} commit={commit} />}
       {tab === "animations" && <><h3>Animation timeline</h3><p className="panel-help">Select an element, then add its entrance. The cards run from top to bottom.</p><button className="add-animation" disabled={!element} onClick={() => element && mutate((draft) => draft.slides.find((item) => item.id === slide.id)!.timeline.push(defaultAnimation(element.id)))}><span className="codicon codicon-add" /> Add entrance{element ? ` for ${elementLabel(element)}` : ""}</button><div className="animation-list">{slide.timeline.map((step, index) => <AnimationRow key={step.id} step={step} index={index} flowLabel={animationFlowLabel(slide.timeline, index)} element={slide.elements.find((item) => item.id === step.targetElementId)} selectElement={selectElement} mutate={(patch) => mutate((draft) => Object.assign(draft.slides.find((item) => item.id === slide.id)!.timeline[index]!, patch))} remove={() => mutate((draft) => draft.slides.find((item) => item.id === slide.id)!.timeline.splice(index, 1))} />)}</div></>}
     </div>
@@ -1697,7 +1824,80 @@ function elementLabel(element: SlideElement): string { return element.name?.trim
 function animationFlowLabel(timeline: AnimationStep[], index: number): string { const step = timeline[index]!; if (step.trigger === "withPrevious") return "With previous"; if (step.trigger === "afterPrevious") return "After previous"; return `Click ${timeline.slice(0, index + 1).filter((item) => item.trigger === "onClick").length}`; }
 function transitionLabel(type: Transition["type"]): string { return ({ none: "None", fade: "Fade", "slide-left": "From left", "slide-right": "From right", "slide-up": "From top", "slide-down": "From bottom", morph: "Morph" } as Record<Transition["type"], string>)[type]; }
 function transitionIcon(type: Transition["type"]): string { return ({ none: "circle-slash", fade: "eye", "slide-left": "arrow-right", "slide-right": "arrow-left", "slide-up": "arrow-down", "slide-down": "arrow-up", morph: "wand" } as Record<Transition["type"], string>)[type]; }
-function findElement(deck: Deck, slideId: string, elementId: string) { return deck.slides.find((item) => item.id === slideId)?.elements.find((item) => item.id === elementId); }
+function hostElements(draft: Deck, slideId: string): SlideElement[] {
+  const design = useDeckStore.getState().designTarget;
+  if (design?.kind === "layout") return draft.layouts[design.id]?.elements ?? [];
+  if (design?.kind === "component") return draft.components[design.id]?.elements ?? [];
+  return draft.slides.find((item) => item.id === slideId)?.elements ?? [];
+}
+function findElement(deck: Deck, slideId: string, elementId: string) { return hostElements(deck, slideId).find((item) => item.id === elementId); }
+function moveAligned(elements: SlideElement[], next: { id: string; x: number; y: number }[]): void {
+  const selected = new Set(next.map((box) => box.id));
+  for (const box of next) {
+    const element = elements.find((item) => item.id === box.id);
+    if (!element) continue;
+    const dx = box.x - element.x;
+    const dy = box.y - element.y;
+    element.x = box.x;
+    element.y = box.y;
+    for (const child of descendants(elements, element.id)) {
+      if (selected.has(child.id)) continue;
+      child.x += dx;
+      child.y += dy;
+    }
+  }
+}
+function dragFamily(elements: readonly SlideElement[], ids: readonly string[]) {
+  const seen = new Set<string>();
+  const result: { id: string; x: number; y: number; from?: { x: number; y: number; bound: boolean }; to?: { x: number; y: number; bound: boolean } }[] = [];
+  for (const id of ids) {
+    const root = elements.find((item) => item.id === id);
+    if (!root) continue;
+    for (const item of [root, ...descendants(elements, root.id)]) {
+      if (seen.has(item.id)) continue;
+      seen.add(item.id);
+      result.push({
+        id: item.id,
+        x: item.x,
+        y: item.y,
+        from: item.type === "vector" && item.from ? { x: item.from.x, y: item.from.y, bound: Boolean(item.from.elementId) } : undefined,
+        to: item.type === "vector" && item.to ? { x: item.to.x, y: item.to.y, bound: Boolean(item.to.elementId) } : undefined
+      });
+    }
+  }
+  return result;
+}
+function groupDepth(elements: readonly SlideElement[], id: string): number {
+  let depth = 0;
+  let parent = elements.find((item) => item.id === id)?.parentId;
+  while (parent) {
+    depth += 1;
+    parent = elements.find((item) => item.id === parent)?.parentId;
+    if (depth > 32) break;
+  }
+  return depth;
+}
+function detachComponent(draft: Deck, slideId: string, elementId: string): void {
+  const elements = hostElements(draft, slideId);
+  const index = elements.findIndex((item) => item.id === elementId);
+  const instance = elements[index];
+  if (!instance || instance.type !== "component") return;
+  const component = draft.components[instance.componentId];
+  if (!component) return;
+  const sx = instance.width / component.width;
+  const sy = instance.height / component.height;
+  const copies = reidentifyElements(structuredClone(component.elements), false);
+  for (const copy of copies) {
+    copy.x = instance.x + copy.x * sx;
+    copy.y = instance.y + copy.y * sy;
+    copy.width = Math.max(1, copy.width * sx);
+    copy.height = Math.max(1, copy.height * sy);
+    copy.rotation += instance.rotation;
+    if (copy.type === "text") copy.style = { ...copy.style, fontSize: copy.style.fontSize * Math.min(sx, sy) };
+    if (copy.type === "table") copy.style = { ...copy.style, fontSize: copy.style.fontSize * Math.min(sx, sy) };
+  }
+  elements.splice(index, 1, ...copies);
+}
 function lockedElementAspectRatio(element: SlideElement): number | undefined {
   if (element.type !== "image" && element.type !== "video" && element.type !== "manim") return undefined;
   if (!element.lockAspectRatio) return undefined;
@@ -1754,13 +1954,138 @@ function resizeTable(table: Extract<SlideElement, { type: "table" }>, rows: numb
 function isTextEntryTarget(target: EventTarget | null): boolean { return target instanceof HTMLElement && (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)); }
 function deleteElements(slideId: string, elementIds: string[], mutate: (fn: (deck: Deck) => void) => void, select: (id?: string) => void) {
   if (!elementIds.length) return;
-  const ids = new Set(elementIds);
   mutate((draft) => {
-    const target = draft.slides.find((item) => item.id === slideId)!;
-    target.elements = target.elements.filter((item) => !ids.has(item.id));
-    target.timeline = target.timeline.filter((step) => !ids.has(step.targetElementId));
+    const design = useDeckStore.getState().designTarget;
+    const current = hostElements(draft, slideId);
+    const removed = removedElementIds(current, elementIds);
+    const next = withoutElements(current, elementIds);
+    if (design?.kind === "layout" && draft.layouts[design.id]) draft.layouts[design.id]!.elements = next;
+    else if (design?.kind === "component" && draft.components[design.id]) draft.components[design.id]!.elements = next;
+    else {
+      const target = draft.slides.find((item) => item.id === slideId);
+      if (!target) return;
+      target.elements = next;
+      target.timeline = target.timeline.filter((step) => !removed.has(step.targetElementId));
+    }
   });
   select();
+}
+function VectorFields({ element, peers, slideId, mutate, preview, scheduleCommit, commit }: { element: Extract<SlideElement, { type: "vector" }>; peers: readonly SlideElement[]; slideId: string; mutate(fn: (deck: Deck) => void): void; preview(fn: (deck: Deck) => void): void; scheduleCommit(): void; commit(): void }) {
+  const edit = (fn: (target: Extract<SlideElement, { type: "vector" }>) => void, live = true) => {
+    const apply = (draft: Deck) => { const target = findElement(draft, slideId, element.id); if (target?.type === "vector") fn(target); };
+    if (live) { preview(apply); scheduleCommit(); } else mutate(apply);
+  };
+  const choices = peers.filter((item) => item.id !== element.id && item.type !== "vector");
+  return <>
+    <p className="panel-help">{element.kind === "connector" ? "A connector follows the objects it is attached to." : element.kind === "svg" ? "Paste one SVG drawing. Scripts and external images are rejected." : "Path coordinates use a 0–100 box that stretches with the object."}</p>
+    {element.kind !== "svg" && <>
+      <ColorField label="Stroke" value={element.stroke} onChange={(stroke) => edit((target) => { target.stroke = stroke; })} onCommit={commit} />
+      <NumberField label="Stroke width" value={element.strokeWidth} min={0} onChange={(strokeWidth) => edit((target) => { target.strokeWidth = Math.max(0, strokeWidth); })} onCommit={commit} />
+      <ColorField label="Fill" value={element.fill} allowTransparent onChange={(fill) => edit((target) => { target.fill = fill; })} onCommit={commit} />
+    </>}
+    {element.kind === "connector" && <>
+      <label>Route<select value={element.routing} onChange={(event) => edit((target) => { target.routing = event.target.value as "straight" | "elbow" | "curve"; }, false)}><option value="straight">Straight</option><option value="elbow">Elbow</option><option value="curve">Curve</option></select></label>
+      <AnchorFields label="From" value={element.from} choices={choices} onChange={(from) => edit((target) => { target.from = from; }, false)} />
+      <AnchorFields label="To" value={element.to} choices={choices} onChange={(to) => edit((target) => { target.to = to; }, false)} />
+    </>}
+    {element.kind === "path" && <label>Path<textarea value={element.d} onChange={(event) => edit((target) => { target.d = event.target.value; })} onBlur={commit} /></label>}
+    {element.kind === "svg" && <label>SVG<textarea value={element.svg} onChange={(event) => edit((target) => { target.svg = event.target.value; })} onBlur={commit} /></label>}
+    {element.kind !== "svg" && <>
+      <label>Start<select value={element.markerStart} onChange={(event) => edit((target) => { target.markerStart = event.target.value as "none" | "arrow"; }, false)}><option value="none">None</option><option value="arrow">Arrow</option></select></label>
+      <label>End<select value={element.markerEnd} onChange={(event) => edit((target) => { target.markerEnd = event.target.value as "none" | "arrow"; }, false)}><option value="none">None</option><option value="arrow">Arrow</option></select></label>
+    </>}
+  </>;
+}
+function AnchorFields({ label, value, choices, onChange }: { label: string; value?: { x: number; y: number; elementId?: string; anchor: "center" | "top" | "right" | "bottom" | "left" }; choices: readonly SlideElement[]; onChange(anchor: { x: number; y: number; elementId?: string; anchor: "center" | "top" | "right" | "bottom" | "left" }): void }) {
+  const anchor = value ?? { x: 0, y: 0, anchor: "center" as const };
+  return <>
+    <label>{label}<select value={anchor.elementId ?? ""} onChange={(event) => onChange({ ...anchor, elementId: event.target.value || undefined })}><option value="">Free point</option>{choices.map((item) => <option key={item.id} value={item.id}>{item.name || item.type}</option>)}</select></label>
+    <label>{label} side<select value={anchor.anchor} onChange={(event) => onChange({ ...anchor, anchor: event.target.value as typeof anchor.anchor })}><option value="center">Center</option><option value="top">Top</option><option value="right">Right</option><option value="bottom">Bottom</option><option value="left">Left</option></select></label>
+  </>;
+}
+function ChartFields({ element, peers, slideId, mutate, preview, scheduleCommit, commit }: { element: Extract<SlideElement, { type: "chart" }>; peers: readonly SlideElement[]; slideId: string; mutate(fn: (deck: Deck) => void): void; preview(fn: (deck: Deck) => void): void; scheduleCommit(): void; commit(): void }) {
+  const tables = peers.filter((item) => item.type === "table");
+  const edit = (fn: (target: Extract<SlideElement, { type: "chart" }>) => void, live = true) => {
+    const apply = (draft: Deck) => { const target = findElement(draft, slideId, element.id); if (target?.type === "chart") fn(target); };
+    if (live) { preview(apply); scheduleCommit(); } else mutate(apply);
+  };
+  return <>
+    <label>Chart<select value={element.chart} onChange={(event) => edit((target) => { target.chart = event.target.value as typeof element.chart; }, false)}><option value="bar">Bar</option><option value="line">Line</option><option value="area">Area</option><option value="pie">Pie</option></select></label>
+    <label>Data<select value={element.dataLink?.elementId ?? ""} onChange={(event) => edit((target) => { if (event.target.value) target.dataLink = { elementId: event.target.value }; else delete target.dataLink; }, false)}><option value="">Typed values</option>{tables.map((table) => <option key={table.id} value={table.id}>{table.name || "Table"}</option>)}</select></label>
+    <p className="panel-help">A linked table uses the first column as categories and the remaining columns as series. A header row names the series.</p>
+    <CheckboxField label="Legend" checked={element.legend} onChange={(legend) => edit((target) => { target.legend = legend; }, false)} />
+    <CheckboxField label="Value labels" checked={element.valueLabels} onChange={(valueLabels) => edit((target) => { target.valueLabels = valueLabels; }, false)} />
+    {!element.dataLink && <>
+      <label>Categories<textarea value={element.categories.join("\n")} onChange={(event) => edit((target) => { target.categories = event.target.value.split("\n"); })} onBlur={commit} /></label>
+      {element.series.map((series, index) => <label key={index}>Series {index + 1}<input value={series.name} onChange={(event) => edit((target) => { const next = target.series[index]; if (next) next.name = event.target.value; })} onBlur={commit} /><textarea aria-label={`${series.name} values`} value={series.values.join(", ")} onChange={(event) => edit((target) => { const next = target.series[index]; if (next) next.values = event.target.value.split(",").map((item) => Number(item.trim()) || 0); })} onBlur={commit} /></label>)}
+    </>}
+  </>;
+}
+function SlotFields({ slide, element, mutate, preview, scheduleCommit, commit, chooseSlotImage }: { slide: Slide; element: SlideElement; mutate(fn: (deck: Deck) => void): void; preview(fn: (deck: Deck) => void): void; scheduleCommit(): void; commit(): void; chooseSlotImage(id: string): void }) {
+  const slot = slide.slots[element.id];
+  if (element.type === "text") {
+    return <>
+      <p className="panel-help">{element.placeholder?.prompt || "This text comes from the layout until you replace it on this slide."}</p>
+      <label>Text<textarea value={slot?.markdown ?? element.markdown} onChange={(event) => { preview((draft) => { const target = draft.slides.find((item) => item.id === slide.id); if (target) target.slots[element.id] = { ...target.slots[element.id], markdown: event.target.value }; }); scheduleCommit(); }} onBlur={commit} /></label>
+    </>;
+  }
+  if (element.type === "image") {
+    return <>
+      <p className="panel-help">{element.placeholder?.prompt || "Choose a picture for this placeholder."}</p>
+      <button className="edit-text-button" onClick={() => chooseSlotImage(element.id)}>Choose image…</button>
+      {slot?.src && <p className="panel-help">{slot.src}</p>}
+      {slot?.src && <button className="danger-quiet" onClick={() => mutate((draft) => { const target = draft.slides.find((item) => item.id === slide.id); if (target) delete target.slots[element.id]; })}>Use the layout picture</button>}
+    </>;
+  }
+  return <p className="panel-help">This placeholder is edited on the layout.</p>;
+}
+function DesignFields({ deck, target, mutate, preview, scheduleCommit, commit, finish }: { deck: Deck; target: { kind: "layout" | "component"; id: string }; mutate(fn: (deck: Deck) => void): void; preview(fn: (deck: Deck) => void): void; scheduleCommit(): void; commit(): void; finish(): void }) {
+  const record = target.kind === "layout" ? deck.layouts[target.id] : deck.components[target.id];
+  if (!record) return null;
+  return <>
+    <label>Name<input value={record.name} onChange={(event) => { preview((draft) => { const item = target.kind === "layout" ? draft.layouts[target.id] : draft.components[target.id]; if (item) item.name = event.target.value; }); scheduleCommit(); }} onBlur={commit} /></label>
+    {target.kind === "layout" && <ColorField label="Background" value={deck.layouts[target.id]?.background ?? deck.theme.background} onChange={(background) => { preview((draft) => { const layout = draft.layouts[target.id]; if (layout) layout.background = background; }); scheduleCommit(); }} onCommit={commit} />}
+    <button className="edit-text-button" onClick={finish}>Done</button>
+    <button className="danger-quiet" onClick={() => mutate((draft) => {
+      if (target.kind === "layout") {
+        delete draft.layouts[target.id];
+        for (const slide of draft.slides) if (slide.layout === target.id) delete slide.layout;
+      } else {
+        delete draft.components[target.id];
+        for (const slide of draft.slides) slide.elements = slide.elements.filter((item) => item.type !== "component" || item.componentId !== target.id);
+        for (const layout of Object.values(draft.layouts)) layout.elements = layout.elements.filter((item) => item.type !== "component" || item.componentId !== target.id);
+      }
+      finish();
+    })}>Delete {target.kind}</button>
+  </>;
+}
+function LayoutFields({ deck, slide, mutate, setDesignTarget }: { deck: Deck; slide: Slide; mutate(fn: (deck: Deck) => void): void; setDesignTarget(target?: { kind: "layout" | "component"; id: string }): void }) {
+  return <>
+    <h4 className="property-heading">Layout</h4>
+    <label>Master layout<select value={slide.layout ?? ""} onChange={(event) => mutate((draft) => {
+      const target = draft.slides.find((item) => item.id === slide.id);
+      if (!target) return;
+      if (event.target.value) target.layout = event.target.value;
+      else delete target.layout;
+    })}><option value="">None</option>{Object.entries(deck.layouts).map(([id, layout]) => <option key={id} value={id}>{layout.name}</option>)}</select></label>
+    <p className="panel-help">A layout paints behind this slide. Text and image placeholders can be filled per slide.</p>
+    <button className="edit-text-button" onClick={() => mutate((draft) => {
+      const source = draft.slides.find((item) => item.id === slide.id);
+      if (!source) return;
+      const id = crypto.randomUUID();
+      const copies = reidentifyElements(structuredClone(source.elements), false);
+      for (const element of copies) {
+        if (element.type === "text") element.placeholder = { role: element.markdown.trim().startsWith("#") ? "title" : "body", prompt: "Edit text" };
+        if (element.type === "image") element.placeholder = { role: "image", prompt: "Choose image" };
+        if (element.type === "chart") element.placeholder = { role: "chart", prompt: "Chart" };
+      }
+      draft.layouts[id] = { name: `${source.title} layout`, background: source.background, backgroundImage: source.backgroundImage ? { ...source.backgroundImage } : undefined, elements: copies };
+      source.elements = [];
+      source.timeline = [];
+      source.layout = id;
+    })}>New layout from this slide</button>
+    {slide.layout && deck.layouts[slide.layout] && <button className="edit-text-button" onClick={() => setDesignTarget({ kind: "layout", id: slide.layout! })}>Edit layout</button>}
+  </>;
 }
 function handleHostMessage(message: HostToWebviewMessage, setDeck: (deck: Deck, revision: string, uri: string, linkedUri: string, history?: { canUndo?: boolean; canRedo?: boolean }) => void, setInvalid: (message: string, gitConflict: boolean, uri: string, linkedUri: string) => void, handleEditResult: (message: Extract<HostToWebviewMessage, { type: "documentEditResult" }>) => void, handleHistoryResult: (message: Extract<HostToWebviewMessage, { type: "historyResult" }>) => void, setBibliography: (source: string) => void) {
   if (message.type === "deck") setDeck(message.deck, message.revision, message.uri, message.linkedUri, { canUndo: message.canUndo, canRedo: message.canRedo });

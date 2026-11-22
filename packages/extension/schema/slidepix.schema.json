@@ -501,34 +501,6 @@
           "background": {
             "type": "string",
             "minLength": 1
-          }
-        },
-        "required": [
-          "name"
-        ],
-        "additionalProperties": false
-      }
-    },
-    "slides": {
-      "minItems": 1,
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "minLength": 1
-          },
-          "title": {
-            "default": "Untitled slide",
-            "type": "string"
-          },
-          "layout": {
-            "type": "string"
-          },
-          "background": {
-            "type": "string",
-            "minLength": 1
           },
           "backgroundImage": {
             "type": "object",
@@ -551,140 +523,6 @@
               "storage"
             ],
             "additionalProperties": false
-          },
-          "notes": {
-            "default": "",
-            "type": "string"
-          },
-          "hidden": {
-            "default": false,
-            "type": "boolean"
-          },
-          "bibliography": {
-            "default": false,
-            "type": "boolean"
-          },
-          "hidePageNumber": {
-            "default": false,
-            "type": "boolean"
-          },
-          "transition": {
-            "default": {
-              "type": "none",
-              "durationMs": 500,
-              "easing": "ease-in-out"
-            },
-            "type": "object",
-            "properties": {
-              "type": {
-                "default": "none",
-                "type": "string",
-                "enum": [
-                  "none",
-                  "fade",
-                  "slide-left",
-                  "slide-right",
-                  "slide-up",
-                  "slide-down",
-                  "morph"
-                ]
-              },
-              "durationMs": {
-                "default": 500,
-                "type": "integer",
-                "minimum": 0,
-                "maximum": 10000
-              },
-              "easing": {
-                "default": "ease-in-out",
-                "type": "string"
-              }
-            },
-            "required": [
-              "type",
-              "durationMs",
-              "easing"
-            ],
-            "additionalProperties": false
-          },
-          "timeline": {
-            "default": [],
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "id": {
-                  "type": "string",
-                  "minLength": 1
-                },
-                "targetElementId": {
-                  "type": "string",
-                  "minLength": 1
-                },
-                "phase": {
-                  "default": "entrance",
-                  "type": "string",
-                  "enum": [
-                    "entrance",
-                    "exit"
-                  ]
-                },
-                "effect": {
-                  "default": "fade",
-                  "type": "string",
-                  "enum": [
-                    "appear",
-                    "fade",
-                    "fly"
-                  ]
-                },
-                "trigger": {
-                  "default": "onClick",
-                  "type": "string",
-                  "enum": [
-                    "onClick",
-                    "withPrevious",
-                    "afterPrevious"
-                  ]
-                },
-                "direction": {
-                  "type": "string",
-                  "enum": [
-                    "left",
-                    "right",
-                    "up",
-                    "down"
-                  ]
-                },
-                "delayMs": {
-                  "default": 0,
-                  "type": "integer",
-                  "minimum": 0,
-                  "maximum": 60000
-                },
-                "durationMs": {
-                  "default": 500,
-                  "type": "integer",
-                  "minimum": 0,
-                  "maximum": 60000
-                },
-                "easing": {
-                  "default": "ease-out",
-                  "type": "string"
-                }
-              },
-              "required": [
-                "id",
-                "targetElementId",
-                "phase",
-                "effect",
-                "trigger",
-                "delayMs",
-                "durationMs",
-                "easing"
-              ],
-              "additionalProperties": false
-            }
           },
           "elements": {
             "default": [],
@@ -745,6 +583,36 @@
                     },
                     "alt": {
                       "type": "string"
+                    },
+                    "parentId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "placeholder": {
+                      "type": "object",
+                      "properties": {
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "title",
+                            "subtitle",
+                            "body",
+                            "content",
+                            "image",
+                            "chart"
+                          ]
+                        },
+                        "prompt": {
+                          "default": "Edit",
+                          "type": "string",
+                          "maxLength": 200
+                        }
+                      },
+                      "required": [
+                        "role",
+                        "prompt"
+                      ],
+                      "additionalProperties": false
                     },
                     "type": {
                       "type": "string",
@@ -895,6 +763,36 @@
                     },
                     "alt": {
                       "type": "string"
+                    },
+                    "parentId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "placeholder": {
+                      "type": "object",
+                      "properties": {
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "title",
+                            "subtitle",
+                            "body",
+                            "content",
+                            "image",
+                            "chart"
+                          ]
+                        },
+                        "prompt": {
+                          "default": "Edit",
+                          "type": "string",
+                          "maxLength": 200
+                        }
+                      },
+                      "required": [
+                        "role",
+                        "prompt"
+                      ],
+                      "additionalProperties": false
                     },
                     "type": {
                       "type": "string",
@@ -1075,6 +973,36 @@
                     "alt": {
                       "type": "string"
                     },
+                    "parentId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "placeholder": {
+                      "type": "object",
+                      "properties": {
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "title",
+                            "subtitle",
+                            "body",
+                            "content",
+                            "image",
+                            "chart"
+                          ]
+                        },
+                        "prompt": {
+                          "default": "Edit",
+                          "type": "string",
+                          "maxLength": 200
+                        }
+                      },
+                      "required": [
+                        "role",
+                        "prompt"
+                      ],
+                      "additionalProperties": false
+                    },
                     "type": {
                       "type": "string",
                       "const": "video"
@@ -1215,6 +1143,36 @@
                     },
                     "alt": {
                       "type": "string"
+                    },
+                    "parentId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "placeholder": {
+                      "type": "object",
+                      "properties": {
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "title",
+                            "subtitle",
+                            "body",
+                            "content",
+                            "image",
+                            "chart"
+                          ]
+                        },
+                        "prompt": {
+                          "default": "Edit",
+                          "type": "string",
+                          "maxLength": 200
+                        }
+                      },
+                      "required": [
+                        "role",
+                        "prompt"
+                      ],
+                      "additionalProperties": false
                     },
                     "type": {
                       "type": "string",
@@ -1400,6 +1358,36 @@
                     "alt": {
                       "type": "string"
                     },
+                    "parentId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "placeholder": {
+                      "type": "object",
+                      "properties": {
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "title",
+                            "subtitle",
+                            "body",
+                            "content",
+                            "image",
+                            "chart"
+                          ]
+                        },
+                        "prompt": {
+                          "default": "Edit",
+                          "type": "string",
+                          "maxLength": 200
+                        }
+                      },
+                      "required": [
+                        "role",
+                        "prompt"
+                      ],
+                      "additionalProperties": false
+                    },
                     "type": {
                       "type": "string",
                       "const": "shape"
@@ -1552,6 +1540,36 @@
                     "alt": {
                       "type": "string"
                     },
+                    "parentId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "placeholder": {
+                      "type": "object",
+                      "properties": {
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "title",
+                            "subtitle",
+                            "body",
+                            "content",
+                            "image",
+                            "chart"
+                          ]
+                        },
+                        "prompt": {
+                          "default": "Edit",
+                          "type": "string",
+                          "maxLength": 200
+                        }
+                      },
+                      "required": [
+                        "role",
+                        "prompt"
+                      ],
+                      "additionalProperties": false
+                    },
                     "type": {
                       "type": "string",
                       "const": "table"
@@ -1703,6 +1721,4616 @@
                     "style"
                   ],
                   "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "morphKey": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "x": {
+                      "type": "number"
+                    },
+                    "y": {
+                      "type": "number"
+                    },
+                    "width": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "height": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "rotation": {
+                      "default": 0,
+                      "type": "number"
+                    },
+                    "opacity": {
+                      "default": 1,
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "z": {
+                      "default": 0,
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "locked": {
+                      "default": false,
+                      "type": "boolean"
+                    },
+                    "hidden": {
+                      "default": false,
+                      "type": "boolean"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "alt": {
+                      "type": "string"
+                    },
+                    "parentId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "placeholder": {
+                      "type": "object",
+                      "properties": {
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "title",
+                            "subtitle",
+                            "body",
+                            "content",
+                            "image",
+                            "chart"
+                          ]
+                        },
+                        "prompt": {
+                          "default": "Edit",
+                          "type": "string",
+                          "maxLength": 200
+                        }
+                      },
+                      "required": [
+                        "role",
+                        "prompt"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "type": {
+                      "type": "string",
+                      "const": "vector"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "path",
+                        "connector",
+                        "svg"
+                      ]
+                    },
+                    "d": {
+                      "default": "",
+                      "type": "string",
+                      "maxLength": 20000
+                    },
+                    "svg": {
+                      "default": "",
+                      "type": "string",
+                      "maxLength": 100000
+                    },
+                    "fill": {
+                      "default": "transparent",
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "stroke": {
+                      "default": "#111827",
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "strokeWidth": {
+                      "default": 4,
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "markerStart": {
+                      "default": "none",
+                      "type": "string",
+                      "enum": [
+                        "none",
+                        "arrow"
+                      ]
+                    },
+                    "markerEnd": {
+                      "default": "none",
+                      "type": "string",
+                      "enum": [
+                        "none",
+                        "arrow"
+                      ]
+                    },
+                    "routing": {
+                      "default": "straight",
+                      "type": "string",
+                      "enum": [
+                        "straight",
+                        "elbow",
+                        "curve"
+                      ]
+                    },
+                    "from": {
+                      "type": "object",
+                      "properties": {
+                        "x": {
+                          "default": 0,
+                          "type": "number"
+                        },
+                        "y": {
+                          "default": 0,
+                          "type": "number"
+                        },
+                        "elementId": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "anchor": {
+                          "default": "center",
+                          "type": "string",
+                          "enum": [
+                            "center",
+                            "top",
+                            "right",
+                            "bottom",
+                            "left"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "x",
+                        "y",
+                        "anchor"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "to": {
+                      "type": "object",
+                      "properties": {
+                        "x": {
+                          "default": 0,
+                          "type": "number"
+                        },
+                        "y": {
+                          "default": 0,
+                          "type": "number"
+                        },
+                        "elementId": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "anchor": {
+                          "default": "center",
+                          "type": "string",
+                          "enum": [
+                            "center",
+                            "top",
+                            "right",
+                            "bottom",
+                            "left"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "x",
+                        "y",
+                        "anchor"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "morphKey",
+                    "x",
+                    "y",
+                    "width",
+                    "height",
+                    "rotation",
+                    "opacity",
+                    "z",
+                    "locked",
+                    "hidden",
+                    "type",
+                    "kind",
+                    "d",
+                    "svg",
+                    "fill",
+                    "stroke",
+                    "strokeWidth",
+                    "markerStart",
+                    "markerEnd",
+                    "routing"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "morphKey": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "x": {
+                      "type": "number"
+                    },
+                    "y": {
+                      "type": "number"
+                    },
+                    "width": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "height": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "rotation": {
+                      "default": 0,
+                      "type": "number"
+                    },
+                    "opacity": {
+                      "default": 1,
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "z": {
+                      "default": 0,
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "locked": {
+                      "default": false,
+                      "type": "boolean"
+                    },
+                    "hidden": {
+                      "default": false,
+                      "type": "boolean"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "alt": {
+                      "type": "string"
+                    },
+                    "parentId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "placeholder": {
+                      "type": "object",
+                      "properties": {
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "title",
+                            "subtitle",
+                            "body",
+                            "content",
+                            "image",
+                            "chart"
+                          ]
+                        },
+                        "prompt": {
+                          "default": "Edit",
+                          "type": "string",
+                          "maxLength": 200
+                        }
+                      },
+                      "required": [
+                        "role",
+                        "prompt"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "type": {
+                      "type": "string",
+                      "const": "group"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "morphKey",
+                    "x",
+                    "y",
+                    "width",
+                    "height",
+                    "rotation",
+                    "opacity",
+                    "z",
+                    "locked",
+                    "hidden",
+                    "type"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "morphKey": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "x": {
+                      "type": "number"
+                    },
+                    "y": {
+                      "type": "number"
+                    },
+                    "width": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "height": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "rotation": {
+                      "default": 0,
+                      "type": "number"
+                    },
+                    "opacity": {
+                      "default": 1,
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "z": {
+                      "default": 0,
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "locked": {
+                      "default": false,
+                      "type": "boolean"
+                    },
+                    "hidden": {
+                      "default": false,
+                      "type": "boolean"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "alt": {
+                      "type": "string"
+                    },
+                    "parentId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "placeholder": {
+                      "type": "object",
+                      "properties": {
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "title",
+                            "subtitle",
+                            "body",
+                            "content",
+                            "image",
+                            "chart"
+                          ]
+                        },
+                        "prompt": {
+                          "default": "Edit",
+                          "type": "string",
+                          "maxLength": 200
+                        }
+                      },
+                      "required": [
+                        "role",
+                        "prompt"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "type": {
+                      "type": "string",
+                      "const": "component"
+                    },
+                    "componentId": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "morphKey",
+                    "x",
+                    "y",
+                    "width",
+                    "height",
+                    "rotation",
+                    "opacity",
+                    "z",
+                    "locked",
+                    "hidden",
+                    "type",
+                    "componentId"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "morphKey": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "x": {
+                      "type": "number"
+                    },
+                    "y": {
+                      "type": "number"
+                    },
+                    "width": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "height": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "rotation": {
+                      "default": 0,
+                      "type": "number"
+                    },
+                    "opacity": {
+                      "default": 1,
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "z": {
+                      "default": 0,
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "locked": {
+                      "default": false,
+                      "type": "boolean"
+                    },
+                    "hidden": {
+                      "default": false,
+                      "type": "boolean"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "alt": {
+                      "type": "string"
+                    },
+                    "parentId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "placeholder": {
+                      "type": "object",
+                      "properties": {
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "title",
+                            "subtitle",
+                            "body",
+                            "content",
+                            "image",
+                            "chart"
+                          ]
+                        },
+                        "prompt": {
+                          "default": "Edit",
+                          "type": "string",
+                          "maxLength": 200
+                        }
+                      },
+                      "required": [
+                        "role",
+                        "prompt"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "type": {
+                      "type": "string",
+                      "const": "chart"
+                    },
+                    "chart": {
+                      "type": "string",
+                      "enum": [
+                        "bar",
+                        "line",
+                        "area",
+                        "pie"
+                      ]
+                    },
+                    "categories": {
+                      "default": [
+                        "A",
+                        "B",
+                        "C",
+                        "D"
+                      ],
+                      "maxItems": 50,
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "maxLength": 80
+                      }
+                    },
+                    "series": {
+                      "default": [
+                        {
+                          "name": "Series",
+                          "values": [
+                            1,
+                            2,
+                            3
+                          ]
+                        }
+                      ],
+                      "minItems": 1,
+                      "maxItems": 8,
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "default": "Series",
+                            "type": "string",
+                            "maxLength": 80
+                          },
+                          "values": {
+                            "default": [],
+                            "maxItems": 50,
+                            "type": "array",
+                            "items": {
+                              "type": "number"
+                            }
+                          },
+                          "color": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": [
+                          "name",
+                          "values"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "legend": {
+                      "default": true,
+                      "type": "boolean"
+                    },
+                    "valueLabels": {
+                      "default": false,
+                      "type": "boolean"
+                    },
+                    "dataLink": {
+                      "type": "object",
+                      "properties": {
+                        "elementId": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      },
+                      "required": [
+                        "elementId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "morphKey",
+                    "x",
+                    "y",
+                    "width",
+                    "height",
+                    "rotation",
+                    "opacity",
+                    "z",
+                    "locked",
+                    "hidden",
+                    "type",
+                    "chart",
+                    "categories",
+                    "series",
+                    "legend",
+                    "valueLabels"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            }
+          }
+        },
+        "required": [
+          "name",
+          "elements"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "components": {
+      "default": {},
+      "type": "object",
+      "propertyNames": {
+        "type": "string"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "width": {
+            "default": 640,
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "height": {
+            "default": 360,
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "elements": {
+            "default": [],
+            "type": "array",
+            "items": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "morphKey": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "x": {
+                      "type": "number"
+                    },
+                    "y": {
+                      "type": "number"
+                    },
+                    "width": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "height": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "rotation": {
+                      "default": 0,
+                      "type": "number"
+                    },
+                    "opacity": {
+                      "default": 1,
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "z": {
+                      "default": 0,
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "locked": {
+                      "default": false,
+                      "type": "boolean"
+                    },
+                    "hidden": {
+                      "default": false,
+                      "type": "boolean"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "alt": {
+                      "type": "string"
+                    },
+                    "parentId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "placeholder": {
+                      "type": "object",
+                      "properties": {
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "title",
+                            "subtitle",
+                            "body",
+                            "content",
+                            "image",
+                            "chart"
+                          ]
+                        },
+                        "prompt": {
+                          "default": "Edit",
+                          "type": "string",
+                          "maxLength": 200
+                        }
+                      },
+                      "required": [
+                        "role",
+                        "prompt"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "type": {
+                      "type": "string",
+                      "const": "text"
+                    },
+                    "markdown": {
+                      "type": "string"
+                    },
+                    "style": {
+                      "type": "object",
+                      "properties": {
+                        "fontFamily": {
+                          "default": "system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+                          "type": "string"
+                        },
+                        "fontSize": {
+                          "default": 48,
+                          "type": "number",
+                          "minimum": 0
+                        },
+                        "fontWeight": {
+                          "default": 400,
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "number"
+                            }
+                          ]
+                        },
+                        "color": {
+                          "default": "#111827",
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "textAlign": {
+                          "default": "left",
+                          "type": "string",
+                          "enum": [
+                            "left",
+                            "center",
+                            "right"
+                          ]
+                        },
+                        "verticalAlign": {
+                          "default": "top",
+                          "type": "string",
+                          "enum": [
+                            "top",
+                            "middle",
+                            "bottom"
+                          ]
+                        },
+                        "lineHeight": {
+                          "default": 1.2,
+                          "type": "number",
+                          "exclusiveMinimum": 0
+                        },
+                        "padding": {
+                          "default": 8,
+                          "type": "number",
+                          "minimum": 0
+                        }
+                      },
+                      "required": [
+                        "fontFamily",
+                        "fontSize",
+                        "fontWeight",
+                        "color",
+                        "textAlign",
+                        "verticalAlign",
+                        "lineHeight",
+                        "padding"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "morphKey",
+                    "x",
+                    "y",
+                    "width",
+                    "height",
+                    "rotation",
+                    "opacity",
+                    "z",
+                    "locked",
+                    "hidden",
+                    "type",
+                    "markdown",
+                    "style"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "morphKey": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "x": {
+                      "type": "number"
+                    },
+                    "y": {
+                      "type": "number"
+                    },
+                    "width": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "height": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "rotation": {
+                      "default": 0,
+                      "type": "number"
+                    },
+                    "opacity": {
+                      "default": 1,
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "z": {
+                      "default": 0,
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "locked": {
+                      "default": false,
+                      "type": "boolean"
+                    },
+                    "hidden": {
+                      "default": false,
+                      "type": "boolean"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "alt": {
+                      "type": "string"
+                    },
+                    "parentId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "placeholder": {
+                      "type": "object",
+                      "properties": {
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "title",
+                            "subtitle",
+                            "body",
+                            "content",
+                            "image",
+                            "chart"
+                          ]
+                        },
+                        "prompt": {
+                          "default": "Edit",
+                          "type": "string",
+                          "maxLength": 200
+                        }
+                      },
+                      "required": [
+                        "role",
+                        "prompt"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "type": {
+                      "type": "string",
+                      "const": "image"
+                    },
+                    "src": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "storage": {
+                      "default": "embedded",
+                      "type": "string",
+                      "enum": [
+                        "embedded",
+                        "linked"
+                      ]
+                    },
+                    "crop": {
+                      "default": {
+                        "x": 0,
+                        "y": 0,
+                        "width": 1,
+                        "height": 1
+                      },
+                      "type": "object",
+                      "properties": {
+                        "x": {
+                          "default": 0,
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 1
+                        },
+                        "y": {
+                          "default": 0,
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 1
+                        },
+                        "width": {
+                          "default": 1,
+                          "type": "number",
+                          "exclusiveMinimum": 0,
+                          "maximum": 1
+                        },
+                        "height": {
+                          "default": 1,
+                          "type": "number",
+                          "exclusiveMinimum": 0,
+                          "maximum": 1
+                        }
+                      },
+                      "required": [
+                        "x",
+                        "y",
+                        "width",
+                        "height"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "borderRadius": {
+                      "default": 0,
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "edgeFade": {
+                      "default": 0,
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "border": {
+                      "default": {
+                        "width": 0,
+                        "color": "transparent"
+                      },
+                      "type": "object",
+                      "properties": {
+                        "width": {
+                          "default": 0,
+                          "type": "number",
+                          "minimum": 0
+                        },
+                        "color": {
+                          "default": "transparent",
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      },
+                      "required": [
+                        "width",
+                        "color"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "lockAspectRatio": {
+                      "default": true,
+                      "type": "boolean"
+                    },
+                    "aspectRatio": {
+                      "type": "number",
+                      "exclusiveMinimum": 0
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "morphKey",
+                    "x",
+                    "y",
+                    "width",
+                    "height",
+                    "rotation",
+                    "opacity",
+                    "z",
+                    "locked",
+                    "hidden",
+                    "type",
+                    "src",
+                    "storage",
+                    "crop",
+                    "borderRadius",
+                    "edgeFade",
+                    "border",
+                    "lockAspectRatio"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "morphKey": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "x": {
+                      "type": "number"
+                    },
+                    "y": {
+                      "type": "number"
+                    },
+                    "width": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "height": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "rotation": {
+                      "default": 0,
+                      "type": "number"
+                    },
+                    "opacity": {
+                      "default": 1,
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "z": {
+                      "default": 0,
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "locked": {
+                      "default": false,
+                      "type": "boolean"
+                    },
+                    "hidden": {
+                      "default": false,
+                      "type": "boolean"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "alt": {
+                      "type": "string"
+                    },
+                    "parentId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "placeholder": {
+                      "type": "object",
+                      "properties": {
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "title",
+                            "subtitle",
+                            "body",
+                            "content",
+                            "image",
+                            "chart"
+                          ]
+                        },
+                        "prompt": {
+                          "default": "Edit",
+                          "type": "string",
+                          "maxLength": 200
+                        }
+                      },
+                      "required": [
+                        "role",
+                        "prompt"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "type": {
+                      "type": "string",
+                      "const": "video"
+                    },
+                    "src": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "storage": {
+                      "default": "embedded",
+                      "type": "string",
+                      "enum": [
+                        "embedded",
+                        "linked"
+                      ]
+                    },
+                    "poster": {
+                      "type": "string"
+                    },
+                    "borderRadius": {
+                      "default": 0,
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "lockAspectRatio": {
+                      "default": true,
+                      "type": "boolean"
+                    },
+                    "aspectRatio": {
+                      "type": "number",
+                      "exclusiveMinimum": 0
+                    },
+                    "playback": {
+                      "type": "object",
+                      "properties": {
+                        "mode": {
+                          "default": "manual",
+                          "type": "string",
+                          "enum": [
+                            "autoplay",
+                            "manual"
+                          ]
+                        },
+                        "muted": {
+                          "default": false,
+                          "type": "boolean"
+                        },
+                        "loop": {
+                          "default": false,
+                          "type": "boolean"
+                        },
+                        "controls": {
+                          "default": true,
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "mode",
+                        "muted",
+                        "loop",
+                        "controls"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "morphKey",
+                    "x",
+                    "y",
+                    "width",
+                    "height",
+                    "rotation",
+                    "opacity",
+                    "z",
+                    "locked",
+                    "hidden",
+                    "type",
+                    "src",
+                    "storage",
+                    "borderRadius",
+                    "lockAspectRatio",
+                    "playback"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "morphKey": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "x": {
+                      "type": "number"
+                    },
+                    "y": {
+                      "type": "number"
+                    },
+                    "width": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "height": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "rotation": {
+                      "default": 0,
+                      "type": "number"
+                    },
+                    "opacity": {
+                      "default": 1,
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "z": {
+                      "default": 0,
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "locked": {
+                      "default": false,
+                      "type": "boolean"
+                    },
+                    "hidden": {
+                      "default": false,
+                      "type": "boolean"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "alt": {
+                      "type": "string"
+                    },
+                    "parentId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "placeholder": {
+                      "type": "object",
+                      "properties": {
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "title",
+                            "subtitle",
+                            "body",
+                            "content",
+                            "image",
+                            "chart"
+                          ]
+                        },
+                        "prompt": {
+                          "default": "Edit",
+                          "type": "string",
+                          "maxLength": 200
+                        }
+                      },
+                      "required": [
+                        "role",
+                        "prompt"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "type": {
+                      "type": "string",
+                      "const": "manim"
+                    },
+                    "script": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "scene": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "output": {
+                      "default": "image",
+                      "type": "string",
+                      "enum": [
+                        "image",
+                        "video"
+                      ]
+                    },
+                    "orientation": {
+                      "default": "horizontal",
+                      "type": "string",
+                      "enum": [
+                        "horizontal",
+                        "vertical"
+                      ]
+                    },
+                    "quality": {
+                      "default": "medium",
+                      "type": "string",
+                      "enum": [
+                        "low",
+                        "medium",
+                        "high",
+                        "production"
+                      ]
+                    },
+                    "transparent": {
+                      "default": false,
+                      "type": "boolean"
+                    },
+                    "outputMedia": {
+                      "type": "object",
+                      "properties": {
+                        "src": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "storage": {
+                          "type": "string",
+                          "const": "embedded"
+                        }
+                      },
+                      "required": [
+                        "src",
+                        "storage"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "lockAspectRatio": {
+                      "default": true,
+                      "type": "boolean"
+                    },
+                    "aspectRatio": {
+                      "type": "number",
+                      "exclusiveMinimum": 0
+                    },
+                    "playback": {
+                      "default": {
+                        "mode": "manual",
+                        "muted": false,
+                        "loop": false,
+                        "controls": true
+                      },
+                      "type": "object",
+                      "properties": {
+                        "mode": {
+                          "default": "manual",
+                          "type": "string",
+                          "enum": [
+                            "autoplay",
+                            "manual"
+                          ]
+                        },
+                        "muted": {
+                          "default": false,
+                          "type": "boolean"
+                        },
+                        "loop": {
+                          "default": false,
+                          "type": "boolean"
+                        },
+                        "controls": {
+                          "default": true,
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "mode",
+                        "muted",
+                        "loop",
+                        "controls"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "morphKey",
+                    "x",
+                    "y",
+                    "width",
+                    "height",
+                    "rotation",
+                    "opacity",
+                    "z",
+                    "locked",
+                    "hidden",
+                    "type",
+                    "output",
+                    "orientation",
+                    "quality",
+                    "transparent",
+                    "lockAspectRatio",
+                    "playback"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "morphKey": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "x": {
+                      "type": "number"
+                    },
+                    "y": {
+                      "type": "number"
+                    },
+                    "width": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "height": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "rotation": {
+                      "default": 0,
+                      "type": "number"
+                    },
+                    "opacity": {
+                      "default": 1,
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "z": {
+                      "default": 0,
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "locked": {
+                      "default": false,
+                      "type": "boolean"
+                    },
+                    "hidden": {
+                      "default": false,
+                      "type": "boolean"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "alt": {
+                      "type": "string"
+                    },
+                    "parentId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "placeholder": {
+                      "type": "object",
+                      "properties": {
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "title",
+                            "subtitle",
+                            "body",
+                            "content",
+                            "image",
+                            "chart"
+                          ]
+                        },
+                        "prompt": {
+                          "default": "Edit",
+                          "type": "string",
+                          "maxLength": 200
+                        }
+                      },
+                      "required": [
+                        "role",
+                        "prompt"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "type": {
+                      "type": "string",
+                      "const": "shape"
+                    },
+                    "shape": {
+                      "type": "string",
+                      "enum": [
+                        "rectangle",
+                        "ellipse",
+                        "triangle"
+                      ]
+                    },
+                    "fill": {
+                      "default": "#2563eb",
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "stroke": {
+                      "default": "transparent",
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "strokeWidth": {
+                      "default": 0,
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "borderRadius": {
+                      "default": 0,
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "shadow": {
+                      "default": {
+                        "enabled": false,
+                        "color": "#00000040",
+                        "offsetX": 0,
+                        "offsetY": 12,
+                        "blur": 24
+                      },
+                      "type": "object",
+                      "properties": {
+                        "enabled": {
+                          "default": false,
+                          "type": "boolean"
+                        },
+                        "color": {
+                          "default": "#00000040",
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "offsetX": {
+                          "default": 0,
+                          "type": "number"
+                        },
+                        "offsetY": {
+                          "default": 12,
+                          "type": "number"
+                        },
+                        "blur": {
+                          "default": 24,
+                          "type": "number",
+                          "minimum": 0
+                        }
+                      },
+                      "required": [
+                        "enabled",
+                        "color",
+                        "offsetX",
+                        "offsetY",
+                        "blur"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "morphKey",
+                    "x",
+                    "y",
+                    "width",
+                    "height",
+                    "rotation",
+                    "opacity",
+                    "z",
+                    "locked",
+                    "hidden",
+                    "type",
+                    "shape",
+                    "fill",
+                    "stroke",
+                    "strokeWidth",
+                    "borderRadius",
+                    "shadow"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "morphKey": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "x": {
+                      "type": "number"
+                    },
+                    "y": {
+                      "type": "number"
+                    },
+                    "width": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "height": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "rotation": {
+                      "default": 0,
+                      "type": "number"
+                    },
+                    "opacity": {
+                      "default": 1,
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "z": {
+                      "default": 0,
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "locked": {
+                      "default": false,
+                      "type": "boolean"
+                    },
+                    "hidden": {
+                      "default": false,
+                      "type": "boolean"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "alt": {
+                      "type": "string"
+                    },
+                    "parentId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "placeholder": {
+                      "type": "object",
+                      "properties": {
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "title",
+                            "subtitle",
+                            "body",
+                            "content",
+                            "image",
+                            "chart"
+                          ]
+                        },
+                        "prompt": {
+                          "default": "Edit",
+                          "type": "string",
+                          "maxLength": 200
+                        }
+                      },
+                      "required": [
+                        "role",
+                        "prompt"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "type": {
+                      "type": "string",
+                      "const": "table"
+                    },
+                    "rows": {
+                      "default": 3,
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 50
+                    },
+                    "columns": {
+                      "default": 3,
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 20
+                    },
+                    "cells": {
+                      "default": [],
+                      "type": "array",
+                      "items": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "headerRow": {
+                      "default": true,
+                      "type": "boolean"
+                    },
+                    "style": {
+                      "default": {
+                        "fontFamily": "system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+                        "fontSize": 30,
+                        "fontWeight": 400,
+                        "color": "#111827",
+                        "headerFill": "#e0e7ff",
+                        "cellFill": "#ffffff",
+                        "borderColor": "#94a3b8",
+                        "borderWidth": 2,
+                        "textAlign": "left",
+                        "verticalAlign": "middle",
+                        "padding": 10
+                      },
+                      "type": "object",
+                      "properties": {
+                        "fontFamily": {
+                          "default": "system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+                          "type": "string"
+                        },
+                        "fontSize": {
+                          "default": 30,
+                          "type": "number",
+                          "minimum": 0
+                        },
+                        "fontWeight": {
+                          "default": 400,
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "number"
+                            }
+                          ]
+                        },
+                        "color": {
+                          "default": "#111827",
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "headerFill": {
+                          "default": "#e0e7ff",
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "cellFill": {
+                          "default": "#ffffff",
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "borderColor": {
+                          "default": "#94a3b8",
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "borderWidth": {
+                          "default": 2,
+                          "type": "number",
+                          "minimum": 0
+                        },
+                        "textAlign": {
+                          "default": "left",
+                          "type": "string",
+                          "enum": [
+                            "left",
+                            "center",
+                            "right"
+                          ]
+                        },
+                        "verticalAlign": {
+                          "default": "middle",
+                          "type": "string",
+                          "enum": [
+                            "top",
+                            "middle",
+                            "bottom"
+                          ]
+                        },
+                        "padding": {
+                          "default": 10,
+                          "type": "number",
+                          "minimum": 0
+                        }
+                      },
+                      "required": [
+                        "fontFamily",
+                        "fontSize",
+                        "fontWeight",
+                        "color",
+                        "headerFill",
+                        "cellFill",
+                        "borderColor",
+                        "borderWidth",
+                        "textAlign",
+                        "verticalAlign",
+                        "padding"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "morphKey",
+                    "x",
+                    "y",
+                    "width",
+                    "height",
+                    "rotation",
+                    "opacity",
+                    "z",
+                    "locked",
+                    "hidden",
+                    "type",
+                    "rows",
+                    "columns",
+                    "cells",
+                    "headerRow",
+                    "style"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "morphKey": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "x": {
+                      "type": "number"
+                    },
+                    "y": {
+                      "type": "number"
+                    },
+                    "width": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "height": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "rotation": {
+                      "default": 0,
+                      "type": "number"
+                    },
+                    "opacity": {
+                      "default": 1,
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "z": {
+                      "default": 0,
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "locked": {
+                      "default": false,
+                      "type": "boolean"
+                    },
+                    "hidden": {
+                      "default": false,
+                      "type": "boolean"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "alt": {
+                      "type": "string"
+                    },
+                    "parentId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "placeholder": {
+                      "type": "object",
+                      "properties": {
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "title",
+                            "subtitle",
+                            "body",
+                            "content",
+                            "image",
+                            "chart"
+                          ]
+                        },
+                        "prompt": {
+                          "default": "Edit",
+                          "type": "string",
+                          "maxLength": 200
+                        }
+                      },
+                      "required": [
+                        "role",
+                        "prompt"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "type": {
+                      "type": "string",
+                      "const": "vector"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "path",
+                        "connector",
+                        "svg"
+                      ]
+                    },
+                    "d": {
+                      "default": "",
+                      "type": "string",
+                      "maxLength": 20000
+                    },
+                    "svg": {
+                      "default": "",
+                      "type": "string",
+                      "maxLength": 100000
+                    },
+                    "fill": {
+                      "default": "transparent",
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "stroke": {
+                      "default": "#111827",
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "strokeWidth": {
+                      "default": 4,
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "markerStart": {
+                      "default": "none",
+                      "type": "string",
+                      "enum": [
+                        "none",
+                        "arrow"
+                      ]
+                    },
+                    "markerEnd": {
+                      "default": "none",
+                      "type": "string",
+                      "enum": [
+                        "none",
+                        "arrow"
+                      ]
+                    },
+                    "routing": {
+                      "default": "straight",
+                      "type": "string",
+                      "enum": [
+                        "straight",
+                        "elbow",
+                        "curve"
+                      ]
+                    },
+                    "from": {
+                      "type": "object",
+                      "properties": {
+                        "x": {
+                          "default": 0,
+                          "type": "number"
+                        },
+                        "y": {
+                          "default": 0,
+                          "type": "number"
+                        },
+                        "elementId": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "anchor": {
+                          "default": "center",
+                          "type": "string",
+                          "enum": [
+                            "center",
+                            "top",
+                            "right",
+                            "bottom",
+                            "left"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "x",
+                        "y",
+                        "anchor"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "to": {
+                      "type": "object",
+                      "properties": {
+                        "x": {
+                          "default": 0,
+                          "type": "number"
+                        },
+                        "y": {
+                          "default": 0,
+                          "type": "number"
+                        },
+                        "elementId": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "anchor": {
+                          "default": "center",
+                          "type": "string",
+                          "enum": [
+                            "center",
+                            "top",
+                            "right",
+                            "bottom",
+                            "left"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "x",
+                        "y",
+                        "anchor"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "morphKey",
+                    "x",
+                    "y",
+                    "width",
+                    "height",
+                    "rotation",
+                    "opacity",
+                    "z",
+                    "locked",
+                    "hidden",
+                    "type",
+                    "kind",
+                    "d",
+                    "svg",
+                    "fill",
+                    "stroke",
+                    "strokeWidth",
+                    "markerStart",
+                    "markerEnd",
+                    "routing"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "morphKey": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "x": {
+                      "type": "number"
+                    },
+                    "y": {
+                      "type": "number"
+                    },
+                    "width": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "height": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "rotation": {
+                      "default": 0,
+                      "type": "number"
+                    },
+                    "opacity": {
+                      "default": 1,
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "z": {
+                      "default": 0,
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "locked": {
+                      "default": false,
+                      "type": "boolean"
+                    },
+                    "hidden": {
+                      "default": false,
+                      "type": "boolean"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "alt": {
+                      "type": "string"
+                    },
+                    "parentId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "placeholder": {
+                      "type": "object",
+                      "properties": {
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "title",
+                            "subtitle",
+                            "body",
+                            "content",
+                            "image",
+                            "chart"
+                          ]
+                        },
+                        "prompt": {
+                          "default": "Edit",
+                          "type": "string",
+                          "maxLength": 200
+                        }
+                      },
+                      "required": [
+                        "role",
+                        "prompt"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "type": {
+                      "type": "string",
+                      "const": "group"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "morphKey",
+                    "x",
+                    "y",
+                    "width",
+                    "height",
+                    "rotation",
+                    "opacity",
+                    "z",
+                    "locked",
+                    "hidden",
+                    "type"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "morphKey": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "x": {
+                      "type": "number"
+                    },
+                    "y": {
+                      "type": "number"
+                    },
+                    "width": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "height": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "rotation": {
+                      "default": 0,
+                      "type": "number"
+                    },
+                    "opacity": {
+                      "default": 1,
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "z": {
+                      "default": 0,
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "locked": {
+                      "default": false,
+                      "type": "boolean"
+                    },
+                    "hidden": {
+                      "default": false,
+                      "type": "boolean"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "alt": {
+                      "type": "string"
+                    },
+                    "parentId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "placeholder": {
+                      "type": "object",
+                      "properties": {
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "title",
+                            "subtitle",
+                            "body",
+                            "content",
+                            "image",
+                            "chart"
+                          ]
+                        },
+                        "prompt": {
+                          "default": "Edit",
+                          "type": "string",
+                          "maxLength": 200
+                        }
+                      },
+                      "required": [
+                        "role",
+                        "prompt"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "type": {
+                      "type": "string",
+                      "const": "component"
+                    },
+                    "componentId": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "morphKey",
+                    "x",
+                    "y",
+                    "width",
+                    "height",
+                    "rotation",
+                    "opacity",
+                    "z",
+                    "locked",
+                    "hidden",
+                    "type",
+                    "componentId"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "morphKey": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "x": {
+                      "type": "number"
+                    },
+                    "y": {
+                      "type": "number"
+                    },
+                    "width": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "height": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "rotation": {
+                      "default": 0,
+                      "type": "number"
+                    },
+                    "opacity": {
+                      "default": 1,
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "z": {
+                      "default": 0,
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "locked": {
+                      "default": false,
+                      "type": "boolean"
+                    },
+                    "hidden": {
+                      "default": false,
+                      "type": "boolean"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "alt": {
+                      "type": "string"
+                    },
+                    "parentId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "placeholder": {
+                      "type": "object",
+                      "properties": {
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "title",
+                            "subtitle",
+                            "body",
+                            "content",
+                            "image",
+                            "chart"
+                          ]
+                        },
+                        "prompt": {
+                          "default": "Edit",
+                          "type": "string",
+                          "maxLength": 200
+                        }
+                      },
+                      "required": [
+                        "role",
+                        "prompt"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "type": {
+                      "type": "string",
+                      "const": "chart"
+                    },
+                    "chart": {
+                      "type": "string",
+                      "enum": [
+                        "bar",
+                        "line",
+                        "area",
+                        "pie"
+                      ]
+                    },
+                    "categories": {
+                      "default": [
+                        "A",
+                        "B",
+                        "C",
+                        "D"
+                      ],
+                      "maxItems": 50,
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "maxLength": 80
+                      }
+                    },
+                    "series": {
+                      "default": [
+                        {
+                          "name": "Series",
+                          "values": [
+                            1,
+                            2,
+                            3
+                          ]
+                        }
+                      ],
+                      "minItems": 1,
+                      "maxItems": 8,
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "default": "Series",
+                            "type": "string",
+                            "maxLength": 80
+                          },
+                          "values": {
+                            "default": [],
+                            "maxItems": 50,
+                            "type": "array",
+                            "items": {
+                              "type": "number"
+                            }
+                          },
+                          "color": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": [
+                          "name",
+                          "values"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "legend": {
+                      "default": true,
+                      "type": "boolean"
+                    },
+                    "valueLabels": {
+                      "default": false,
+                      "type": "boolean"
+                    },
+                    "dataLink": {
+                      "type": "object",
+                      "properties": {
+                        "elementId": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      },
+                      "required": [
+                        "elementId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "morphKey",
+                    "x",
+                    "y",
+                    "width",
+                    "height",
+                    "rotation",
+                    "opacity",
+                    "z",
+                    "locked",
+                    "hidden",
+                    "type",
+                    "chart",
+                    "categories",
+                    "series",
+                    "legend",
+                    "valueLabels"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            }
+          }
+        },
+        "required": [
+          "name",
+          "width",
+          "height",
+          "elements"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "slides": {
+      "minItems": 1,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "title": {
+            "default": "Untitled slide",
+            "type": "string"
+          },
+          "layout": {
+            "type": "string"
+          },
+          "background": {
+            "type": "string",
+            "minLength": 1
+          },
+          "backgroundImage": {
+            "type": "object",
+            "properties": {
+              "src": {
+                "type": "string",
+                "minLength": 1
+              },
+              "storage": {
+                "default": "embedded",
+                "type": "string",
+                "enum": [
+                  "embedded",
+                  "linked"
+                ]
+              }
+            },
+            "required": [
+              "src",
+              "storage"
+            ],
+            "additionalProperties": false
+          },
+          "notes": {
+            "default": "",
+            "type": "string"
+          },
+          "hidden": {
+            "default": false,
+            "type": "boolean"
+          },
+          "bibliography": {
+            "default": false,
+            "type": "boolean"
+          },
+          "hidePageNumber": {
+            "default": false,
+            "type": "boolean"
+          },
+          "transition": {
+            "default": {
+              "type": "none",
+              "durationMs": 500,
+              "easing": "ease-in-out"
+            },
+            "type": "object",
+            "properties": {
+              "type": {
+                "default": "none",
+                "type": "string",
+                "enum": [
+                  "none",
+                  "fade",
+                  "slide-left",
+                  "slide-right",
+                  "slide-up",
+                  "slide-down",
+                  "morph"
+                ]
+              },
+              "durationMs": {
+                "default": 500,
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000
+              },
+              "easing": {
+                "default": "ease-in-out",
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "durationMs",
+              "easing"
+            ],
+            "additionalProperties": false
+          },
+          "timeline": {
+            "default": [],
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "targetElementId": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "phase": {
+                  "default": "entrance",
+                  "type": "string",
+                  "enum": [
+                    "entrance",
+                    "exit"
+                  ]
+                },
+                "effect": {
+                  "default": "fade",
+                  "type": "string",
+                  "enum": [
+                    "appear",
+                    "fade",
+                    "fly"
+                  ]
+                },
+                "trigger": {
+                  "default": "onClick",
+                  "type": "string",
+                  "enum": [
+                    "onClick",
+                    "withPrevious",
+                    "afterPrevious"
+                  ]
+                },
+                "direction": {
+                  "type": "string",
+                  "enum": [
+                    "left",
+                    "right",
+                    "up",
+                    "down"
+                  ]
+                },
+                "delayMs": {
+                  "default": 0,
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 60000
+                },
+                "durationMs": {
+                  "default": 500,
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 60000
+                },
+                "easing": {
+                  "default": "ease-out",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "targetElementId",
+                "phase",
+                "effect",
+                "trigger",
+                "delayMs",
+                "durationMs",
+                "easing"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "slots": {
+            "default": {},
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "object",
+              "properties": {
+                "markdown": {
+                  "type": "string"
+                },
+                "src": {
+                  "type": "string"
+                },
+                "storage": {
+                  "type": "string",
+                  "enum": [
+                    "embedded",
+                    "linked"
+                  ]
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "elements": {
+            "default": [],
+            "type": "array",
+            "items": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "morphKey": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "x": {
+                      "type": "number"
+                    },
+                    "y": {
+                      "type": "number"
+                    },
+                    "width": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "height": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "rotation": {
+                      "default": 0,
+                      "type": "number"
+                    },
+                    "opacity": {
+                      "default": 1,
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "z": {
+                      "default": 0,
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "locked": {
+                      "default": false,
+                      "type": "boolean"
+                    },
+                    "hidden": {
+                      "default": false,
+                      "type": "boolean"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "alt": {
+                      "type": "string"
+                    },
+                    "parentId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "placeholder": {
+                      "type": "object",
+                      "properties": {
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "title",
+                            "subtitle",
+                            "body",
+                            "content",
+                            "image",
+                            "chart"
+                          ]
+                        },
+                        "prompt": {
+                          "default": "Edit",
+                          "type": "string",
+                          "maxLength": 200
+                        }
+                      },
+                      "required": [
+                        "role",
+                        "prompt"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "type": {
+                      "type": "string",
+                      "const": "text"
+                    },
+                    "markdown": {
+                      "type": "string"
+                    },
+                    "style": {
+                      "type": "object",
+                      "properties": {
+                        "fontFamily": {
+                          "default": "system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+                          "type": "string"
+                        },
+                        "fontSize": {
+                          "default": 48,
+                          "type": "number",
+                          "minimum": 0
+                        },
+                        "fontWeight": {
+                          "default": 400,
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "number"
+                            }
+                          ]
+                        },
+                        "color": {
+                          "default": "#111827",
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "textAlign": {
+                          "default": "left",
+                          "type": "string",
+                          "enum": [
+                            "left",
+                            "center",
+                            "right"
+                          ]
+                        },
+                        "verticalAlign": {
+                          "default": "top",
+                          "type": "string",
+                          "enum": [
+                            "top",
+                            "middle",
+                            "bottom"
+                          ]
+                        },
+                        "lineHeight": {
+                          "default": 1.2,
+                          "type": "number",
+                          "exclusiveMinimum": 0
+                        },
+                        "padding": {
+                          "default": 8,
+                          "type": "number",
+                          "minimum": 0
+                        }
+                      },
+                      "required": [
+                        "fontFamily",
+                        "fontSize",
+                        "fontWeight",
+                        "color",
+                        "textAlign",
+                        "verticalAlign",
+                        "lineHeight",
+                        "padding"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "morphKey",
+                    "x",
+                    "y",
+                    "width",
+                    "height",
+                    "rotation",
+                    "opacity",
+                    "z",
+                    "locked",
+                    "hidden",
+                    "type",
+                    "markdown",
+                    "style"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "morphKey": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "x": {
+                      "type": "number"
+                    },
+                    "y": {
+                      "type": "number"
+                    },
+                    "width": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "height": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "rotation": {
+                      "default": 0,
+                      "type": "number"
+                    },
+                    "opacity": {
+                      "default": 1,
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "z": {
+                      "default": 0,
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "locked": {
+                      "default": false,
+                      "type": "boolean"
+                    },
+                    "hidden": {
+                      "default": false,
+                      "type": "boolean"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "alt": {
+                      "type": "string"
+                    },
+                    "parentId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "placeholder": {
+                      "type": "object",
+                      "properties": {
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "title",
+                            "subtitle",
+                            "body",
+                            "content",
+                            "image",
+                            "chart"
+                          ]
+                        },
+                        "prompt": {
+                          "default": "Edit",
+                          "type": "string",
+                          "maxLength": 200
+                        }
+                      },
+                      "required": [
+                        "role",
+                        "prompt"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "type": {
+                      "type": "string",
+                      "const": "image"
+                    },
+                    "src": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "storage": {
+                      "default": "embedded",
+                      "type": "string",
+                      "enum": [
+                        "embedded",
+                        "linked"
+                      ]
+                    },
+                    "crop": {
+                      "default": {
+                        "x": 0,
+                        "y": 0,
+                        "width": 1,
+                        "height": 1
+                      },
+                      "type": "object",
+                      "properties": {
+                        "x": {
+                          "default": 0,
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 1
+                        },
+                        "y": {
+                          "default": 0,
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 1
+                        },
+                        "width": {
+                          "default": 1,
+                          "type": "number",
+                          "exclusiveMinimum": 0,
+                          "maximum": 1
+                        },
+                        "height": {
+                          "default": 1,
+                          "type": "number",
+                          "exclusiveMinimum": 0,
+                          "maximum": 1
+                        }
+                      },
+                      "required": [
+                        "x",
+                        "y",
+                        "width",
+                        "height"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "borderRadius": {
+                      "default": 0,
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "edgeFade": {
+                      "default": 0,
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "border": {
+                      "default": {
+                        "width": 0,
+                        "color": "transparent"
+                      },
+                      "type": "object",
+                      "properties": {
+                        "width": {
+                          "default": 0,
+                          "type": "number",
+                          "minimum": 0
+                        },
+                        "color": {
+                          "default": "transparent",
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      },
+                      "required": [
+                        "width",
+                        "color"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "lockAspectRatio": {
+                      "default": true,
+                      "type": "boolean"
+                    },
+                    "aspectRatio": {
+                      "type": "number",
+                      "exclusiveMinimum": 0
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "morphKey",
+                    "x",
+                    "y",
+                    "width",
+                    "height",
+                    "rotation",
+                    "opacity",
+                    "z",
+                    "locked",
+                    "hidden",
+                    "type",
+                    "src",
+                    "storage",
+                    "crop",
+                    "borderRadius",
+                    "edgeFade",
+                    "border",
+                    "lockAspectRatio"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "morphKey": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "x": {
+                      "type": "number"
+                    },
+                    "y": {
+                      "type": "number"
+                    },
+                    "width": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "height": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "rotation": {
+                      "default": 0,
+                      "type": "number"
+                    },
+                    "opacity": {
+                      "default": 1,
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "z": {
+                      "default": 0,
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "locked": {
+                      "default": false,
+                      "type": "boolean"
+                    },
+                    "hidden": {
+                      "default": false,
+                      "type": "boolean"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "alt": {
+                      "type": "string"
+                    },
+                    "parentId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "placeholder": {
+                      "type": "object",
+                      "properties": {
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "title",
+                            "subtitle",
+                            "body",
+                            "content",
+                            "image",
+                            "chart"
+                          ]
+                        },
+                        "prompt": {
+                          "default": "Edit",
+                          "type": "string",
+                          "maxLength": 200
+                        }
+                      },
+                      "required": [
+                        "role",
+                        "prompt"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "type": {
+                      "type": "string",
+                      "const": "video"
+                    },
+                    "src": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "storage": {
+                      "default": "embedded",
+                      "type": "string",
+                      "enum": [
+                        "embedded",
+                        "linked"
+                      ]
+                    },
+                    "poster": {
+                      "type": "string"
+                    },
+                    "borderRadius": {
+                      "default": 0,
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "lockAspectRatio": {
+                      "default": true,
+                      "type": "boolean"
+                    },
+                    "aspectRatio": {
+                      "type": "number",
+                      "exclusiveMinimum": 0
+                    },
+                    "playback": {
+                      "type": "object",
+                      "properties": {
+                        "mode": {
+                          "default": "manual",
+                          "type": "string",
+                          "enum": [
+                            "autoplay",
+                            "manual"
+                          ]
+                        },
+                        "muted": {
+                          "default": false,
+                          "type": "boolean"
+                        },
+                        "loop": {
+                          "default": false,
+                          "type": "boolean"
+                        },
+                        "controls": {
+                          "default": true,
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "mode",
+                        "muted",
+                        "loop",
+                        "controls"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "morphKey",
+                    "x",
+                    "y",
+                    "width",
+                    "height",
+                    "rotation",
+                    "opacity",
+                    "z",
+                    "locked",
+                    "hidden",
+                    "type",
+                    "src",
+                    "storage",
+                    "borderRadius",
+                    "lockAspectRatio",
+                    "playback"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "morphKey": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "x": {
+                      "type": "number"
+                    },
+                    "y": {
+                      "type": "number"
+                    },
+                    "width": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "height": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "rotation": {
+                      "default": 0,
+                      "type": "number"
+                    },
+                    "opacity": {
+                      "default": 1,
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "z": {
+                      "default": 0,
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "locked": {
+                      "default": false,
+                      "type": "boolean"
+                    },
+                    "hidden": {
+                      "default": false,
+                      "type": "boolean"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "alt": {
+                      "type": "string"
+                    },
+                    "parentId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "placeholder": {
+                      "type": "object",
+                      "properties": {
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "title",
+                            "subtitle",
+                            "body",
+                            "content",
+                            "image",
+                            "chart"
+                          ]
+                        },
+                        "prompt": {
+                          "default": "Edit",
+                          "type": "string",
+                          "maxLength": 200
+                        }
+                      },
+                      "required": [
+                        "role",
+                        "prompt"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "type": {
+                      "type": "string",
+                      "const": "manim"
+                    },
+                    "script": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "scene": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "output": {
+                      "default": "image",
+                      "type": "string",
+                      "enum": [
+                        "image",
+                        "video"
+                      ]
+                    },
+                    "orientation": {
+                      "default": "horizontal",
+                      "type": "string",
+                      "enum": [
+                        "horizontal",
+                        "vertical"
+                      ]
+                    },
+                    "quality": {
+                      "default": "medium",
+                      "type": "string",
+                      "enum": [
+                        "low",
+                        "medium",
+                        "high",
+                        "production"
+                      ]
+                    },
+                    "transparent": {
+                      "default": false,
+                      "type": "boolean"
+                    },
+                    "outputMedia": {
+                      "type": "object",
+                      "properties": {
+                        "src": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "storage": {
+                          "type": "string",
+                          "const": "embedded"
+                        }
+                      },
+                      "required": [
+                        "src",
+                        "storage"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "lockAspectRatio": {
+                      "default": true,
+                      "type": "boolean"
+                    },
+                    "aspectRatio": {
+                      "type": "number",
+                      "exclusiveMinimum": 0
+                    },
+                    "playback": {
+                      "default": {
+                        "mode": "manual",
+                        "muted": false,
+                        "loop": false,
+                        "controls": true
+                      },
+                      "type": "object",
+                      "properties": {
+                        "mode": {
+                          "default": "manual",
+                          "type": "string",
+                          "enum": [
+                            "autoplay",
+                            "manual"
+                          ]
+                        },
+                        "muted": {
+                          "default": false,
+                          "type": "boolean"
+                        },
+                        "loop": {
+                          "default": false,
+                          "type": "boolean"
+                        },
+                        "controls": {
+                          "default": true,
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "mode",
+                        "muted",
+                        "loop",
+                        "controls"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "morphKey",
+                    "x",
+                    "y",
+                    "width",
+                    "height",
+                    "rotation",
+                    "opacity",
+                    "z",
+                    "locked",
+                    "hidden",
+                    "type",
+                    "output",
+                    "orientation",
+                    "quality",
+                    "transparent",
+                    "lockAspectRatio",
+                    "playback"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "morphKey": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "x": {
+                      "type": "number"
+                    },
+                    "y": {
+                      "type": "number"
+                    },
+                    "width": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "height": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "rotation": {
+                      "default": 0,
+                      "type": "number"
+                    },
+                    "opacity": {
+                      "default": 1,
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "z": {
+                      "default": 0,
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "locked": {
+                      "default": false,
+                      "type": "boolean"
+                    },
+                    "hidden": {
+                      "default": false,
+                      "type": "boolean"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "alt": {
+                      "type": "string"
+                    },
+                    "parentId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "placeholder": {
+                      "type": "object",
+                      "properties": {
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "title",
+                            "subtitle",
+                            "body",
+                            "content",
+                            "image",
+                            "chart"
+                          ]
+                        },
+                        "prompt": {
+                          "default": "Edit",
+                          "type": "string",
+                          "maxLength": 200
+                        }
+                      },
+                      "required": [
+                        "role",
+                        "prompt"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "type": {
+                      "type": "string",
+                      "const": "shape"
+                    },
+                    "shape": {
+                      "type": "string",
+                      "enum": [
+                        "rectangle",
+                        "ellipse",
+                        "triangle"
+                      ]
+                    },
+                    "fill": {
+                      "default": "#2563eb",
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "stroke": {
+                      "default": "transparent",
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "strokeWidth": {
+                      "default": 0,
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "borderRadius": {
+                      "default": 0,
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "shadow": {
+                      "default": {
+                        "enabled": false,
+                        "color": "#00000040",
+                        "offsetX": 0,
+                        "offsetY": 12,
+                        "blur": 24
+                      },
+                      "type": "object",
+                      "properties": {
+                        "enabled": {
+                          "default": false,
+                          "type": "boolean"
+                        },
+                        "color": {
+                          "default": "#00000040",
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "offsetX": {
+                          "default": 0,
+                          "type": "number"
+                        },
+                        "offsetY": {
+                          "default": 12,
+                          "type": "number"
+                        },
+                        "blur": {
+                          "default": 24,
+                          "type": "number",
+                          "minimum": 0
+                        }
+                      },
+                      "required": [
+                        "enabled",
+                        "color",
+                        "offsetX",
+                        "offsetY",
+                        "blur"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "morphKey",
+                    "x",
+                    "y",
+                    "width",
+                    "height",
+                    "rotation",
+                    "opacity",
+                    "z",
+                    "locked",
+                    "hidden",
+                    "type",
+                    "shape",
+                    "fill",
+                    "stroke",
+                    "strokeWidth",
+                    "borderRadius",
+                    "shadow"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "morphKey": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "x": {
+                      "type": "number"
+                    },
+                    "y": {
+                      "type": "number"
+                    },
+                    "width": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "height": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "rotation": {
+                      "default": 0,
+                      "type": "number"
+                    },
+                    "opacity": {
+                      "default": 1,
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "z": {
+                      "default": 0,
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "locked": {
+                      "default": false,
+                      "type": "boolean"
+                    },
+                    "hidden": {
+                      "default": false,
+                      "type": "boolean"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "alt": {
+                      "type": "string"
+                    },
+                    "parentId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "placeholder": {
+                      "type": "object",
+                      "properties": {
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "title",
+                            "subtitle",
+                            "body",
+                            "content",
+                            "image",
+                            "chart"
+                          ]
+                        },
+                        "prompt": {
+                          "default": "Edit",
+                          "type": "string",
+                          "maxLength": 200
+                        }
+                      },
+                      "required": [
+                        "role",
+                        "prompt"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "type": {
+                      "type": "string",
+                      "const": "table"
+                    },
+                    "rows": {
+                      "default": 3,
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 50
+                    },
+                    "columns": {
+                      "default": 3,
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 20
+                    },
+                    "cells": {
+                      "default": [],
+                      "type": "array",
+                      "items": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "headerRow": {
+                      "default": true,
+                      "type": "boolean"
+                    },
+                    "style": {
+                      "default": {
+                        "fontFamily": "system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+                        "fontSize": 30,
+                        "fontWeight": 400,
+                        "color": "#111827",
+                        "headerFill": "#e0e7ff",
+                        "cellFill": "#ffffff",
+                        "borderColor": "#94a3b8",
+                        "borderWidth": 2,
+                        "textAlign": "left",
+                        "verticalAlign": "middle",
+                        "padding": 10
+                      },
+                      "type": "object",
+                      "properties": {
+                        "fontFamily": {
+                          "default": "system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+                          "type": "string"
+                        },
+                        "fontSize": {
+                          "default": 30,
+                          "type": "number",
+                          "minimum": 0
+                        },
+                        "fontWeight": {
+                          "default": 400,
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "number"
+                            }
+                          ]
+                        },
+                        "color": {
+                          "default": "#111827",
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "headerFill": {
+                          "default": "#e0e7ff",
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "cellFill": {
+                          "default": "#ffffff",
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "borderColor": {
+                          "default": "#94a3b8",
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "borderWidth": {
+                          "default": 2,
+                          "type": "number",
+                          "minimum": 0
+                        },
+                        "textAlign": {
+                          "default": "left",
+                          "type": "string",
+                          "enum": [
+                            "left",
+                            "center",
+                            "right"
+                          ]
+                        },
+                        "verticalAlign": {
+                          "default": "middle",
+                          "type": "string",
+                          "enum": [
+                            "top",
+                            "middle",
+                            "bottom"
+                          ]
+                        },
+                        "padding": {
+                          "default": 10,
+                          "type": "number",
+                          "minimum": 0
+                        }
+                      },
+                      "required": [
+                        "fontFamily",
+                        "fontSize",
+                        "fontWeight",
+                        "color",
+                        "headerFill",
+                        "cellFill",
+                        "borderColor",
+                        "borderWidth",
+                        "textAlign",
+                        "verticalAlign",
+                        "padding"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "morphKey",
+                    "x",
+                    "y",
+                    "width",
+                    "height",
+                    "rotation",
+                    "opacity",
+                    "z",
+                    "locked",
+                    "hidden",
+                    "type",
+                    "rows",
+                    "columns",
+                    "cells",
+                    "headerRow",
+                    "style"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "morphKey": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "x": {
+                      "type": "number"
+                    },
+                    "y": {
+                      "type": "number"
+                    },
+                    "width": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "height": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "rotation": {
+                      "default": 0,
+                      "type": "number"
+                    },
+                    "opacity": {
+                      "default": 1,
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "z": {
+                      "default": 0,
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "locked": {
+                      "default": false,
+                      "type": "boolean"
+                    },
+                    "hidden": {
+                      "default": false,
+                      "type": "boolean"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "alt": {
+                      "type": "string"
+                    },
+                    "parentId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "placeholder": {
+                      "type": "object",
+                      "properties": {
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "title",
+                            "subtitle",
+                            "body",
+                            "content",
+                            "image",
+                            "chart"
+                          ]
+                        },
+                        "prompt": {
+                          "default": "Edit",
+                          "type": "string",
+                          "maxLength": 200
+                        }
+                      },
+                      "required": [
+                        "role",
+                        "prompt"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "type": {
+                      "type": "string",
+                      "const": "vector"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "path",
+                        "connector",
+                        "svg"
+                      ]
+                    },
+                    "d": {
+                      "default": "",
+                      "type": "string",
+                      "maxLength": 20000
+                    },
+                    "svg": {
+                      "default": "",
+                      "type": "string",
+                      "maxLength": 100000
+                    },
+                    "fill": {
+                      "default": "transparent",
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "stroke": {
+                      "default": "#111827",
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "strokeWidth": {
+                      "default": 4,
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "markerStart": {
+                      "default": "none",
+                      "type": "string",
+                      "enum": [
+                        "none",
+                        "arrow"
+                      ]
+                    },
+                    "markerEnd": {
+                      "default": "none",
+                      "type": "string",
+                      "enum": [
+                        "none",
+                        "arrow"
+                      ]
+                    },
+                    "routing": {
+                      "default": "straight",
+                      "type": "string",
+                      "enum": [
+                        "straight",
+                        "elbow",
+                        "curve"
+                      ]
+                    },
+                    "from": {
+                      "type": "object",
+                      "properties": {
+                        "x": {
+                          "default": 0,
+                          "type": "number"
+                        },
+                        "y": {
+                          "default": 0,
+                          "type": "number"
+                        },
+                        "elementId": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "anchor": {
+                          "default": "center",
+                          "type": "string",
+                          "enum": [
+                            "center",
+                            "top",
+                            "right",
+                            "bottom",
+                            "left"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "x",
+                        "y",
+                        "anchor"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "to": {
+                      "type": "object",
+                      "properties": {
+                        "x": {
+                          "default": 0,
+                          "type": "number"
+                        },
+                        "y": {
+                          "default": 0,
+                          "type": "number"
+                        },
+                        "elementId": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "anchor": {
+                          "default": "center",
+                          "type": "string",
+                          "enum": [
+                            "center",
+                            "top",
+                            "right",
+                            "bottom",
+                            "left"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "x",
+                        "y",
+                        "anchor"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "morphKey",
+                    "x",
+                    "y",
+                    "width",
+                    "height",
+                    "rotation",
+                    "opacity",
+                    "z",
+                    "locked",
+                    "hidden",
+                    "type",
+                    "kind",
+                    "d",
+                    "svg",
+                    "fill",
+                    "stroke",
+                    "strokeWidth",
+                    "markerStart",
+                    "markerEnd",
+                    "routing"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "morphKey": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "x": {
+                      "type": "number"
+                    },
+                    "y": {
+                      "type": "number"
+                    },
+                    "width": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "height": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "rotation": {
+                      "default": 0,
+                      "type": "number"
+                    },
+                    "opacity": {
+                      "default": 1,
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "z": {
+                      "default": 0,
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "locked": {
+                      "default": false,
+                      "type": "boolean"
+                    },
+                    "hidden": {
+                      "default": false,
+                      "type": "boolean"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "alt": {
+                      "type": "string"
+                    },
+                    "parentId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "placeholder": {
+                      "type": "object",
+                      "properties": {
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "title",
+                            "subtitle",
+                            "body",
+                            "content",
+                            "image",
+                            "chart"
+                          ]
+                        },
+                        "prompt": {
+                          "default": "Edit",
+                          "type": "string",
+                          "maxLength": 200
+                        }
+                      },
+                      "required": [
+                        "role",
+                        "prompt"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "type": {
+                      "type": "string",
+                      "const": "group"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "morphKey",
+                    "x",
+                    "y",
+                    "width",
+                    "height",
+                    "rotation",
+                    "opacity",
+                    "z",
+                    "locked",
+                    "hidden",
+                    "type"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "morphKey": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "x": {
+                      "type": "number"
+                    },
+                    "y": {
+                      "type": "number"
+                    },
+                    "width": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "height": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "rotation": {
+                      "default": 0,
+                      "type": "number"
+                    },
+                    "opacity": {
+                      "default": 1,
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "z": {
+                      "default": 0,
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "locked": {
+                      "default": false,
+                      "type": "boolean"
+                    },
+                    "hidden": {
+                      "default": false,
+                      "type": "boolean"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "alt": {
+                      "type": "string"
+                    },
+                    "parentId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "placeholder": {
+                      "type": "object",
+                      "properties": {
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "title",
+                            "subtitle",
+                            "body",
+                            "content",
+                            "image",
+                            "chart"
+                          ]
+                        },
+                        "prompt": {
+                          "default": "Edit",
+                          "type": "string",
+                          "maxLength": 200
+                        }
+                      },
+                      "required": [
+                        "role",
+                        "prompt"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "type": {
+                      "type": "string",
+                      "const": "component"
+                    },
+                    "componentId": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "morphKey",
+                    "x",
+                    "y",
+                    "width",
+                    "height",
+                    "rotation",
+                    "opacity",
+                    "z",
+                    "locked",
+                    "hidden",
+                    "type",
+                    "componentId"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "morphKey": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "x": {
+                      "type": "number"
+                    },
+                    "y": {
+                      "type": "number"
+                    },
+                    "width": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "height": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "rotation": {
+                      "default": 0,
+                      "type": "number"
+                    },
+                    "opacity": {
+                      "default": 1,
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "z": {
+                      "default": 0,
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "locked": {
+                      "default": false,
+                      "type": "boolean"
+                    },
+                    "hidden": {
+                      "default": false,
+                      "type": "boolean"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "alt": {
+                      "type": "string"
+                    },
+                    "parentId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "placeholder": {
+                      "type": "object",
+                      "properties": {
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "title",
+                            "subtitle",
+                            "body",
+                            "content",
+                            "image",
+                            "chart"
+                          ]
+                        },
+                        "prompt": {
+                          "default": "Edit",
+                          "type": "string",
+                          "maxLength": 200
+                        }
+                      },
+                      "required": [
+                        "role",
+                        "prompt"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "type": {
+                      "type": "string",
+                      "const": "chart"
+                    },
+                    "chart": {
+                      "type": "string",
+                      "enum": [
+                        "bar",
+                        "line",
+                        "area",
+                        "pie"
+                      ]
+                    },
+                    "categories": {
+                      "default": [
+                        "A",
+                        "B",
+                        "C",
+                        "D"
+                      ],
+                      "maxItems": 50,
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "maxLength": 80
+                      }
+                    },
+                    "series": {
+                      "default": [
+                        {
+                          "name": "Series",
+                          "values": [
+                            1,
+                            2,
+                            3
+                          ]
+                        }
+                      ],
+                      "minItems": 1,
+                      "maxItems": 8,
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "default": "Series",
+                            "type": "string",
+                            "maxLength": 80
+                          },
+                          "values": {
+                            "default": [],
+                            "maxItems": 50,
+                            "type": "array",
+                            "items": {
+                              "type": "number"
+                            }
+                          },
+                          "color": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": [
+                          "name",
+                          "values"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "legend": {
+                      "default": true,
+                      "type": "boolean"
+                    },
+                    "valueLabels": {
+                      "default": false,
+                      "type": "boolean"
+                    },
+                    "dataLink": {
+                      "type": "object",
+                      "properties": {
+                        "elementId": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      },
+                      "required": [
+                        "elementId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "morphKey",
+                    "x",
+                    "y",
+                    "width",
+                    "height",
+                    "rotation",
+                    "opacity",
+                    "z",
+                    "locked",
+                    "hidden",
+                    "type",
+                    "chart",
+                    "categories",
+                    "series",
+                    "legend",
+                    "valueLabels"
+                  ],
+                  "additionalProperties": false
                 }
               ]
             }
@@ -1717,6 +6345,7 @@
           "hidePageNumber",
           "transition",
           "timeline",
+          "slots",
           "elements"
         ],
         "additionalProperties": false
@@ -1734,6 +6363,7 @@
     "footer",
     "bibliography",
     "layouts",
+    "components",
     "slides"
   ],
   "additionalProperties": false,
