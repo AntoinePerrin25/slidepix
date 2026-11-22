@@ -16,6 +16,8 @@ describe("code mode", () => {
   it("returns catalog fields without a deck", async () => {
     const fields = await searchCatalog("return codemode.elements.text.fields");
     expect(fields).toContain("markdown");
+    expect(await searchCatalog("return codemode.defaults.textColor")).toBe("#111827");
+    expect(await searchCatalog("return codemode.examples.bibliography.source")).toContain("@misc");
     expect(await searchCatalog("return typeof slidepix")).toBe("undefined");
   });
 

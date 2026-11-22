@@ -1,6 +1,8 @@
 # SlidePix execute API
 
-`search` code reads `codemode`. `execute` code reads `codemode` and calls `slidepix`. Both must return JSON. There is no `apply` tool.
+`search` code reads `codemode`, including `defaults` and `examples`. `execute` code calls `slidepix` and returns JSON. There is no `apply` tool. Do not open the extension source. A failed `execute` does not write the file.
+
+`style.color` defaults to `#111827` and ignores `theme.foreground`. A `#` heading is 1.3em of `fontSize`. `bibliography.source` is embedded BibTeX. `src` is not checked at save time. `manim.script` and `scene` are optional; an unrendered script is shown in full on the placeholder, so keep it empty or a short path. `hidePageNumber` also hides the progress bar. Entrance steps hide only while presenting.
 
 | Call | Effect |
 | --- | --- |

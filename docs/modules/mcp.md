@@ -19,9 +19,14 @@ instructions.
 | `search({ code })` | Runs the JavaScript against the authoring catalog in `codemode`. Never reads or writes a deck. |
 | `execute({ deckPath, code, create? })` | Runs the JavaScript against `slidepix` for one deck. The host validates the result and writes that file only when the deck changed. `create` writes a new file when the path is missing. |
 
-The tool schemas stay small. Field names live in `src/catalog.ts` and are read
-through `search`, so they are not repeated in every chat's tool list. There is
-no `apply` operations tool.
+The tool schemas stay small. Field names, defaults, and short examples live in
+`src/catalog.ts` and are read through `search`, so they are not repeated in
+every chat's tool list. There is no `apply` operations tool.
+
+The extension's **AI** action points every host at `dist/mcp.cjs` inside the
+installed extension and launches it with that host's Node (`ELECTRON_RUN_AS_NODE`).
+A separate Node.js runtime is not required. A server process that was already
+running keeps its old tools until that MCP entry is reloaded.
 
 Guest code returns JSON. Host values cross the sandbox only as JSON, so the
 script cannot receive a filesystem or process handle. The server does not copy

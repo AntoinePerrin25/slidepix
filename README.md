@@ -173,12 +173,14 @@ independently; its name must match the deck.
 The **AI** button and **SlidePix: Configure MCP** install the MCP
 server for Cursor, VS Code, Codex, Claude Code, and Claude Desktop, and copy
 the agent skills into `~/.agents/skills`, `~/.cursor/skills`, and
-`~/.claude/skills`. An existing SlidePix skill is replaced. Each app
+`~/.claude/skills`. The server is `dist/mcp.cjs` inside the extension and is
+started with that app's own Node, so no separate Node.js install is required.
+An existing SlidePix skill is replaced. Each app
 keeps its own config: `~/.cursor/mcp.json`, the VS Code profile `mcp.json`,
 `~/.codex/config.toml`, `~/.claude.json`, and the Claude Desktop config.
 Existing servers in those files stay. A file that is not valid is left unchanged.
 
-After adding it, start a new chat in the app you want to use. That chat can call `list_slides`
+After adding it, reload the **slidepix** MCP server if it was already connected, then start a new chat in the app you want to use. That chat can call `list_slides`
 and `inspect_slides` with an absolute deck path. Those two tools
 never modify the deck. `search` reads the authoring catalog. `execute` authors a deck by running JavaScript against that one file. Enable **slidepix** in MCP settings if the editor asks.
 The chat that was already open will not see a server added after it started.

@@ -117,7 +117,7 @@ async function configureMcp(context: vscode.ExtensionContext, editor: SlidePixEd
   const userDirectory = path.resolve(context.globalStorageUri.fsPath, "..", "..");
   const targets = mcpTargets(os.homedir(), userDirectory, process.platform);
   const choice = await vscode.window.showInformationMessage(
-    "Add the SlidePix MCP server for Cursor, VS Code, Codex, Claude Code, and Claude Desktop, and install the agent skills in the shared skill folders? Existing SlidePix skills are replaced. Start a new chat to use them.",
+    "Add the SlidePix MCP server for Cursor, VS Code, Codex, Claude Code, and Claude Desktop, and install the agent skills in the shared skill folders? The server is the copy inside this extension and runs with the editor's Node. Existing SlidePix skills are replaced. Start a new chat. If slidepix is already connected, reload that MCP server so it loads this extension.",
     "Add",
     "Cancel"
   );

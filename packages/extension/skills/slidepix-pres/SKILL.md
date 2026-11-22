@@ -7,7 +7,7 @@ description: Author or revise a SlidePix presentation in a .slidepix.json deck. 
 
 The SlidePix MCP server has four tools: `list_slides`, `inspect_slides`, `search`, and `execute`. There is no `apply` tool. A call to that name returns "Tool not found".
 
-`search` reads the authoring catalog in `codemode` and does not touch a deck. `execute` edits one `.slidepix.json` file. Do not write a Python or Node script. Do not send an `operations` array.
+`search` reads the authoring catalog in `codemode` and does not touch a deck. `execute` edits one `.slidepix.json` file. Do not write a Python or Node script. Do not send an `operations` array. Do not open the extension source, `packages/core`, or `packages/mcp`. If `execute` throws, change the code and call it again. A failed call does not write the file.
 
 ## Edit
 
@@ -20,9 +20,9 @@ The SlidePix MCP server has four tools: `list_slides`, `inspect_slides`, `search
 ```javascript
 const first = slidepix.slides()[0];
 slidepix.addElement(first.id, {
-  type: "text", name: "title", markdown: "# Claim",
+  type: "text", name: "title", markdown: "Claim",
   x: 96, y: 180, width: 1728, height: 160,
-  style: { fontSize: 72, fontWeight: 700 }
+  style: { fontSize: 72, fontWeight: 700, color: "#111827" }
 });
 return slidepix.slides();
 ```
@@ -39,4 +39,17 @@ For the method list and element fields, read [reference.md](reference.md).
 - Higher `z` paints above. Give the repeated object the same unique `name` on two slides when it should morph.
 - Header, footer, and page numbers are deck-wide. `setHeader` and `setFooter` move them on every slide.
 - Put `[@key]` in the text that cites it. Mark one slide with `bibliography: true`. The list contains only keys that appear, numbered by first appearance from the top of each visible slide.
-- `addElement` for an image or video stores a path; it does not copy the file. Use a workspace-relative `src` with `storage: "linked"`, or an existing hash name with `storage: "embedded"`.
+- `addElement` for an image or video stores a path; it does not copy the file and does not check that the file exists. Use a workspace-relative `src` with `storage: "linked"`, or an existing hash name with `storage: "embedded"`.
+
+## Surprises
+
+`search` returns `codemode.defaults` and `codemode.examples`. These are the ones that make a deck look wrong:
+
+- `style.color` defaults to `#111827` and does not follow `theme.foreground`. On a dark background, set `style.color`.
+- A Markdown `#` heading is drawn at 1.3em of `style.fontSize`. `#` plus 72px is about 94px. For a 64–80px title, omit `#` or lower `fontSize`.
+- `setBibliography({ source })` embeds BibTeX. A short `@misc` entry is enough. Put `[@key]` in the citing text, set `bibliography: true` on one slide, and use `citationFormat: "#sup{@number}"` when the marker should be a superscript number.
+- `hidePageNumber: true` also hides the progress bar.
+- An `entrance` animation stays visible in the editor and is hidden until the click only in presentation mode.
+- Morph needs the same `name` once per slide. The same name twice on one slide does not morph. A repeated name on a later slide, including a kicker, links those objects.
+- Unknown `style` keys are rejected. `execute` reports the error and leaves the file unchanged.
+- `script` and `scene` on a Manim element are optional. Until it is rendered, the placeholder label is the script text, so leave `script` empty or use a short path.

@@ -94,6 +94,6 @@ With a deck open, run **SlidePix: Configure Git Collaboration** and confirm the 
 
 ## Ask an assistant to look
 
-**AI**, or **SlidePix: Configure MCP**, installs the MCP server for Cursor, VS Code, Codex, Claude Code, and Claude Desktop, and copies the agent skills into the shared skill folders. An existing SlidePix skill is replaced. A new chat can list, inspect, and edit decks through those skills.
+**AI**, or **SlidePix: Configure MCP**, installs the MCP server for Cursor, VS Code, Codex, Claude Code, and Claude Desktop, and copies the agent skills into the shared skill folders. The server is the extension's `dist/mcp.cjs`, started with the editor's Node. An existing SlidePix skill is replaced. Reload the MCP server if it was already connected, then start a new chat to list, inspect, and edit decks.
 
 The longer guide for install, Git, live sessions, and export details is in the [SlidePix repository](https://github.com/antoineperrin25/slidepix).
