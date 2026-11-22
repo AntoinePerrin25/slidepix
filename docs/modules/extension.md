@@ -29,7 +29,10 @@ Private command helpers:
   (`~/.cursor/mcp.json`), VS Code (profile `mcp.json`), Codex
   (`~/.codex/config.toml`), Claude Code (`~/.claude.json`), and Claude
   Desktop. Other servers and unrelated settings in those files are kept. A
-  malformed file is skipped and reported.
+  malformed file is skipped and reported. It also copies `slidepix-pres` and
+  `slidepix-mcp-review` into `~/.agents/skills`, `~/.cursor/skills`, and
+  `~/.claude/skills`, replacing those skill files when the folders already
+  exist.
 - Git collaboration commands configure/remove only repository-local settings
   for the active deck and resolve remaining conflicts from Git index stages.
 

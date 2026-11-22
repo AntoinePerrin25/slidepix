@@ -8,6 +8,7 @@ import { exportPptx } from "./pptx-export-command";
 import { exportProject } from "./project-export-command";
 import { exportWeb } from "./web-export-command";
 import { configureGitCollaboration, removeGitCollaboration, resolveGitConflict } from "./git-collaboration";
+import { skillInstallations, skillSourceCandidates } from "./agent-skills";
 import { mcpTargets, mergeMcpTarget, slidepixMcpProcess, type McpTarget } from "./mcp-config";
 import { LiveCollaboration } from "./live/manager";
 
@@ -116,7 +117,7 @@ async function configureMcp(context: vscode.ExtensionContext, editor: SlidePixEd
   const userDirectory = path.resolve(context.globalStorageUri.fsPath, "..", "..");
   const targets = mcpTargets(os.homedir(), userDirectory, process.platform);
   const choice = await vscode.window.showInformationMessage(
-    "Add the read-only SlidePix MCP server for Cursor, VS Code, Codex, Claude Code, and Claude Desktop? New chats in those apps can then list, inspect, and render decks.",
+    "Add the SlidePix MCP server for Cursor, VS Code, Codex, Claude Code, and Claude Desktop, and install the agent skills in the shared skill folders? Existing SlidePix skills are replaced. Start a new chat to use them.",
     "Add",
     "Cancel"
   );
@@ -135,11 +136,21 @@ async function configureMcp(context: vscode.ExtensionContext, editor: SlidePixEd
       failed.push(`${target.filePath}: ${detail}`);
     }
   }
+  try {
+    const source = await skillSourceRoot(context.extensionPath);
+    for (const skill of skillInstallations(os.homedir())) {
+      await copySkill(path.join(source, skill.name), skill.destination);
+      written.push(skill.destination);
+    }
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    failed.push(detail);
+  }
   if (!written.length) {
     editor.log(`configureMcp failed: ${failed.join(" ")}`, "error");
     return void vscode.window.showErrorMessage(`SlidePix could not install MCP. ${failed.join(" ")}`);
   }
-  const summary = `SlidePix MCP was added for ${written.length} app${written.length === 1 ? "" : "s"}. Start a new chat to use list_slides and inspect_slides.`;
+  const summary = "SlidePix MCP and agent skills were installed. Existing SlidePix skills were replaced. Start a new chat to use them.";
   editor.log(summary);
   void vscode.window.showInformationMessage(failed.length ? `${summary} Skipped: ${failed.join(" ")}` : summary);
 }
@@ -149,6 +160,33 @@ async function writeMcpTarget(target: McpTarget, server: ReturnType<typeof slide
   const destination = vscode.Uri.file(target.filePath);
   await vscode.workspace.fs.createDirectory(vscode.Uri.file(path.dirname(target.filePath)));
   await vscode.workspace.fs.writeFile(destination, Buffer.from(merged, "utf8"));
+}
+
+async function skillSourceRoot(extensionPath: string): Promise<string> {
+  for (const candidate of skillSourceCandidates(extensionPath)) {
+    try {
+      await vscode.workspace.fs.stat(vscode.Uri.file(path.join(candidate, "slidepix-pres", "SKILL.md")));
+      return candidate;
+    } catch {
+      // Try the packaged copy, then the repository skills.
+    }
+  }
+  throw new Error("SlidePix agent skills were not found in the extension.");
+}
+
+async function copySkill(source: string, destination: string): Promise<void> {
+  try {
+    await vscode.workspace.fs.delete(vscode.Uri.file(destination), { recursive: true, useTrash: false });
+  } catch {
+    // The skill folder is created below when it is not there yet.
+  }
+  const entries = await vscode.workspace.fs.readDirectory(vscode.Uri.file(source));
+  await vscode.workspace.fs.createDirectory(vscode.Uri.file(destination));
+  for (const [name, type] of entries) {
+    if (type !== vscode.FileType.File) continue;
+    const bytes = await vscode.workspace.fs.readFile(vscode.Uri.file(path.join(source, name)));
+    await vscode.workspace.fs.writeFile(vscode.Uri.file(path.join(destination, name)), bytes);
+  }
 }
 
 async function readOptionalText(filePath: string): Promise<string | undefined> {

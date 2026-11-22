@@ -11,7 +11,7 @@ Read @architecture.md before modifying SlidePix. Route the task using its
   `WorkspaceEdit` through the versioned protocol.
 - Keep schema and headless rendering in `@slidepix/core`.
 - Preserve asset containment, webview CSP, loopback token authentication, and
-  read-only MCP behavior.
+  MCP inspection, and code-mode deck writes that stay schema-validated.
 - Do not edit generated `dist`, `media`, `vendor`, JSON Schema, or VSIX files.
 - Update architecture docs when public methods, ownership, scripts, commands,
   persisted fields, or known gaps change.

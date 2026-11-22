@@ -21,5 +21,5 @@ description: Diagnose, extend, test, review, or document the SlidePix VS Code/Cu
 Keep normal editor persistence inside VS Code `WorkspaceEdit`, asset paths under
 the deck's sibling asset directory, webview resources under CSP, presentation
 servers on authenticated loopback, rendering semantics in `@slidepix/core`, and
-MCP tools read-only.
+MCP inspection read-only, with schema-validated `execute` writes limited to the deck file.
 

@@ -8,7 +8,7 @@
   authoritative data and headless rendering definitions.
 - Preserve the invariants listed in `architecture.md`, especially text-document
   persistence, asset path containment, CSP, tokenized loopback access, shared
-  rendering, and read-only MCP behavior.
+  rendering, and MCP writes that skip schema validation or touch assets.
 - Do not hand-edit generated `dist`, `media`, `vendor`, JSON Schema, or VSIX
   artifacts.
 - Update the relevant architecture/module documentation when methods, ownership,
@@ -25,5 +25,5 @@
   not loopback-only and token-authenticated.
 - Flag independent render logic that can drift between editor, presentation,
   export, and MCP without a documented reason and matching tests.
-- Flag any MCP operation that can mutate a deck or asset in the v0.1 surface.
+- Flag any MCP operation that writes an asset, or writes a deck without schema validation.
 

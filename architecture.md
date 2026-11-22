@@ -43,7 +43,7 @@ base / ours / theirs ── @slidepix/core semantic merge ── validated canon
        ├── PDF/PNG captured in the editor; a video is its first frame plus a play control
        ├── native editable PPTX through semantic OOXML conversion
        ├── standalone offline web folder
-       └── read-only MCP inspection
+       └── MCP inspection and validated code-mode edits
 ```
 
 The JSON document is the source of truth. The webview never writes files
@@ -58,7 +58,7 @@ external edits, and multi-editor synchronization.
 | `@slidepix/core` | Zod schema, types, parsing, stable serialization, safe asset paths, shared HTML renderer, message protocol | VS Code APIs, React state, MCP transport |
 | `@slidepix/webview` | React editor, selection, manipulation, inspector, notes, transient UI state | filesystem access, authoritative persistence, headless browser lifecycle |
 | `slidepix-deck` extension | VS Code custom editor lifecycle, commands, assets, local presentation server, PDF/PNG/PowerPoint/web export | deck-format forks or a second rendering implementation |
-| `@slidepix/mcp` | read-only stdio tools and deterministic slide selection | any create/update/delete operation |
+| `@slidepix/mcp` | stdio inspection, the code-mode authoring API, and deterministic slide selection | asset writes, or a deck write that bypasses schema validation |
 
 Detailed ownership and method contracts:
 
@@ -90,7 +90,7 @@ Detailed ownership and method contracts:
    service: it runs only during an explicit session, uses encrypted QUIC, and
    admits a peer only after the invitation secret matches and, by default, the
    host approves them.
-9. MCP v0.1 stays read-only. Its tools must not write a deck or its assets.
+9. `list_slides` and `inspect_slides` stay read-only. `search` only reads the authoring catalog. `execute` runs guest JavaScript against the deck API, validates the deck, and writes that one deck file only when it changed. MCP does not write assets. Guest code crosses the host only as JSON.
 10. PDF and PNG exports are captured in the editor webview. A video is painted
     as its first frame with a play control. The PDF does not contain a playable
     media stream.

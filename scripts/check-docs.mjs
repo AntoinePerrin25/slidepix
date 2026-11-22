@@ -17,7 +17,8 @@ const documents = [
   ".cursor/rules/slidepix-development.mdc",
   ".cursor/rules/slidepix-mcp.mdc",
   ".agents/skills/slidepix-development/SKILL.md",
-  ".agents/skills/slidepix-mcp-review/SKILL.md"
+  ".agents/skills/slidepix-mcp-review/SKILL.md",
+  ".agents/skills/slidepix-pres/SKILL.md"
 ];
 const failures = [];
 

@@ -210,7 +210,7 @@
   },
   "scripts": {
     "generate-schema": "node ./scripts/generate-schema.mjs",
-    "build": "pnpm generate-schema && esbuild src/extension.ts --bundle --platform=node --format=cjs --target=node20 --external:vscode --external:@number0/iroh --outfile=dist/extension.cjs --sourcemap && esbuild src/merge-driver.ts --bundle --platform=node --format=cjs --target=node20 --outfile=dist/merge-driver.cjs && esbuild ../mcp/src/server.ts --bundle --platform=node --format=cjs --target=node20 --outfile=dist/mcp.cjs --banner:js=\"#!/usr/bin/env node\" && node ./scripts/stage-native.mjs",
+    "build": "pnpm generate-schema && node ./scripts/copy-skills.mjs && esbuild src/extension.ts --bundle --platform=node --format=cjs --target=node20 --external:vscode --external:@number0/iroh --outfile=dist/extension.cjs --sourcemap && esbuild src/merge-driver.ts --bundle --platform=node --format=cjs --target=node20 --outfile=dist/merge-driver.cjs && esbuild ../mcp/src/server.ts --bundle --platform=node --format=cjs --target=node20 --outfile=dist/mcp.cjs --banner:js=\"#!/usr/bin/env node\" && node ./scripts/stage-native.mjs",
     "test:live": "vitest run --config vitest.live.config.ts",
     "dev": "pnpm build --watch",
     "test": "vitest run",
