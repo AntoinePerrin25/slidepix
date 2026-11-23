@@ -93,8 +93,12 @@ invalid inputs fall back to ordinary Git conflict markers.
   `#small{...}` is smaller text in slide text. `titleBox` and `listBox` place
   the bibliography title and the citation list. `source` is merged by citation
   key.
-- `layouts`: reusable named background definitions. The UI designer is not yet
-  implemented.
+- `layouts`: reusable named backgrounds and elements. A slide's `layout` id
+  paints that definition behind its own elements. `slide.slots` overrides a
+  placeholder by the layout element's id (`markdown`, or `src` and `storage`).
+- `components`: reusable objects. Each definition has a local width, height,
+  and elements in component coordinates. A `component` element on a slide or
+  layout is one instance and scales that definition into its box.
 - `slides`: at least one ordered slide.
 
 A slide contains its title, optional layout/background color, optional
@@ -107,9 +111,23 @@ reference file. Text can cite an entry with `[@citation-key]`; the in-slide
 citation format decides whether that marker shows a number, the author, the
 date, or another token.
 
-Element types are `text`, `image`, `video`, `manim`, `shape`, and `table`. Shared geometry fields
+Element types are `text`, `image`, `video`, `manim`, `shape`, `table`, `vector`,
+`group`, `component`, and `chart`. Shared geometry fields
 are `x`, `y`, `width`, `height`, `rotation`, `opacity`, and `z`; shared behavior
-includes locking, hiding, optional name, and optional accessibility text.
+includes locking, hiding, optional name, optional accessibility text, and an
+optional `parentId` that must name a group in the same slide, layout, or
+component. A `placeholder` (`role` and `prompt`) marks a layout element that a
+slide can fill.
+
+A `vector` is a `path` (`d` in a 0–100 box), a `connector` (`from` and `to`,
+each a point with an optional `elementId` and `anchor`, plus `routing` of
+`straight`, `elbow`, or `curve`), or one `svg` document. Markers are `none` or
+`arrow`. An `svg` value must be a single `<svg>` element and cannot contain
+scripts, embedded images, or event handlers. A `group` has no paint of its own;
+its members stay in the same element list. A `chart` is `bar`, `line`, `area`,
+or `pie`, with `categories` and `series`, or a `dataLink` to a table in the same
+collection. The table's header names the series and its first column names the
+categories.
 Image and video elements also carry `storage: "linked" | "embedded"`; the
 `src` string alone is never enough to decide its security boundary. Optional
 `lockAspectRatio` defaults to on. `aspectRatio` is the ratio of the current

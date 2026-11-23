@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { parsePresentationMarkdown, renderDeckDocument, renderMarkdown, renderPresentationMathMl, roundedEdgeFadeMask } from "./render.js";
-import { createDeck, duplicateSlide, elementSchema } from "./schema.js";
+import { createDeck, duplicateSlide, elementSchema, parseDeckText } from "./schema.js";
 
 describe("shared document rendering", () => {
   it("renders manim placeholders and rendered output", () => {
@@ -279,5 +279,33 @@ describe("shared document rendering", () => {
     expect(html.match(/<th style="[^"]*text-align:center/g)).toHaveLength(2);
     expect(html).toContain("<strong>Name</strong>");
     expect(html).toContain("<math");
+  });
+
+  it("paints a layout placeholder, a component, and a chart linked to a table", () => {
+    const deck = createDeck("Composed");
+    deck.layouts.opening = {
+      name: "Opening",
+      elements: [elementSchema.parse({ id: "title", morphKey: "title", type: "text", x: 80, y: 80, width: 800, height: 80, markdown: "Layout title", style: {}, placeholder: { role: "title", prompt: "Title" } })]
+    };
+    deck.components.card = {
+      name: "Card", width: 200, height: 80,
+      elements: [elementSchema.parse({ id: "label", morphKey: "label", type: "text", x: 0, y: 0, width: 200, height: 80, markdown: "Reusable", style: {} })]
+    };
+    const slide = deck.slides[0]!;
+    slide.layout = "opening";
+    slide.slots.title = { markdown: "Slide title" };
+    slide.elements.push(
+      elementSchema.parse({ id: "card", morphKey: "card", type: "component", componentId: "card", x: 100, y: 200, width: 400, height: 160, z: 1 }),
+      elementSchema.parse({ id: "numbers", morphKey: "numbers", type: "table", x: 0, y: 0, width: 10, height: 10, rows: 2, columns: 2, headerRow: true, cells: [["", "Sales"], ["Q1", "3"]], hidden: true }),
+      elementSchema.parse({ id: "sales", morphKey: "sales", type: "chart", chart: "bar", x: 500, y: 200, width: 500, height: 300, dataLink: { elementId: "numbers" } })
+    );
+    const parsed = parseDeckText(JSON.stringify(deck));
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    const html = renderDeckDocument(parsed.deck);
+    expect(html).toContain("Slide title");
+    expect(html).toContain("Reusable");
+    expect(html).toContain("Sales");
+    expect(html).toContain("<svg");
   });
 });

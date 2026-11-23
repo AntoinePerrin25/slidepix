@@ -99,11 +99,15 @@ return slidepix.slides().map((slide) => slide.title);
 | `slidepix.slides()` | Id, 1-based index, title, hidden, bibliography, element count. |
 | `slidepix.slide(ref)` | Notes, transition, and compact elements. Text markdown is truncated to 800 characters. |
 | `slidepix.addSlide({ title, after, notes, bibliography, background, transition })` | Inserts after `after`, or at the end. |
-| `slidepix.updateSlide(ref, patch)` | `title`, `notes`, `hidden`, `bibliography`, `hidePageNumber`, `background`, `backgroundImage`, `transition`. |
+| `slidepix.updateSlide(ref, patch)` | `title`, `notes`, `hidden`, `bibliography`, `hidePageNumber`, `background`, `backgroundImage`, `transition`, `layout`. |
 | `slidepix.removeSlide(ref)` | Refuses to remove the last slide. |
-| `slidepix.addElement(ref, input)` | `input.type` is `text`, `shape`, `image`, `video`, `table`, or `manim`. Omitted geometry and style fields get defaults. |
+| `slidepix.addElement(ref, input)` | `input.type` is `text`, `shape`, `image`, `video`, `table`, `manim`, `vector`, `group`, `component`, or `chart`. Omitted geometry and style fields get defaults. |
 | `slidepix.updateElement(ref, elementId, patch)` | Moves, restyles, or rewrites one element. Nested `style`, `crop`, `border`, `shadow`, and `playback` merge. |
-| `slidepix.removeElement(ref, elementId)` | Also removes animations that target it. |
+| `slidepix.removeElement(ref, elementId)` | Also removes that group's members and animations that target them. |
+| `slidepix.defineLayout({ name, elements })` | Adds a master layout. Placeholder elements set `placeholder: { role, prompt }`. |
+| `slidepix.defineComponent({ name, width, height, elements })` | Adds a reusable object. Coordinates are local to the component. |
+| `slidepix.applyLayout(ref, layoutId)` | `null` clears the slide layout. |
+| `slidepix.setSlot(ref, placeholderId, { markdown, src, storage })` | Fills one placeholder on that slide. |
 | `slidepix.duplicateFollowing(ref, elementId, every?)` | Every later slide, or every nth slide counted from the current one. |
 | `slidepix.setMetadata({ title, author, description })` | Deck metadata. |
 | `slidepix.setTheme({ background, foreground, accent, fontFamily })` | Deck theme. |

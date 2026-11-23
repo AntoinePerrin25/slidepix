@@ -4,12 +4,18 @@ import * as path from "node:path";
 import PptxGenJS from "pptxgenjs";
 import {
   bibliographyBody,
+  chartMarkup,
   citedEntries,
   expandCitationMarkers,
   formatPageLabel,
+  isPlaceholderImage,
   morphMatchToken,
+  paintLayoutElements,
   parseBibliography,
   parsePresentationMarkdown,
+  syncVectors,
+  vectorMarkup,
+  vectorsForPaint,
   type Citation,
   type Deck,
   type PresentationMarkdownBlock,
@@ -18,6 +24,7 @@ import {
   type SlideElement,
   type TableElement,
   type TextElement,
+  type VectorElement,
   type VideoElement
 } from "@slidepix/core";
 import { readDeckBibliography } from "./bibliography-file";
@@ -65,11 +72,13 @@ export async function buildPptxExport(
 
   for (let visibleIndex = 0; visibleIndex < visibleSlides.length; visibleIndex += 1) {
     const sourceSlide = visibleSlides[visibleIndex]!;
+    const layout = deck.layouts[sourceSlide.layout ?? ""];
+    const backgroundImage = sourceSlide.backgroundImage ?? layout?.backgroundImage;
     const slide = pptx.addSlide();
     slide.background = background(sourceSlide, deck, context.warnings);
-    if (sourceSlide.backgroundImage) {
+    if (backgroundImage) {
       slide.addImage({
-        path: resolveMediaPath(deckPath, sourceSlide.backgroundImage.src, sourceSlide.backgroundImage.storage, allowedLinkedRoots),
+        path: resolveMediaPath(deckPath, backgroundImage.src, backgroundImage.storage, allowedLinkedRoots),
         x: 0,
         y: 0,
         w: inches(deck.size.width),
@@ -78,9 +87,13 @@ export async function buildPptxExport(
     }
     if (sourceSlide.notes) slide.addNotes(sourceSlide.notes);
     const patch: PptxSlidePatch = { slide: sourceSlide, math: [], pictures: [], animationTargets: new Map() };
-
-    for (const element of [...sourceSlide.elements].filter((item) => !item.hidden).sort((left, right) => left.z - right.z)) {
-      patch.animationTargets.set(element.id, await addNativeElement(pptx, slide, element, sourceSlide, patch, context));
+    const layoutElements = vectorsForPaint(paintLayoutElements(sourceSlide, layout, "blank")).filter((item) => !item.hidden).sort((left, right) => left.z - right.z);
+    const ownElements = vectorsForPaint(sourceSlide.elements.filter((item) => !item.hidden)).sort((left, right) => left.z - right.z);
+    for (const element of layoutElements) {
+      patch.animationTargets.set(element.id, await addNativeElement(pptx, slide, element, sourceSlide, patch, context, layoutElements));
+    }
+    for (const element of ownElements) {
+      patch.animationTargets.set(element.id, await addNativeElement(pptx, slide, element, sourceSlide, patch, context, ownElements));
     }
     addPageNumber(slide, deck, sourceSlide, visibleIndex, visibleSlides.length, context);
     addBibliography(slide, deck, sourceSlide, context);
@@ -118,7 +131,8 @@ async function addNativeElement(
   element: SlideElement,
   sourceSlide: Slide,
   patch: PptxSlidePatch,
-  context: BuildContext
+  context: BuildContext,
+  peers: readonly SlideElement[]
 ): Promise<string[]> {
   const name = nativeObjectName(element, sourceSlide, context.warnings);
   if (element.type === "text") return addTextElement(slide, element, name, sourceSlide, patch, context);
@@ -138,6 +152,14 @@ async function addNativeElement(
   }
   if (element.type === "table") {
     addTable(slide, element, position(element, name), sourceSlide, context);
+    context.nativeObjectCount += 1;
+    return [name];
+  }
+  if (element.type === "group") return [];
+  if (element.type === "vector" || element.type === "chart") return addDrawing(slide, element, name, peers, sourceSlide, context);
+  if (element.type === "component") return addComponentInstance(pptx, slide, element, name, sourceSlide, patch, context);
+  if (element.type === "image" && isPlaceholderImage(element)) {
+    slide.addShape(pptx.ShapeType.rect, { ...position(element, name), fill: { type: "none" }, line: { color: "94A3B8", width: 1 } });
     context.nativeObjectCount += 1;
     return [name];
   }
@@ -397,6 +419,58 @@ function nativeObjectName(element: SlideElement, slide: Slide, warnings: PptxExp
   return `!!${token}`;
 }
 
+function addDrawing(slide: PptxGenJS.Slide, element: Extract<SlideElement, { type: "vector" | "chart" }>, name: string, peers: readonly SlideElement[], sourceSlide: Slide, context: BuildContext): string[] {
+  const svg = element.type === "vector" ? vectorMarkup(element) : chartMarkup(element, peers.filter((item) => item.type === "table"));
+  if (!svg) {
+    addPptxWarning(context.warnings, "drawn-as-svg", "The drawing had no exportable SVG.", sourceSlide.id, element.id);
+    return [];
+  }
+  slide.addImage({ data: `data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")}`, ...position(element, name), rotate: element.rotation });
+  addPptxWarning(context.warnings, "drawn-as-svg", element.type === "chart" ? "The chart is exported as an SVG picture." : "The vector drawing is exported as an SVG picture.", sourceSlide.id, element.id);
+  context.nativeObjectCount += 1;
+  return [name];
+}
+
+async function addComponentInstance(pptx: PptxGenJS, slide: PptxGenJS.Slide, element: Extract<SlideElement, { type: "component" }>, name: string, sourceSlide: Slide, patch: PptxSlidePatch, context: BuildContext): Promise<string[]> {
+  const component = context.deck.components[element.componentId];
+  if (!component) {
+    addPptxWarning(context.warnings, "missing-component", "This component is no longer in the deck.", sourceSlide.id, element.id);
+    return [];
+  }
+  const sx = element.width / component.width;
+  const sy = element.height / component.height;
+  const names: string[] = [];
+  for (const child of component.elements.filter((item) => !item.hidden && item.type !== "group")) {
+    names.push(...await addNativeElement(pptx, slide, placeComponentChild(child, element, sx, sy), sourceSlide, patch, context, component.elements));
+  }
+  if (!names.length) addPptxWarning(context.warnings, "missing-component", `Component “${name}” has nothing to export.`, sourceSlide.id, element.id);
+  return names;
+}
+
+function placeComponentChild(child: SlideElement, instance: Extract<SlideElement, { type: "component" }>, sx: number, sy: number): SlideElement {
+  const placed: SlideElement = {
+    ...structuredClone(child),
+    id: `${instance.id}:${child.id}`,
+    x: instance.x + child.x * sx,
+    y: instance.y + child.y * sy,
+    width: Math.max(1, child.width * sx),
+    height: Math.max(1, child.height * sy),
+    rotation: child.rotation + instance.rotation,
+    opacity: Math.min(1, child.opacity * instance.opacity)
+  };
+  if (placed.type === "text" || placed.type === "table") placed.style = { ...placed.style, fontSize: placed.style.fontSize * Math.min(sx, sy) };
+  if (placed.type === "vector" && placed.kind === "connector" && placed.from && placed.to) {
+    const from = placed.from;
+    const to = placed.to;
+    placed.from = { ...from, x: instance.x + from.x * sx, y: instance.y + from.y * sy };
+    delete placed.from.elementId;
+    placed.to = { ...to, x: instance.x + to.x * sx, y: instance.y + to.y * sy };
+    delete placed.to.elementId;
+    syncVectors([placed], [placed]);
+  }
+  return placed;
+}
+
 function addFontWarnings(context: BuildContext): void {
   const fonts = new Set([context.deck.theme.fontFamily]);
   for (const slide of context.deck.slides.filter((item) => !item.hidden)) for (const element of slide.elements.filter((item) => !item.hidden)) if (element.type === "text" || element.type === "table") fonts.add(element.style.fontFamily);
@@ -404,19 +478,26 @@ function addFontWarnings(context: BuildContext): void {
 }
 
 async function validateMedia(deck: Deck, deckPath: string, allowedLinkedRoots: string[]): Promise<void> {
+  const checkElement = async (element: SlideElement) => {
+    if (element.hidden || isPlaceholderImage(element)) return;
+    if (element.type === "manim") {
+      if (element.outputMedia) await access(resolveMediaPath(deckPath, element.outputMedia.src, element.outputMedia.storage, allowedLinkedRoots));
+      return;
+    }
+    if (element.type !== "image" && element.type !== "video") return;
+    await access(resolveMediaPath(deckPath, element.src, element.storage, allowedLinkedRoots));
+    if (element.type === "video" && element.poster) await access(resolveMediaPath(deckPath, element.poster, "embedded", allowedLinkedRoots));
+  };
+  for (const layout of Object.values(deck.layouts)) {
+    if (layout.backgroundImage) await access(resolveMediaPath(deckPath, layout.backgroundImage.src, layout.backgroundImage.storage, allowedLinkedRoots));
+    for (const element of layout.elements) await checkElement(element);
+  }
+  for (const component of Object.values(deck.components)) for (const element of component.elements) await checkElement(element);
   for (const slide of deck.slides) {
     if (slide.hidden) continue;
     if (slide.backgroundImage) await access(resolveMediaPath(deckPath, slide.backgroundImage.src, slide.backgroundImage.storage, allowedLinkedRoots));
-    for (const element of slide.elements) {
-      if (element.hidden) continue;
-      if (element.type === "manim") {
-        if (element.outputMedia) await access(resolveMediaPath(deckPath, element.outputMedia.src, element.outputMedia.storage, allowedLinkedRoots));
-        continue;
-      }
-      if (element.type !== "image" && element.type !== "video") continue;
-      await access(resolveMediaPath(deckPath, element.src, element.storage, allowedLinkedRoots));
-      if (element.type === "video" && element.poster) await access(resolveMediaPath(deckPath, element.poster, "embedded", allowedLinkedRoots));
-    }
+    for (const slot of Object.values(slide.slots)) if (slot.src && slot.storage && slot.src !== "placeholder") await access(resolveMediaPath(deckPath, slot.src, slot.storage, allowedLinkedRoots));
+    for (const element of slide.elements) await checkElement(element);
   }
 }
 
