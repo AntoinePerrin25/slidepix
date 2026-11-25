@@ -204,6 +204,18 @@
           "type": "boolean",
           "default": true,
           "description": "Ask before admitting someone who presents a valid live invitation."
+        },
+        "slidepix.selection.highlight": {
+          "type": "string",
+          "enum": ["outline", "dim-others", "blink", "dim-and-blink"],
+          "enumDescriptions": [
+            "Show only the focus outline.",
+            "While a group or several elements are selected, draw every other element at half opacity.",
+            "Pulse the selected elements by changing their opacity.",
+            "Draw every other element at half opacity and pulse the selected elements by opacity."
+          ],
+          "default": "dim-and-blink",
+          "markdownDescription": "How a group or a multi-selection is shown on the canvas. The treatment is temporary and is not saved in the deck. Blink animates opacity."
         }
       }
     }

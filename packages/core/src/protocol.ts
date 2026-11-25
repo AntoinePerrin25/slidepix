@@ -2,6 +2,9 @@ import type { Deck } from "./schema.js";
 
 export const PROTOCOL_VERSION = 2 as const;
 
+/** Editor-only canvas treatment for a group or a multi-selection. It is not stored in the deck. */
+export type SelectionHighlight = "outline" | "dim-others" | "blink" | "dim-and-blink";
+
 export type HostToWebviewMessage =
   | { version: 2; type: "deck"; text: string; deck: Deck; revision: string; uri: string; linkedUri: string; canUndo?: boolean; canRedo?: boolean }
   | { version: 2; type: "invalidDeck"; text: string; revision: string; message: string; gitConflict: boolean; uri: string; linkedUri: string }
@@ -19,7 +22,8 @@ export type HostToWebviewMessage =
   | { version: 2; type: "bibliography"; source: string; error?: string }
   | { version: 2; type: "bibliographySelected"; requestId: string; file?: string; source?: string; error?: string }
   | { version: 2; type: "assetsUpdated"; references: string[] }
-  | { version: 2; type: "startCapture"; format: "pdf" | "png" };
+  | { version: 2; type: "startCapture"; format: "pdf" | "png" }
+  | { version: 2; type: "editorSettings"; selectionHighlight: SelectionHighlight };
 
 export type LiveCollaborationStatus = "off" | "hosting" | "joined" | "reconnecting" | "ended";
 

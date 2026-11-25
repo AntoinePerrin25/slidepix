@@ -115,6 +115,9 @@ describe("shared document rendering", () => {
     expect(html).toContain("function reverseSlide(type){return type==='slide-left'?'slide-right':type==='slide-right'?'slide-left':type==='slide-up'?'slide-down':type==='slide-down'?'slide-up':type}");
     expect(html).toContain("previous&&bounded<fromIndex&&traversed&&String(traversed.type||'').startsWith('slide-')");
     expect(html).toContain("fit();if(t.type==='morph')");
+    expect(html).toContain("function toOklch");
+    expect(html).toContain("if(prior.paint)animatePaint");
+    expect(html).toContain("borderColor:prior.border");
   });
 
   it("keeps negative layers above the slide background in every output", () => {

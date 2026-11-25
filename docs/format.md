@@ -121,8 +121,10 @@ slide can fill.
 
 A `vector` is a `path` (`d` in a 0–100 box), a `connector` (`from` and `to`,
 each a point with an optional `elementId` and `anchor`, plus `routing` of
-`straight`, `elbow`, or `curve`), or one `svg` document. Markers are `none` or
-`arrow`. An `svg` value must be a single `<svg>` element and cannot contain
+`straight`, `elbow`, or `curve`), or one `svg` document. An optional `bend`
+point, in slide units, pulls an elbow corner or a curve. Straight routing
+ignores it. Markers are `none` or `arrow`. The arrowhead tip sits on the path
+end; the stroke stops at the base of the triangle. An `svg` value must be a single `<svg>` element and cannot contain
 scripts, embedded images, or event handlers. A `group` has no paint of its own;
 its members stay in the same element list. A `chart` is `bar`, `line`, `area`,
 or `pie`, with `categories` and `series`, or a `dataLink` to a table in the same

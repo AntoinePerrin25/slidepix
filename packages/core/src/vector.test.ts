@@ -29,8 +29,20 @@ describe("vectors", () => {
     syncVectors([arrow], [arrow, { id: "card", x: 20, y: 30, width: 80, height: 40 }]);
     expect(arrow.from?.x).toBe(100);
     expect(arrow.from?.y).toBe(50);
-    expect(vectorMarkup(arrow)).toContain("marker-end");
-    expect(vectorMarkup(arrow)).toContain("M ");
+    const markup = vectorMarkup(arrow);
+    const tipX = Math.round((arrow.to!.x - arrow.x) * 100) / 100;
+    const tipY = Math.round((arrow.to!.y - arrow.y) * 100) / 100;
+    expect(markup).toContain("slidepix-vector-head");
+    expect(markup).toContain(`M ${tipX} ${tipY}`);
+    expect(markup).not.toContain("marker-end");
+    const stroke = markup.match(/class="slidepix-vector-stroke" d="([^"]+)"/)?.[1] ?? "";
+    expect(stroke.endsWith(`${tipX} ${tipY}`)).toBe(false);
+  });
+
+  it("bows a connector through its bend point", () => {
+    const arrow = connector({ routing: "curve", bend: { x: 40, y: 80 } });
+    syncVectors([arrow], [arrow]);
+    expect(arrow.d).toContain("Q ");
   });
 
   it("rejects scripts and accepts a plain path", () => {

@@ -1869,6 +1869,22 @@
                         "curve"
                       ]
                     },
+                    "bend": {
+                      "type": "object",
+                      "properties": {
+                        "x": {
+                          "type": "number"
+                        },
+                        "y": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "x",
+                        "y"
+                      ],
+                      "additionalProperties": false
+                    },
                     "from": {
                       "type": "object",
                       "properties": {
@@ -3754,6 +3770,22 @@
                         "elbow",
                         "curve"
                       ]
+                    },
+                    "bend": {
+                      "type": "object",
+                      "properties": {
+                        "x": {
+                          "type": "number"
+                        },
+                        "y": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "x",
+                        "y"
+                      ],
+                      "additionalProperties": false
                     },
                     "from": {
                       "type": "object",
@@ -5823,6 +5855,22 @@
                         "elbow",
                         "curve"
                       ]
+                    },
+                    "bend": {
+                      "type": "object",
+                      "properties": {
+                        "x": {
+                          "type": "number"
+                        },
+                        "y": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "x",
+                        "y"
+                      ],
+                      "additionalProperties": false
                     },
                     "from": {
                       "type": "object",

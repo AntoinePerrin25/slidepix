@@ -43,7 +43,7 @@ Private command helpers:
 | Method | Responsibility |
 | --- | --- |
 | `register()` | Registers the provider, listens for text changes, and disposes live presentation sessions. |
-| `resolveCustomTextEditor(document, panel)` | Configures safe webview roots/CSP, tracks panels, installs message handlers, and preserves multiple views per document. |
+| `resolveCustomTextEditor(document, panel)` | Configures safe webview roots/CSP, tracks panels, installs message handlers, and preserves multiple views per document. On ready, and when `slidepix.selection.highlight` changes, it sends `editorSettings`. That setting is `outline`, `dim-others`, `blink`, or `dim-and-blink` (the default). It only changes the open editor. |
 | `currentDocument()` | Returns the most recently active SlidePix text document for commands. |
 | `present(document, presenter?)` | Validates, creates an authenticated loopback session, opens the audience browser, and optionally creates the presenter panel. |
 | `updatePanels` / `postDeck` | Reparse every document change and send either a valid deck or diagnostic plus its exact-text revision. |
