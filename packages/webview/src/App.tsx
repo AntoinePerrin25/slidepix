@@ -10,11 +10,16 @@ import {
   duplicateElementOntoFollowingSlides,
   duplicateSlide,
   expandCitationMarkers,
+  connectorBendPoint,
   groupElements,
+  movePathHandle,
+  nearestAnchor,
   parseBibliography,
+  pathHandles,
   reidentifyElements,
   removedElementIds,
   scaleMembers,
+  topLevelIds,
   withoutElements,
   ungroupElements,
   unionBox,
@@ -29,6 +34,8 @@ import {
   type Deck,
   type HostToWebviewMessage,
   type MediaStorage,
+  type PathHandle,
+  type SelectionHighlight,
   type Slide,
   type SlideElement,
   type Transition,
@@ -41,6 +48,7 @@ import {
 import { SlideView, type ChromeBox, type ChromeKind } from "./SlideView";
 import { clamp, cropBoxByEdges, localPointerDelta, panCrop, type CropBox } from "./geometry";
 import { applyAlign, applyDistribute, type AlignAction, type AlignRelativeTo, type DistributeAction } from "./align";
+import { coveredBySelectedGroup, keepsCurrentSelection } from "./selection";
 import { peerBoxes, resizeEdges, snapMove, snapResize, snapThreshold, type SnapGuide } from "./snap";
 import { railDropIndex } from "./rail";
 import { syncNamedShapes } from "./shape-batch";
@@ -85,12 +93,15 @@ export default function App() {
   const [railCollapsed, setRailCollapsed] = useState(false);
   const [inspectorCollapsed, setInspectorCollapsed] = useState(false);
   const [batchShapeEdit, setBatchShapeEdit] = useState(false);
+  const [selectionHighlight, setSelectionHighlight] = useState<SelectionHighlight>("dim-and-blink");
   const [bibliographySource, setBibliographySource] = useState("");
   const inlineTextEditor = useRef<InlineTextEditorHandle>(null);
   const pendingTextFormat = useRef<TextFormatCommand | undefined>(undefined);
   const moveableRef = useRef<Moveable | null>(null);
-  const dragOrigins = useRef<{ id: string; x: number; y: number; from?: { x: number; y: number; bound: boolean }; to?: { x: number; y: number; bound: boolean } }[]>([]);
-  const groupResize = useRef<{ origin: { x: number; y: number; width: number; height: number }; members: { id: string; x: number; y: number; width: number; height: number; from?: { x: number; y: number }; to?: { x: number; y: number } }[] } | undefined>(undefined);
+  const gestureMoved = useRef(false);
+  const dragOrigins = useRef<{ id: string; x: number; y: number; from?: { x: number; y: number; bound: boolean }; to?: { x: number; y: number; bound: boolean }; bend?: { x: number; y: number } }[]>([]);
+  const groupResize = useRef<{ origin: { x: number; y: number; width: number; height: number }; members: { id: string; x: number; y: number; width: number; height: number; from?: { x: number; y: number }; to?: { x: number; y: number }; bend?: { x: number; y: number } }[] } | undefined>(undefined);
+  const multiResize = useRef<{ id: string; origin: { x: number; y: number; width: number; height: number }; members: { id: string; x: number; y: number; width: number; height: number; from?: { x: number; y: number }; to?: { x: number; y: number }; bend?: { x: number; y: number } }[] }[]>([]);
   const pendingSlot = useRef<string | undefined>(undefined);
   const snapPeers = useRef<ReturnType<typeof peerBoxes>>([]);
   const snapHold = useRef<SnapGuide[]>([]);
@@ -98,7 +109,7 @@ export default function App() {
   const collaboration = useSyncExternalStore(subscribeCollaboration, collaborationView, collaborationView);
   const presenceSentAt = useRef(0);
 
-  useEffect(() => onHostMessage((message) => handleHostMessage(message, store.setFromHost, store.setInvalid, store.handleEditResult, store.handleHistoryResult, setBibliographySource)), []);
+  useEffect(() => onHostMessage((message) => handleHostMessage(message, store.setFromHost, store.setInvalid, store.handleEditResult, store.handleHistoryResult, setBibliographySource, setSelectionHighlight)), []);
   useEffect(() => { postMessage({ type: "ready" }); }, []);
   useEffect(() => {
     if (!store.historyError) return;
@@ -118,6 +129,14 @@ export default function App() {
   const dragTarget = selectedElements.find((item) => !item.locked) ?? selected;
   const target = dragTarget && !dragTarget.locked ? document.getElementById(`element-${dragTarget.id}`) : null;
   const cropping = selected?.type === "image" && croppingId === selected.id;
+  const covered = coveredBySelectedGroup(activeElements, store.selectedElementIds);
+  const emphasizedIds = [...store.selectedElementIds.filter((id) => !id.startsWith("slot:")), ...covered];
+  const emphasizeSelection = store.selectedElementIds.filter((id) => !id.startsWith("slot:")).length > 1 || covered.size > 0;
+  const dimUnselected = emphasizeSelection && (selectionHighlight === "dim-others" || selectionHighlight === "dim-and-blink");
+  const blinkSelected = emphasizeSelection && (selectionHighlight === "blink" || selectionHighlight === "dim-and-blink");
+  const moveIds = topLevelIds(activeElements, selectedElements.filter((item) => !item.locked).map((item) => item.id));
+  const moveNodes = moveIds.map((id) => document.getElementById(`element-${id}`)).filter((node): node is HTMLElement => node instanceof HTMLElement);
+  const groupMove = moveNodes.length > 1;
   const guest = collaboration.role === "guest";
   const liveOn = collaboration.status !== "off";
 
@@ -202,6 +221,7 @@ export default function App() {
             if (element.type === "vector" && element.kind === "connector") {
               if (element.from && start.from && !start.from.bound) { element.from.x += dx; element.from.y += dy; }
               if (element.to && start.to && !start.to.bound) { element.to.x += dx; element.to.y += dy; }
+              if (element.bend && start.bend) { element.bend.x += dx; element.bend.y += dy; }
             }
           }
         });
@@ -427,6 +447,61 @@ export default function App() {
       }));
     }
   };
+  const rememberGesture = () => {
+    gestureMoved.current = true;
+    window.setTimeout(() => { gestureMoved.current = false; }, 240);
+  };
+  const focusClickedSelection = ({ isDouble, moveableTarget, inputEvent }: { isDouble: boolean; moveableTarget: HTMLElement | SVGElement | null; inputEvent?: Event }) => {
+    if (gestureMoved.current || !dragTarget) return;
+    if (isDouble && selectedElements.length === 1) {
+      if (dragTarget.type === "text") beginTextEditing(dragTarget.id);
+      if (dragTarget.type === "image") setCroppingId(dragTarget.id);
+      return;
+    }
+    if (selectedElements.length < 2 || !moveableTarget || shiftHeld(inputEvent)) return;
+    const id = moveableTarget.id.startsWith("element-") ? moveableTarget.id.slice("element-".length) : "";
+    if (id) store.selectElement(id);
+  };
+  const moveByPointer = (left: number, top: number, inputEvent: Event | undefined, elementTarget: HTMLElement | SVGElement) => {
+    if (!dragTarget) return;
+    gestureMoved.current = true;
+    const origin = dragOrigins.current.find((item) => item.id === dragTarget.id);
+    if (!origin) return;
+    const snapped = shiftHeld(inputEvent)
+      ? snapMove(
+        { x: left, y: top, width: dragTarget.width, height: dragTarget.height },
+        snapPeers.current,
+        deck.size,
+        snapThreshold(store.zoom),
+      )
+      : { x: left, y: top, guides: [] as SnapGuide[] };
+    const dx = snapped.x - origin.x;
+    const dy = snapped.y - origin.y;
+    elementTarget.style.left = `${snapped.x}px`;
+    elementTarget.style.top = `${snapped.y}px`;
+    setSnapGuides(snapped.guides);
+    store.preview((draft) => {
+      for (const start of dragOrigins.current) {
+        const element = findElement(draft, slide.id, start.id);
+        if (!element) continue;
+        element.x = start.x + dx;
+        element.y = start.y + dy;
+        if (element.type === "vector") {
+          if (element.kind === "connector") {
+            if (element.from && start.from && !start.from.bound) { element.from.x = start.from.x + dx; element.from.y = start.from.y + dy; }
+            if (element.to && start.to && !start.to.bound) { element.to.x = start.to.x + dx; element.to.y = start.to.y + dy; }
+          }
+          if (element.bend && start.bend) { element.bend.x = start.bend.x + dx; element.bend.y = start.bend.y + dy; }
+        }
+        const node = document.getElementById(`element-${start.id}`);
+        if (node && start.id !== dragTarget.id) {
+          node.style.left = `${element.x}px`;
+          node.style.top = `${element.y}px`;
+        }
+      }
+      if (batchShapeEdit) for (const start of dragOrigins.current) syncNamedShapes(draft, slide.id, start.id);
+    });
+  };
 
   return (
     <div className={`app${railCollapsed ? " rail-collapsed" : ""}${inspectorCollapsed ? " inspector-collapsed" : ""}${liveOn ? " live-on" : ""}`} onCopy={(event) => copyElement(event)} onCut={(event) => copyElement(event, true)} onDragOver={(event) => event.preventDefault()} onDrop={(event) => {
@@ -472,6 +547,7 @@ export default function App() {
               if (copy.type === "vector" && copy.kind === "connector") {
                 if (copy.from && !copy.from.elementId) { copy.from.x -= box.x; copy.from.y -= box.y; }
                 if (copy.to && !copy.to.elementId) { copy.to.x -= box.x; copy.to.y -= box.y; }
+                if (copy.bend) { copy.bend.x -= box.x; copy.bend.y -= box.y; }
               }
             }
             draft.components[id] = { name: members[0]?.name?.trim() || "Component", width: box.width, height: box.height, elements: copies };
@@ -574,85 +650,85 @@ export default function App() {
                 onChromeGeometry={(kind, box) => store.preview((draft) => assignChromeBox(draft, kind, box))}
                 onChromeCommit={() => store.commit()}
                 selectedElementIds={store.selectedElementIds}
+                emphasizedIds={emphasizedIds}
+                dimUnselected={dimUnselected}
+                blinkSelected={blinkSelected}
                 editingElementId={editingTextId}
                 resolveAsset={assetUrl}
-                onSelectElement={store.selectElement}
+                onSelectElement={(id, additive) => {
+                  if (!id) {
+                    if (gestureMoved.current) return;
+                    store.selectElement();
+                    return;
+                  }
+                  if (keepsCurrentSelection(activeElements, store.selectedElementIds, id, Boolean(additive))) return;
+                  store.selectElement(id, additive);
+                }}
                 onEditText={(id) => beginTextEditing(id)}
                 onEditImage={setCroppingId}
                 onEditComponent={(componentId) => store.setDesignTarget({ kind: "component", id: componentId })}
               />
-              {target && dragTarget && !cropping && editingTextId !== dragTarget.id && (
+              {dragTarget && (groupMove || target) && !cropping && editingTextId !== dragTarget.id && (
                 <Moveable
                   ref={moveableRef}
-                  target={target}
-                  dragTarget={target}
+                  target={groupMove ? moveNodes : target}
+                  dragTarget={groupMove ? undefined : target}
                   draggable
-                  resizable={selectedElements.length === 1}
-                  rotatable={selectedElements.length === 1 && dragTarget.type !== "group" && !(dragTarget.type === "vector" && dragTarget.kind === "connector")}
+                  resizable={groupMove || !(dragTarget.type === "vector" && dragTarget.kind === "connector")}
+                  rotatable={!groupMove && dragTarget.type !== "group" && !(dragTarget.type === "vector" && dragTarget.kind === "connector")}
                   clickable
                   origin={false}
                   zoom={1 / store.zoom}
-                  onClick={({ isDouble }) => {
-                    if (!isDouble || selectedElements.length !== 1) return;
-                    if (dragTarget.type === "text") beginTextEditing(dragTarget.id);
-                    if (dragTarget.type === "image") setCroppingId(dragTarget.id);
-                  }}
+                  onClick={focusClickedSelection}
+                  onClickGroup={focusClickedSelection}
                   onDragStart={() => {
+                    gestureMoved.current = false;
                     dragOrigins.current = dragFamily(activeElements, selectedElements.filter((item) => !item.locked).map((item) => item.id));
                     snapPeers.current = peerBoxes(activeElements, new Set(dragOrigins.current.map((item) => item.id)));
                   }}
-                  onDrag={({ left, top, inputEvent, target: elementTarget }) => {
-                    const origin = dragOrigins.current.find((item) => item.id === dragTarget.id);
-                    if (!origin) return;
-                    const snapped = shiftHeld(inputEvent)
-                      ? snapMove(
-                        { x: left, y: top, width: dragTarget.width, height: dragTarget.height },
-                        snapPeers.current,
-                        deck.size,
-                        snapThreshold(store.zoom),
-                      )
-                      : { x: left, y: top, guides: [] as SnapGuide[] };
-                    const dx = snapped.x - origin.x;
-                    const dy = snapped.y - origin.y;
-                    elementTarget.style.left = `${snapped.x}px`;
-                    elementTarget.style.top = `${snapped.y}px`;
-                    setSnapGuides(snapped.guides);
-                    store.preview((draft) => {
-                      for (const start of dragOrigins.current) {
-                        const element = findElement(draft, slide.id, start.id);
-                        if (!element) continue;
-                        element.x = start.x + dx;
-                        element.y = start.y + dy;
-                        if (element.type === "vector" && element.kind === "connector") {
-                          if (element.from && start.from && !start.from.bound) { element.from.x = start.from.x + dx; element.from.y = start.from.y + dy; }
-                          if (element.to && start.to && !start.to.bound) { element.to.x = start.to.x + dx; element.to.y = start.to.y + dy; }
-                        }
-                        const node = document.getElementById(`element-${start.id}`);
-                        if (node && start.id !== dragTarget.id) {
-                          node.style.left = `${element.x}px`;
-                          node.style.top = `${element.y}px`;
-                        }
-                      }
-                      if (batchShapeEdit) for (const start of dragOrigins.current) syncNamedShapes(draft, slide.id, start.id);
-                    });
+                  onDragGroupStart={() => {
+                    gestureMoved.current = false;
+                    dragOrigins.current = dragFamily(activeElements, selectedElements.filter((item) => !item.locked).map((item) => item.id));
+                    snapPeers.current = peerBoxes(activeElements, new Set(dragOrigins.current.map((item) => item.id)));
+                  }}
+                  onDrag={({ left, top, inputEvent, target: elementTarget }) => moveByPointer(left, top, inputEvent, elementTarget)}
+                  onDragGroup={(event) => {
+                    const primary = event.events.find((item) => item.target.id === `element-${dragTarget.id}`) ?? event.events[0];
+                    if (primary) moveByPointer(primary.left, primary.top, primary.inputEvent, primary.target);
                   }}
                   onDragEnd={() => {
+                    if (gestureMoved.current) rememberGesture();
+                    setSnapGuides([]);
+                    store.commit();
+                  }}
+                  onDragGroupEnd={() => {
+                    if (gestureMoved.current) rememberGesture();
                     setSnapGuides([]);
                     store.commit();
                   }}
                   onResizeStart={() => {
+                    gestureMoved.current = false;
                     snapPeers.current = peerBoxes(activeElements, store.selectedElementIds);
                     snapHold.current = [];
                     groupResize.current = dragTarget.type === "group" ? {
                       origin: { x: dragTarget.x, y: dragTarget.y, width: dragTarget.width, height: dragTarget.height },
-                      members: descendants(activeElements, dragTarget.id).map((item) => ({
-                        id: item.id, x: item.x, y: item.y, width: item.width, height: item.height,
-                        from: item.type === "vector" && item.from ? { x: item.from.x, y: item.from.y } : undefined,
-                        to: item.type === "vector" && item.to ? { x: item.to.x, y: item.to.y } : undefined
-                      }))
+                      members: descendants(activeElements, dragTarget.id).map((item) => vectorSnapshot(item))
                     } : undefined;
                   }}
+                  onResizeGroupStart={() => {
+                    gestureMoved.current = false;
+                    multiResize.current = moveIds.flatMap((id) => {
+                      const element = activeElements.find((item) => item.id === id);
+                      if (!element) return [];
+                      return [{
+                        id,
+                        origin: { x: element.x, y: element.y, width: element.width, height: element.height },
+                        members: [element, ...descendants(activeElements, id)].map((item) => vectorSnapshot(item))
+                      }];
+                    });
+                  }}
                   onResize={({ width, height, drag, direction, inputEvent, target: elementTarget }) => {
+                    gestureMoved.current = true;
                     const edges = resizeEdges(direction);
                     const snapped = shiftHeld(inputEvent)
                       ? snapResize(
@@ -686,8 +762,30 @@ export default function App() {
                     });
                   }}
                   onResizeEnd={() => {
+                    if (gestureMoved.current) rememberGesture();
                     snapHold.current = [];
                     setSnapGuides([]);
+                    store.commit();
+                  }}
+                  onResizeGroup={(event) => {
+                    gestureMoved.current = true;
+                    store.preview((draft) => {
+                      const elements = hostElements(draft, slide.id);
+                      for (const ev of event.events) {
+                        const id = ev.target.id.startsWith("element-") ? ev.target.id.slice("element-".length) : "";
+                        const snap = multiResize.current.find((item) => item.id === id);
+                        if (!snap) continue;
+                        const next = { x: ev.drag.left, y: ev.drag.top, width: Math.max(1, ev.width), height: Math.max(1, ev.height) };
+                        scaleMembers(elements, snap.members, snap.origin, next);
+                        ev.target.style.left = `${next.x}px`;
+                        ev.target.style.top = `${next.y}px`;
+                        ev.target.style.width = `${next.width}px`;
+                        ev.target.style.height = `${next.height}px`;
+                      }
+                    });
+                  }}
+                  onResizeGroupEnd={() => {
+                    if (gestureMoved.current) rememberGesture();
                     store.commit();
                   }}
                   onRotate={({ rotation, target: elementTarget }) => {
@@ -698,6 +796,7 @@ export default function App() {
                 />
               )}
               {selected && (selected.type === "image" || selected.type === "video") && <MediaControls element={selected} cropping={cropping} zoom={store.zoom} preview={(patch) => store.preview((draft) => Object.assign(findElement(draft, slide.id, selected.id)!, patch))} commit={store.commit} finishCrop={() => setCroppingId(undefined)} />}
+              {selectedElements.length === 1 && selected?.type === "vector" && selected.kind !== "svg" && <VectorHandles element={selected} peers={activeElements} zoom={store.zoom} preview={(fn) => store.preview((draft) => { const target = findElement(draft, slide.id, selected.id); if (target?.type === "vector") fn(target); })} commit={store.commit} />}
               {editingText && <InlineTextEditor ref={inlineTextEditor} element={editingText} selectAll={selectAllOnEdit} preview={(markdown) => { store.preview((draft) => { const element = findElement(draft, slide.id, editingText.id); if (element?.type === "text") element.markdown = markdown; }); store.scheduleCommit(); }} finish={() => { store.commit(); setEditingTextId(undefined); }} />}
               {collaboration.peers.filter((peer) => peer.slideId === slide.id).flatMap((peer) => peer.elementIds.flatMap((id) => {
                 const element = slide.elements.find((item) => item.id === id);
@@ -1129,6 +1228,56 @@ function TransitionControls({ transition, update, applyAll }: { transition: Tran
 
 type MediaElement = Extract<SlideElement, { type: "image" | "video" }>;
 
+function VectorHandles({ element, peers, zoom, preview, commit }: { element: Extract<SlideElement, { type: "vector" }>; peers: readonly SlideElement[]; zoom: number; preview(fn: (target: Extract<SlideElement, { type: "vector" }>) => void): void; commit(): void }) {
+  const size = 14 / zoom;
+  if (element.kind === "connector" && element.from && element.to) {
+    const bend = connectorBendPoint(element.from, element.to, element.routing, element.bend);
+    const dragEndpoint = (end: "from" | "to") => (event: ReactPointerEvent<HTMLButtonElement>) => {
+      const initial = { ...(end === "from" ? element.from! : element.to!) };
+      startPointerDrag(event, (deltaX, deltaY) => {
+        const local = localPointerDelta(deltaX, deltaY, 0, zoom);
+        const point = { x: initial.x + local.x, y: initial.y + local.y };
+        const snapped = nearestAnchor(point, peers, element.id, 24 / zoom);
+        preview((target) => { target[end] = snapped ?? { x: point.x, y: point.y, anchor: "center" }; });
+      }, commit);
+    };
+    const dragBend = (event: ReactPointerEvent<HTMLButtonElement>) => {
+      startPointerDrag(event, (deltaX, deltaY) => {
+        const local = localPointerDelta(deltaX, deltaY, 0, zoom);
+        const point = { x: bend.x + local.x, y: bend.y + local.y };
+        preview((target) => {
+          target.routing = target.routing === "elbow" ? "elbow" : "curve";
+          target.bend = point;
+        });
+      }, commit);
+    };
+    return <div className="media-controls" style={{ inset: 0 }}>
+      <button type="button" className="media-handle vector-anchor" title="Drag the start. It snaps onto another object." aria-label="Move arrow start" style={{ left: element.from.x, top: element.from.y, width: size, height: size }} onPointerDown={dragEndpoint("from")} />
+      <button type="button" className="media-handle vector-bend" title="Drag to bend the arrow" aria-label="Bend arrow" style={{ left: bend.x, top: bend.y, width: size, height: size }} onPointerDown={dragBend} />
+      <button type="button" className="media-handle vector-anchor" title="Drag the end. It snaps onto another object." aria-label="Move arrow end" style={{ left: element.to.x, top: element.to.y, width: size, height: size }} onPointerDown={dragEndpoint("to")} />
+    </div>;
+  }
+  if (element.kind !== "path") return null;
+  const handles = pathHandles(element.d);
+  const dragHandle = (handle: PathHandle) => (event: ReactPointerEvent<HTMLButtonElement>) => {
+    startPointerDrag(event, (deltaX, deltaY) => {
+      const local = localPointerDelta(deltaX, deltaY, element.rotation, zoom);
+      const x = clamp(handle.x + (local.x / Math.max(1, element.width)) * 100, -20, 120);
+      const y = clamp(handle.y + (local.y / Math.max(1, element.height)) * 100, -20, 120);
+      preview((target) => { target.d = movePathHandle(target.d, handle.segment, handle.field, x, y); });
+    }, commit);
+  };
+  return <div className="media-controls" style={{ left: element.x, top: element.y, width: element.width, height: element.height, transform: `rotate(${element.rotation}deg)` }}>
+    <svg className="vector-guides" viewBox="0 0 100 100" preserveAspectRatio="none">
+      {handles.filter((handle) => handle.kind === "control").map((handle) => {
+        const anchor = handles.find((item) => item.kind === "anchor" && item.segment === handle.linkSegment);
+        if (!anchor) return null;
+        return <line key={`${handle.segment}-${handle.field}`} x1={handle.x} y1={handle.y} x2={anchor.x} y2={anchor.y} stroke="#2563eb" strokeWidth={1} vectorEffect="non-scaling-stroke" />;
+      })}
+    </svg>
+    {handles.map((handle) => <button key={`${handle.segment}-${handle.field}`} type="button" className={`media-handle ${handle.kind === "anchor" ? "vector-anchor" : "vector-bend"}`} title={handle.kind === "anchor" ? "Drag this point" : "Drag this curve handle"} aria-label={handle.kind === "anchor" ? "Move path point" : "Move curve handle"} style={{ left: `${handle.x}%`, top: `${handle.y}%`, width: size, height: size }} onPointerDown={dragHandle(handle)} />)}
+  </div>;
+}
 function MediaControls({ element, cropping, zoom, preview, commit, finishCrop }: { element: MediaElement; cropping: boolean; zoom: number; preview(patch: Partial<MediaElement>): void; commit(): void; finishCrop(): void }) {
   const maxRadius = Math.max(1, Math.min(element.width, element.height) / 2);
   const radius = Math.min(maxRadius, element.borderRadius);
@@ -1377,6 +1526,20 @@ function Inspector({ collapsed, onToggleCollapse, tab, setTab, deck, slide, elem
     });
     scheduleCommit();
   };
+  const updateGeometry = (patch: Partial<SlideElement>) => {
+    if (!element) return;
+    if (selectedIds.length < 2) {
+      updateContinuous(patch);
+      return;
+    }
+    preview((draft) => {
+      const elements = hostElements(draft, slide.id);
+      const primary = elements.find((item) => item.id === element.id);
+      if (!primary) return;
+      applySelectionGeometry(elements, selectedIds, primary, patch);
+    });
+    scheduleCommit();
+  };
   const editShape = (fn: (target: Extract<SlideElement, { type: "shape" }>) => void, live = true) => {
     if (!element) return;
     const apply = (draft: Deck) => {
@@ -1405,11 +1568,11 @@ function Inspector({ collapsed, onToggleCollapse, tab, setTab, deck, slide, elem
           <DuplicateFollowing deck={deck} slideId={slide.id} elementId={element.id} mutate={mutate} />
           <h4 className="property-heading">Geometry</h4>
           <div className="field-grid geometry-grid">
-            <NumberField label="X" value={element.x} onChange={(x) => updateContinuous({ x })} onCommit={commit} />
-            <NumberField label="Y" value={element.y} onChange={(y) => updateContinuous({ y })} onCommit={commit} />
-            <NumberField label="W" value={element.width} min={0} onChange={(width) => updateContinuous(elementSizePatch(element, "width", width))} onCommit={commit} />
-            <NumberField label="H" value={element.height} min={0} onChange={(height) => updateContinuous(elementSizePatch(element, "height", height))} onCommit={commit} />
-            <NumberField label="Rotate" value={element.rotation} onChange={(rotation) => updateContinuous({ rotation })} onCommit={commit} />
+            <NumberField label="X" value={element.x} onChange={(x) => updateGeometry({ x })} onCommit={commit} />
+            <NumberField label="Y" value={element.y} onChange={(y) => updateGeometry({ y })} onCommit={commit} />
+            <NumberField label="W" value={element.width} min={0} onChange={(width) => updateGeometry(elementSizePatch(element, "width", width))} onCommit={commit} />
+            <NumberField label="H" value={element.height} min={0} onChange={(height) => updateGeometry(elementSizePatch(element, "height", height))} onCommit={commit} />
+            <NumberField label="Rotate" value={element.rotation} onChange={(rotation) => updateGeometry({ rotation })} onCommit={commit} />
             <NumberField label="Opacity" value={element.opacity} step={0.05} min={0} max={1} onChange={(opacity) => updateContinuous({ opacity })} onCommit={commit} />
           </div>
           <h4 className="property-heading">Appearance</h4>
@@ -1847,9 +2010,63 @@ function moveAligned(elements: SlideElement[], next: { id: string; x: number; y:
     }
   }
 }
+function applySelectionGeometry(elements: SlideElement[], selectedIds: readonly string[], primary: SlideElement, patch: Partial<SlideElement>): void {
+  const ids = topLevelIds(elements, selectedIds);
+  const originX = primary.x;
+  const originY = primary.y;
+  const originRotation = primary.rotation;
+  if (patch.width !== undefined || patch.height !== undefined) {
+    const sx = patch.width !== undefined ? patch.width / Math.max(1, primary.width) : 1;
+    const sy = patch.height !== undefined ? patch.height / Math.max(1, primary.height) : 1;
+    for (const id of ids) {
+      const item = elements.find((element) => element.id === id);
+      if (!item) continue;
+      const members = [item, ...descendants(elements, id)].map((member) => vectorSnapshot(member));
+      scaleMembers(elements, members, { x: item.x, y: item.y, width: item.width, height: item.height }, {
+        x: item.x,
+        y: item.y,
+        width: Math.max(1, item.width * sx),
+        height: Math.max(1, item.height * sy)
+      });
+    }
+  }
+  const dx = patch.x !== undefined ? patch.x - originX : 0;
+  const dy = patch.y !== undefined ? patch.y - originY : 0;
+  const dRot = patch.rotation !== undefined ? patch.rotation - originRotation : 0;
+  if (!dx && !dy && !dRot) return;
+  for (const id of ids) {
+    const item = elements.find((element) => element.id === id);
+    if (!item) continue;
+    shiftPose(item, dx, dy, dRot);
+    for (const child of descendants(elements, id)) shiftPose(child, dx, dy, 0);
+  }
+}
+function shiftPose(element: SlideElement, dx: number, dy: number, dRot: number): void {
+  element.x += dx;
+  element.y += dy;
+  element.rotation += dRot;
+  if (element.type !== "vector") return;
+  if (element.kind === "connector") {
+    if (element.from && !element.from.elementId) { element.from.x += dx; element.from.y += dy; }
+    if (element.to && !element.to.elementId) { element.to.x += dx; element.to.y += dy; }
+  }
+  if (element.bend) { element.bend.x += dx; element.bend.y += dy; }
+}
+function vectorSnapshot(item: SlideElement) {
+  return {
+    id: item.id,
+    x: item.x,
+    y: item.y,
+    width: item.width,
+    height: item.height,
+    from: item.type === "vector" && item.from ? { x: item.from.x, y: item.from.y } : undefined,
+    to: item.type === "vector" && item.to ? { x: item.to.x, y: item.to.y } : undefined,
+    bend: item.type === "vector" && item.bend ? { x: item.bend.x, y: item.bend.y } : undefined
+  };
+}
 function dragFamily(elements: readonly SlideElement[], ids: readonly string[]) {
   const seen = new Set<string>();
-  const result: { id: string; x: number; y: number; from?: { x: number; y: number; bound: boolean }; to?: { x: number; y: number; bound: boolean } }[] = [];
+  const result: { id: string; x: number; y: number; from?: { x: number; y: number; bound: boolean }; to?: { x: number; y: number; bound: boolean }; bend?: { x: number; y: number } }[] = [];
   for (const id of ids) {
     const root = elements.find((item) => item.id === id);
     if (!root) continue;
@@ -1861,7 +2078,8 @@ function dragFamily(elements: readonly SlideElement[], ids: readonly string[]) {
         x: item.x,
         y: item.y,
         from: item.type === "vector" && item.from ? { x: item.from.x, y: item.from.y, bound: Boolean(item.from.elementId) } : undefined,
-        to: item.type === "vector" && item.to ? { x: item.to.x, y: item.to.y, bound: Boolean(item.to.elementId) } : undefined
+        to: item.type === "vector" && item.to ? { x: item.to.x, y: item.to.y, bound: Boolean(item.to.elementId) } : undefined,
+        bend: item.type === "vector" && item.bend ? { x: item.bend.x, y: item.bend.y } : undefined
       });
     }
   }
@@ -1977,18 +2195,18 @@ function VectorFields({ element, peers, slideId, mutate, preview, scheduleCommit
   };
   const choices = peers.filter((item) => item.id !== element.id && item.type !== "vector");
   return <>
-    <p className="panel-help">{element.kind === "connector" ? "A connector follows the objects it is attached to." : element.kind === "svg" ? "Paste one SVG drawing. Scripts and external images are rejected." : "Path coordinates use a 0–100 box that stretches with the object."}</p>
+    <p className="panel-help">{element.kind === "connector" ? "Drag the blue points to move the ends. They snap onto another object. Drag the orange diamond to bend the arrow." : element.kind === "svg" ? "Paste one SVG drawing. Scripts and external images are rejected." : "Drag the points on the drawing. Path coordinates use a 0–100 box that stretches with the object."}</p>
     {element.kind !== "svg" && <>
       <ColorField label="Stroke" value={element.stroke} onChange={(stroke) => edit((target) => { target.stroke = stroke; })} onCommit={commit} />
       <NumberField label="Stroke width" value={element.strokeWidth} min={0} onChange={(strokeWidth) => edit((target) => { target.strokeWidth = Math.max(0, strokeWidth); })} onCommit={commit} />
       <ColorField label="Fill" value={element.fill} allowTransparent onChange={(fill) => edit((target) => { target.fill = fill; })} onCommit={commit} />
     </>}
     {element.kind === "connector" && <>
-      <label>Route<select value={element.routing} onChange={(event) => edit((target) => { target.routing = event.target.value as "straight" | "elbow" | "curve"; }, false)}><option value="straight">Straight</option><option value="elbow">Elbow</option><option value="curve">Curve</option></select></label>
+      <label>Route<select value={element.routing} onChange={(event) => edit((target) => { target.routing = event.target.value as "straight" | "elbow" | "curve"; if (target.routing === "straight") delete target.bend; }, false)}><option value="straight">Straight</option><option value="elbow">Elbow</option><option value="curve">Curve</option></select></label>
       <AnchorFields label="From" value={element.from} choices={choices} onChange={(from) => edit((target) => { target.from = from; }, false)} />
       <AnchorFields label="To" value={element.to} choices={choices} onChange={(to) => edit((target) => { target.to = to; }, false)} />
     </>}
-    {element.kind === "path" && <label>Path<textarea value={element.d} onChange={(event) => edit((target) => { target.d = event.target.value; })} onBlur={commit} /></label>}
+    {element.kind === "path" && <details><summary>Path commands</summary><label>Path<textarea value={element.d} onChange={(event) => edit((target) => { target.d = event.target.value; })} onBlur={commit} /></label></details>}
     {element.kind === "svg" && <label>SVG<textarea value={element.svg} onChange={(event) => edit((target) => { target.svg = event.target.value; })} onBlur={commit} /></label>}
     {element.kind !== "svg" && <>
       <label>Start<select value={element.markerStart} onChange={(event) => edit((target) => { target.markerStart = event.target.value as "none" | "arrow"; }, false)}><option value="none">None</option><option value="arrow">Arrow</option></select></label>
@@ -2087,8 +2305,9 @@ function LayoutFields({ deck, slide, mutate, setDesignTarget }: { deck: Deck; sl
     {slide.layout && deck.layouts[slide.layout] && <button className="edit-text-button" onClick={() => setDesignTarget({ kind: "layout", id: slide.layout! })}>Edit layout</button>}
   </>;
 }
-function handleHostMessage(message: HostToWebviewMessage, setDeck: (deck: Deck, revision: string, uri: string, linkedUri: string, history?: { canUndo?: boolean; canRedo?: boolean }) => void, setInvalid: (message: string, gitConflict: boolean, uri: string, linkedUri: string) => void, handleEditResult: (message: Extract<HostToWebviewMessage, { type: "documentEditResult" }>) => void, handleHistoryResult: (message: Extract<HostToWebviewMessage, { type: "historyResult" }>) => void, setBibliography: (source: string) => void) {
+function handleHostMessage(message: HostToWebviewMessage, setDeck: (deck: Deck, revision: string, uri: string, linkedUri: string, history?: { canUndo?: boolean; canRedo?: boolean }) => void, setInvalid: (message: string, gitConflict: boolean, uri: string, linkedUri: string) => void, handleEditResult: (message: Extract<HostToWebviewMessage, { type: "documentEditResult" }>) => void, handleHistoryResult: (message: Extract<HostToWebviewMessage, { type: "historyResult" }>) => void, setBibliography: (source: string) => void, setSelectionHighlight: (value: SelectionHighlight) => void) {
   if (message.type === "deck") setDeck(message.deck, message.revision, message.uri, message.linkedUri, { canUndo: message.canUndo, canRedo: message.canRedo });
+  else if (message.type === "editorSettings") setSelectionHighlight(message.selectionHighlight);
   else if (message.type === "bibliography") setBibliography(message.source);
   else if (message.type === "invalidDeck") setInvalid(message.message, message.gitConflict, message.uri, message.linkedUri);
   else if (message.type === "documentEditResult") handleEditResult(message);

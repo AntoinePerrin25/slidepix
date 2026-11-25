@@ -30,6 +30,7 @@ beforeEach(() => {
     selectedSlideId: undefined,
     selectedElementId: undefined,
     selectedElementIds: [],
+    designTarget: undefined,
     zoom: 0.5,
     dirty: false,
     pending: undefined,
@@ -210,6 +211,27 @@ describe("element selection", () => {
     expect(useDeckStore.getState().selectedElementIds).toEqual(["element-b"]);
     useDeckStore.getState().selectSlide("slide-b");
     expect(useDeckStore.getState().selectedElementIds).toEqual([]);
+  });
+
+  it("keeps a multi-selection and a component selection after the host echoes the deck", () => {
+    const base = fixture();
+    const inside = structuredClone(base.slides[0]!.elements[0]!);
+    inside.id = "inside";
+    inside.morphKey = "inside-morph";
+    const sibling = structuredClone(base.slides[0]!.elements[0]!);
+    sibling.id = "element-c";
+    sibling.morphKey = "element-c";
+    base.slides[0]!.elements.push(sibling);
+    base.components.widget = { name: "Widget", width: 200, height: 80, elements: [inside] };
+    useDeckStore.getState().setFromHost(base, "revision-0", "asset", "linked");
+    useDeckStore.getState().selectElement("element-a");
+    useDeckStore.getState().selectElement("element-c", true);
+    useDeckStore.getState().setFromHost(structuredClone(base), "revision-1", "asset", "linked");
+    expect(useDeckStore.getState().selectedElementIds).toEqual(["element-a", "element-c"]);
+    useDeckStore.getState().setDesignTarget({ kind: "component", id: "widget" });
+    useDeckStore.getState().selectElement("inside");
+    useDeckStore.getState().setFromHost(structuredClone(base), "revision-2", "asset", "linked");
+    expect(useDeckStore.getState().selectedElementIds).toEqual(["inside"]);
   });
 });
 

@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import * as path from "node:path";
 import * as vscode from "vscode";
-import { manimSettingsFingerprint, parseDeckText, serializeDeck, type Deck, type HostToWebviewMessage, type WebviewToHostMessage } from "@slidepix/core";
+import { manimSettingsFingerprint, parseDeckText, serializeDeck, type Deck, type HostToWebviewMessage, type SelectionHighlight, type WebviewToHostMessage } from "@slidepix/core";
 import { deckAssetDirectory, resolveMediaPath } from "@slidepix/core/assets";
 
 import { exportPptx } from "./pptx-export-command";
@@ -107,8 +107,9 @@ export class SlidePixEditorProvider implements vscode.CustomTextEditorProvider {
     const changes = vscode.workspace.onDidChangeTextDocument((event) => this.updatePanels(event.document));
     const saves = vscode.workspace.onDidSaveTextDocument((document) => this.schedulePresentationReload(document.uri.toString(), true));
     const tabs = vscode.window.tabGroups.onDidChangeTabs((event) => { for (const tab of [...event.opened, ...event.changed]) this.watchTab(tab); });
+    const settings = vscode.workspace.onDidChangeConfiguration((event) => { if (event.affectsConfiguration("slidepix.selection.highlight")) this.postEditorSettings(); });
     for (const group of vscode.window.tabGroups.all) for (const tab of group.tabs) this.watchTab(tab);
-    return vscode.Disposable.from(provider, changes, saves, tabs, this.recovery, { dispose: () => { for (const timer of this.presentationReloads.values()) clearTimeout(timer); for (const session of this.sessions.values()) session.dispose(); for (const watcher of this.bibliographyWatchers.values()) watcher.dispose(); } });
+    return vscode.Disposable.from(provider, changes, saves, tabs, settings, this.recovery, { dispose: () => { for (const timer of this.presentationReloads.values()) clearTimeout(timer); for (const session of this.sessions.values()) session.dispose(); for (const watcher of this.bibliographyWatchers.values()) watcher.dispose(); } });
   }
 
   async resolveCustomTextEditor(document: vscode.TextDocument, panel: vscode.WebviewPanel): Promise<void> {
@@ -235,6 +236,11 @@ export class SlidePixEditorProvider implements vscode.CustomTextEditorProvider {
     return saved ?? (buffer?.ok ? buffer.deck : undefined);
   }
 
+  private postEditorSettings(): void {
+    const message = editorSettingsMessage();
+    for (const set of this.panels.values()) for (const panel of set) void panel.webview.postMessage(message);
+  }
+
   private postDeck(document: vscode.TextDocument, panel: vscode.WebviewPanel): void {
     const text = document.getText();
     const parsed = parseDeckText(text);
@@ -355,6 +361,7 @@ export class SlidePixEditorProvider implements vscode.CustomTextEditorProvider {
     }
     if (message.type === "ready") {
       this.postDeck(document, panel);
+      void panel.webview.postMessage(editorSettingsMessage());
       this.live?.announce(document);
       return;
     }
@@ -1124,6 +1131,16 @@ function mediaKind(filePath: string): "image" | "video" | undefined {
 
 function hasGitConflictMarkers(text: string): boolean {
   return /^(?:<{7}|={7}|>{7})(?: |$)/m.test(text);
+}
+
+function editorSettingsMessage(): Extract<HostToWebviewMessage, { type: "editorSettings" }> {
+  return { version: 2, type: "editorSettings", selectionHighlight: selectionHighlightSetting() };
+}
+
+function selectionHighlightSetting(): SelectionHighlight {
+  const value = vscode.workspace.getConfiguration("slidepix").get<string>("selection.highlight", "dim-and-blink");
+  if (value === "outline" || value === "dim-others" || value === "blink" || value === "dim-and-blink") return value;
+  return "dim-and-blink";
 }
 
 function editResult(

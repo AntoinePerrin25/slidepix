@@ -145,7 +145,7 @@ export function ungroupElements(elements: SlideElement[], groupId: string): bool
   return true;
 }
 
-export function scaleMembers(elements: SlideElement[], snapshots: readonly { id: string; x: number; y: number; width: number; height: number; from?: { x: number; y: number }; to?: { x: number; y: number } }[], origin: Box, next: Box): void {
+export function scaleMembers(elements: SlideElement[], snapshots: readonly { id: string; x: number; y: number; width: number; height: number; from?: { x: number; y: number }; to?: { x: number; y: number }; bend?: { x: number; y: number } }[], origin: Box, next: Box): void {
   const sx = origin.width === 0 ? 1 : next.width / origin.width;
   const sy = origin.height === 0 ? 1 : next.height / origin.height;
   for (const snapshot of snapshots) {
@@ -163,6 +163,12 @@ export function scaleMembers(elements: SlideElement[], snapshots: readonly { id:
       if (element.to && snapshot.to && !element.to.elementId) {
         element.to.x = next.x + (snapshot.to.x - origin.x) * sx;
         element.to.y = next.y + (snapshot.to.y - origin.y) * sy;
+      }
+      if (element.bend && snapshot.bend) {
+        element.bend = {
+          x: next.x + (snapshot.bend.x - origin.x) * sx,
+          y: next.y + (snapshot.bend.y - origin.y) * sy
+        };
       }
     }
   }

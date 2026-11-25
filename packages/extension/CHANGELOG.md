@@ -6,7 +6,9 @@
 
 - Add in-place Markdown editing. Double-click a text box, or select it and press Enter or F2. Escape or Ctrl/Cmd+Enter finishes. Bold, italic, and lists apply to the current selection. The advanced editor keeps a live preview for LaTeX and highlighted code.
 - Add a compact PowerPoint-style ribbon that collapses to icons when the editor is narrow. Insert text, images, video, shapes, tables, and Manim stills or videos from the toolbar.
-- Shift-click to multi-select. Align to the page or the selection, center on the page, and distribute three or more unlocked items. Dragging one selected item moves the unlocked selection. Hold Shift to snap to other items and the slide edges.
+- Shift-click to multi-select. Align to the page or the selection, center on the page, and distribute three or more unlocked items. Dragging or resizing one selected item keeps the whole unlocked selection. Hold Shift to snap to other items and the slide edges.
+- `slidepix.selection.highlight` shows a group or a multi-selection by dimming the other elements to half opacity, pulsing the selected elements by opacity, or both. The default is both. The deck does not store this.
+- Drag the ends of an arrow to move it; the ends snap onto another object. Drag the orange handle to bend it. The arrowhead tip meets the end of the line.
 - Copy and paste elements between slides with a typed clipboard. A copy onto another slide keeps its morph name.
 - Drag slide thumbnails to reorder them. Insert a slide between two slides, and apply one incoming transition to every slide.
 - Zoom with Ctrl/Cmd+wheel and the canvas zoom controls. Collapse speaker notes, the slide rail, and the inspector without changing the deck.
@@ -31,6 +33,7 @@
 ### Presentation
 
 - Advance entrance animations before changing slides. Previous and next restore a completed animation state or the initial state.
+- A morph interpolates text color, shape fill, borders, and vector strokes in OKLCH.
 - Pause video when leaving a slide or hiding the presentation.
 - Double-buffer presenter previews so the current and next slides do not flash black.
 

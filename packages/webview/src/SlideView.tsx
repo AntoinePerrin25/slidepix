@@ -1,5 +1,6 @@
 import { bibliographyBody, chartMarkup, expandCitationMarkers, formatPageLabel, isPlaceholderImage, manimScriptFileLabel, paintLayoutElements, renderMarkdown, roundedEdgeFadeMask, vectorMarkup, type Citation, type Deck, type MediaStorage, type Slide, type SlideElement } from "@slidepix/core";
 import { useEffect, useRef, useState, type CSSProperties, type MouseEvent, type PointerEvent as ReactPointerEvent } from "react";
+import { coveredBySelectedGroup } from "./selection";
 
 type Props = {
   deck: Deck;
@@ -7,6 +8,9 @@ type Props = {
   scale?: number;
   interactive?: boolean;
   selectedElementIds?: string[];
+  emphasizedIds?: readonly string[];
+  dimUnselected?: boolean;
+  blinkSelected?: boolean;
   editingElementId?: string;
   resolveAsset?: (source: string, storage: MediaStorage) => string;
   citations?: readonly Citation[];
@@ -24,6 +28,9 @@ export function SlideView({
   scale = 1,
   interactive = false,
   selectedElementIds = [],
+  emphasizedIds = [],
+  dimUnselected = false,
+  blinkSelected = false,
   editingElementId,
   resolveAsset = (value) => value,
   citations = [],
@@ -40,6 +47,8 @@ export function SlideView({
   const backgroundImage = backgroundSource ? `url("${resolveAsset(backgroundSource.src, backgroundSource.storage)}")` : undefined;
   const visibleSlides = deck.slides.filter((item) => !item.hidden);
   const pageIndex = visibleSlides.findIndex((item) => item.id === slide.id);
+  const emphasized = new Set(emphasizedIds);
+  const covered = coveredBySelectedGroup(slide.elements, selectedElementIds);
   const stop = (event: MouseEvent, id: string) => {
     if (!interactive) return;
     event.stopPropagation();
@@ -63,6 +72,8 @@ export function SlideView({
           indent={deck.bibliography.indent}
           interactive={interactive && Boolean(element.placeholder)}
           selected={selectedElementIds.includes(`slot:${element.id}`)}
+          dimmed={dimUnselected && !selectedElementIds.includes(`slot:${element.id}`)}
+          blink={false}
           editing={false}
           resolveAsset={resolveAsset}
           layoutSlot
@@ -84,7 +95,10 @@ export function SlideView({
           citationFormat={deck.bibliography.citationFormat}
           indent={deck.bibliography.indent}
           interactive={interactive}
-          selected={selectedElementIds.includes(element.id)}
+          selected={emphasized.has(element.id)}
+          dimmed={dimUnselected && !emphasized.has(element.id)}
+          blink={blinkSelected && emphasized.has(element.id)}
+          passThrough={covered.has(element.id)}
           editing={editingElementId === element.id}
           resolveAsset={resolveAsset}
           onMouseDown={(event) => stop(event, element.id)}
@@ -109,6 +123,9 @@ function ElementView({
   indent,
   interactive,
   selected,
+  dimmed = false,
+  blink = false,
+  passThrough = false,
   editing,
   resolveAsset,
   layoutSlot = false,
@@ -123,6 +140,9 @@ function ElementView({
   indent: number;
   interactive: boolean;
   selected: boolean;
+  dimmed?: boolean;
+  blink?: boolean;
+  passThrough?: boolean;
   editing: boolean;
   resolveAsset: (source: string, storage: MediaStorage) => string;
   layoutSlot?: boolean;
@@ -136,14 +156,15 @@ function ElementView({
     width: element.width,
     height: element.height,
     transform: `rotate(${element.rotation}deg)`,
-    opacity: element.opacity,
+    ["--paint-opacity" as string]: dimmed ? element.opacity * 0.5 : element.opacity,
+    opacity: dimmed ? element.opacity * 0.5 : element.opacity,
     zIndex: element.z,
-    pointerEvents: element.locked || (layoutSlot && !element.placeholder) ? "none" : undefined
+    pointerEvents: passThrough || element.locked || (layoutSlot && !element.placeholder) ? "none" : undefined
   };
   return (
     <div
       id={interactive && !layoutSlot ? `element-${element.id}` : undefined}
-      className={`slide-element ${selected ? "selected" : ""} ${editing ? "editing" : ""} ${layoutSlot ? "layout-slot" : ""} ${element.type === "group" ? "group-frame" : ""}`}
+      className={`slide-element ${selected ? "selected" : ""} ${blink ? "selection-blink" : ""} ${editing ? "editing" : ""} ${layoutSlot ? "layout-slot" : ""} ${element.type === "group" ? "group-frame" : ""}`}
       title={interactive && element.type === "text" ? "Double-click to edit text" : undefined}
       data-element-id={element.id}
       style={style}

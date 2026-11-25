@@ -466,6 +466,7 @@ function placeComponentChild(child: SlideElement, instance: Extract<SlideElement
     delete placed.from.elementId;
     placed.to = { ...to, x: instance.x + to.x * sx, y: instance.y + to.y * sy };
     delete placed.to.elementId;
+    if (placed.bend) placed.bend = { x: instance.x + placed.bend.x * sx, y: instance.y + placed.bend.y * sy };
     syncVectors([placed], [placed]);
   }
   return placed;

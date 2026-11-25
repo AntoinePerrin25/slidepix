@@ -286,7 +286,18 @@ export const useDeckStore = create<DeckStore>((set, get) => {
 function selectionState(state: DeckStore, deck: Deck, patch: Partial<DeckStore>): Partial<DeckStore> {
   const selectedSlideId = deck.slides.some((slide) => slide.id === state.selectedSlideId) ? state.selectedSlideId : deck.slides[0]?.id;
   const slide = deck.slides.find((item) => item.id === selectedSlideId);
-  const selectedElementIds = (state.selectedElementIds ?? []).filter((id) => slide?.elements.some((element) => element.id === id));
+  const design = state.designTarget;
+  const designElements = design?.kind === "layout"
+    ? deck.layouts[design.id]?.elements
+    : design?.kind === "component"
+      ? deck.components[design.id]?.elements
+      : undefined;
+  const pool = designElements ?? slide?.elements ?? [];
+  const layout = slide?.layout ? deck.layouts[slide.layout] : undefined;
+  const selectedElementIds = (state.selectedElementIds ?? []).filter((id) => {
+    if (id.startsWith("slot:")) return Boolean(layout?.elements.some((element) => element.id === id.slice(5)));
+    return pool.some((element) => element.id === id);
+  });
   const selectedElementId = selectedElementIds.includes(state.selectedElementId ?? "") ? state.selectedElementId : selectedElementIds.at(-1);
   return { ...patch, selectedSlideId, selectedElementId, selectedElementIds };
 }

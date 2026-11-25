@@ -69,7 +69,9 @@ Add security tests for path-handling changes.
 connector geometry, chart markup, group membership, and the layout/component
 paint order. `render.ts` and the editor call those helpers instead of keeping
 a second implementation. `syncDeckGeometry` rewrites connector boxes from
-their anchors before a deck is painted or saved.
+their anchors before a deck is painted or saved. An arrow marker is a triangle
+whose tip is the path end; the stroke stops at the base of that triangle.
+`src/color.ts` converts solid CSS colors to OKLCH for the morph runtime.
 
 ### `src/render.ts`
 
@@ -116,7 +118,10 @@ the editor, so it follows corner radius rather than producing square corners.
 Shape shadows use CSS drop shadows so triangles and ellipses follow their
 silhouette.
 Morph matches a trimmed element name that is unique on each slide. A blank or
-repeated name does not match, so that object fades in. Presentation state is
+repeated name does not match, so that object fades in. Matched text color,
+shape fill, shape and image borders, table borders, and vector strokes
+interpolate in OKLCH: both animation endpoints are `oklch()` colors from
+`src/color.ts`. Presentation state is
 initialized before a destination morph starts; otherwise timeline reset would
 immediately cancel the new Web Animations. The runtime
 also tolerates browsers that omit `Element.getAnimations`. Directional slide
@@ -155,7 +160,8 @@ completion or failure replaces the progress toast without changing protocol
 version 2. `presence`, `collaboration`, and `assetsUpdated` are compatible
 live-collaboration messages and did not change protocol version 2. `copyText`
 asks the host to write one string to the clipboard and did not change protocol
-version 2.
+version 2. `editorSettings` carries the editor-only selection highlight and did
+not change protocol version 2.
 
 Deck messages carry an opaque exact-text revision. Replacement requests echo
 their base revision and receive an explicit accepted, stale, invalid, or failed

@@ -171,11 +171,22 @@ always calls its resolver with both `src` and `storage`, including thumbnails.
   edges and center. Resize snaps only the dragged edges, and stays on a guide
   until the pointer pulls away. The catch radius is 24 CSS pixels, divided by
   canvas zoom. Guidelines are overlay lines on the canvas frame (no distance
-  digits). Shift-click adds items to the selection. The
-  contextual toolbar aligns left/center/right and top/middle/bottom to the
+  digits). Shift-click adds items to the selection. Pressing an item that is
+  already selected, or a child of a selected group, keeps that selection so a
+  drag, resize, or geometry edit does not drop it. A click without a drag
+  reduces a multi-selection to that item. Children of a selected group do not
+  take the hit. The host setting `slidepix.selection.highlight` can draw the
+  other elements at half opacity, pulse the selected elements by opacity, or
+  both. The default is both. The effect is editor-only.
+  The contextual toolbar aligns left/center/right and top/middle/bottom to the
   page or the selection, centers on the page, and distributes three or more
   unlocked items by centers or equal gaps. Dragging one selected item moves
-  the whole unlocked selection.
+  the whole unlocked selection. Resizing several items scales each one, and
+  its group members, from its own box. Geometry fields apply the same delta
+  or scale to every selected item.
+- A selected arrow shows draggable ends that snap to another element's side
+  or center, and an orange bend handle. A path shows a handle on each point
+  and curve control. Connector boxes are not resized from their bounds.
 - Image and video Properties include **Keep original aspect ratio**, on by
   default for newly inserted media. Turning it on measures the source ratio
   and fits the box inside the slide. Later width edits, including a width

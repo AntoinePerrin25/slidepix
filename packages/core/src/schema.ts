@@ -247,6 +247,8 @@ export const vectorElementSchema = baseElementSchema.extend({
   markerStart: z.enum(["none", "arrow"]).default("none"),
   markerEnd: z.enum(["none", "arrow"]).default("none"),
   routing: z.enum(["straight", "elbow", "curve"]).default("straight"),
+  /** Slide-space bend for an elbow corner or a curve pull. Straight connectors ignore it. */
+  bend: z.object({ x: finite, y: finite }).optional(),
   from: vectorAnchorSchema.optional(),
   to: vectorAnchorSchema.optional()
 });
