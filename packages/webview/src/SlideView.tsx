@@ -20,6 +20,8 @@ type Props = {
   onEditText?: (id: string) => void;
   onEditImage?: (id: string) => void;
   onEditComponent?: (componentId: string) => void;
+  onEditChart?: (id: string) => void;
+  onChartValue?: (id: string, seriesIndex: number, rowIndex: number, value: number | "focus" | "commit") => void;
 };
 
 export function SlideView({
@@ -39,7 +41,9 @@ export function SlideView({
   onSelectElement,
   onEditText,
   onEditImage,
-  onEditComponent
+  onEditComponent,
+  onEditChart,
+  onChartValue
 }: Props) {
   const layout = deck.layouts[slide.layout ?? ""];
   const background = slide.background ?? layout?.background ?? deck.theme.background;
@@ -102,10 +106,12 @@ export function SlideView({
           editing={editingElementId === element.id}
           resolveAsset={resolveAsset}
           onMouseDown={(event) => stop(event, element.id)}
+          onChartValue={onChartValue}
           onDoubleClick={() => {
             if (element.type === "text") onEditText?.(element.id);
             if (element.type === "image" && !isPlaceholderImage(element)) onEditImage?.(element.id);
             if (element.type === "component") onEditComponent?.(element.componentId);
+            if (element.type === "chart") onEditChart?.(element.id);
           }}
         />
       ))}
@@ -130,7 +136,8 @@ function ElementView({
   resolveAsset,
   layoutSlot = false,
   onMouseDown,
-  onDoubleClick
+  onDoubleClick,
+  onChartValue
 }: {
   element: SlideElement;
   peers: readonly SlideElement[];
@@ -148,6 +155,7 @@ function ElementView({
   layoutSlot?: boolean;
   onMouseDown: (event: MouseEvent) => void;
   onDoubleClick: () => void;
+  onChartValue?: (id: string, seriesIndex: number, rowIndex: number, value: number | "focus" | "commit") => void;
 }) {
   if (element.hidden) return null;
   const style: CSSProperties = {
@@ -212,7 +220,7 @@ function ElementView({
         />
       )}
       {element.type === "vector" && <div className="vector-frame" dangerouslySetInnerHTML={{ __html: vectorMarkup(element) || `<div class="drawing-placeholder">SVG</div>` }} />}
-      {element.type === "chart" && <div className="chart-frame" dangerouslySetInnerHTML={{ __html: chartMarkup(element, peers.filter((item) => item.type === "table")) }} />}
+      {element.type === "chart" && <div className="chart-frame" dangerouslySetInnerHTML={{ __html: chartMarkup(element, peers.filter((item) => item.type === "table")) }} onMouseDown={(event) => { if (selected && (event.target as Element).closest?.("[data-chart-row]")) event.stopPropagation(); }} onPointerDown={(event) => dragChartMark(event, element, selected, onChartValue)} />}
       {element.type === "component" && <ComponentView element={element} component={components[element.componentId]} citations={citations} citationFormat={citationFormat} indent={indent} resolveAsset={resolveAsset} />}
       {element.type === "table" && (
         <table
@@ -459,4 +467,39 @@ function boxStyle(box: ChromeBox): CSSProperties {
 
 function chromeStyle(item: { x: number; y: number; width: number; height: number; color: string; fontSize: number; align: "left" | "center" | "right" }): CSSProperties {
   return { left: item.x, top: item.y, width: item.width, height: item.height, color: item.color, fontSize: item.fontSize, textAlign: item.align };
+}
+
+function dragChartMark(event: ReactPointerEvent, element: Extract<SlideElement, { type: "chart" }>, selected: boolean, onChartValue?: (id: string, seriesIndex: number, rowIndex: number, value: number | "focus" | "commit") => void): void {
+  if (!selected || !onChartValue || event.button !== 0) return;
+  const mark = (event.target as Element).closest?.("[data-chart-row]");
+  if (!(mark instanceof SVGElement)) return;
+  event.stopPropagation();
+  event.preventDefault();
+  const row = Number(mark.dataset.chartRow);
+  const series = Number(mark.dataset.chartSeries);
+  const startValue = Number(mark.dataset.chartValue);
+  const plotH = Number(mark.dataset.plotH);
+  const min = Number(mark.dataset.min);
+  const max = Number(mark.dataset.max);
+  const svg = mark.ownerSVGElement;
+  const bounds = svg?.getBoundingClientRect();
+  const viewHeight = svg?.viewBox.baseVal.height || bounds?.height || 1;
+  const startY = event.clientY;
+  let dragged = false;
+  const canDrag = element.chart !== "pie" && !element.dataLink && Number.isFinite(plotH) && plotH > 0 && bounds;
+  const move = (ev: PointerEvent) => {
+    if (!canDrag || !bounds) return;
+    if (Math.abs(ev.clientY - startY) < 3) return;
+    dragged = true;
+    const dy = ((ev.clientY - startY) / bounds.height) * viewHeight;
+    const span = Math.max(1e-6, max - min);
+    onChartValue(element.id, series, row, Math.round((startValue - (dy / plotH) * span) * 100) / 100);
+  };
+  const up = () => {
+    window.removeEventListener("pointermove", move);
+    window.removeEventListener("pointerup", up);
+    onChartValue(element.id, series, row, dragged ? "commit" : "focus");
+  };
+  window.addEventListener("pointermove", move);
+  window.addEventListener("pointerup", up);
 }

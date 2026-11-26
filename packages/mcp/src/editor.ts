@@ -156,7 +156,7 @@ function updateElement(deck: Deck, ref: unknown, elementId: unknown, patch: Reco
   const current = slide.elements[index];
   if (!current) throw new Error(`Unknown element ID: ${id}`);
   const next = { ...current, ...pick(patch, ["x", "y", "width", "height", "rotation", "opacity", "z", "locked", "hidden", "name", "alt", "markdown", "src", "storage", "poster", "shape", "fill", "stroke", "strokeWidth", "borderRadius", "edgeFade", "rows", "columns", "cells", "headerRow", "script", "scene", "output", "orientation", "quality", "lockAspectRatio", "parentId", "kind", "d", "svg", "markerStart", "markerEnd", "routing", "chart", "categories", "series", "legend", "valueLabels", "componentId"]) };
-  for (const key of ["from", "to", "dataLink", "placeholder"] as const) {
+  for (const key of ["from", "to", "dataLink", "placeholder", "sheet"] as const) {
     if (patch[key] !== undefined) (next as Record<string, unknown>)[key] = patch[key];
   }
   for (const key of ["style", "crop", "border", "shadow", "playback"] as const) {
@@ -238,7 +238,7 @@ function elementInput(input: Record<string, unknown>): Record<string, unknown> {
   if (type === "group") return { ...base, parentId: input.parentId };
   if (type === "component") return { ...base, componentId: input.componentId, parentId: input.parentId };
   if (type === "chart") {
-    return { ...base, chart: input.chart ?? "bar", categories: Array.isArray(input.categories) ? input.categories : ["A", "B", "C"], series: Array.isArray(input.series) ? input.series : [{ name: "Series", values: [1, 2, 3] }], legend: input.legend !== false, valueLabels: input.valueLabels === true, dataLink: input.dataLink, parentId: input.parentId };
+    return { ...base, chart: input.chart ?? "bar", categories: Array.isArray(input.categories) ? input.categories : ["A", "B", "C"], series: Array.isArray(input.series) ? input.series : [{ name: "Series", values: [1, 2, 3] }], legend: input.legend !== false, valueLabels: input.valueLabels === true, dataLink: input.dataLink, sheet: input.sheet, parentId: input.parentId };
   }
   throw new Error(`Unknown element type: ${type}`);
 }

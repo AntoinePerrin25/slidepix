@@ -301,6 +301,15 @@ button:disabled { opacity: .45; cursor: default; }
 .chrome-edit.chrome-visible .chrome-handle, .chrome-edit.chrome-armed .chrome-handle, .chrome-edit.chrome-fade .chrome-handle { pointer-events: auto; }
 .vector-frame, .chart-frame, .component-frame, .vector-frame svg, .chart-frame svg { width: 100%; height: 100%; }
 .vector-frame svg, .chart-frame svg { display: block; overflow: visible; }
+.chart-frame [data-chart-row] { cursor: ns-resize; }
+.chart-sheet { position: absolute; left: 12px; right: 12px; bottom: calc(var(--notes-height) + 12px); z-index: 6; max-height: min(320px, 46%); display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; background: var(--vscode-editorWidget-background, var(--vscode-editor-background)); color: var(--vscode-foreground); border: 1px solid var(--vscode-widget-border, var(--vscode-panel-border)); }
+.chart-sheet-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.chart-sheet-bar span { color: var(--vscode-descriptionForeground); font-size: 12px; }
+.chart-sheet-scroll { overflow: auto; }
+.chart-grid { border-collapse: collapse; }
+.chart-grid th, .chart-grid td { border: 1px solid var(--vscode-widget-border, var(--vscode-panel-border)); padding: 2px; vertical-align: top; }
+.chart-grid input, .chart-grid select { width: 112px; box-sizing: border-box; }
+.chart-grid input.chart-cell-focus { outline: 1px solid var(--vscode-focusBorder, #7c3aed); }
 .component-frame { position: absolute; inset: 0; overflow: hidden; }
 .component-scale { position: relative; transform-origin: top left; }
 .drawing-placeholder, .layout-slot.slide-element { box-sizing: border-box; }

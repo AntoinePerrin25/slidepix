@@ -122,6 +122,7 @@ Element fields worth setting:
 - shape: `shape` (`rectangle`, `ellipse`, `triangle`), `fill`, `stroke`, `strokeWidth`, `borderRadius`
 - image and video: `src`, `storage` (`linked` or `embedded`), `playback.mode` (`autoplay` or `manual`)
 - table: `rows`, `columns`, `cells` as an array of markdown rows, `headerRow`
+- chart: `chart` (`bar`, `line`, `area`, `pie`). `sheet` is `{ headers, roles, rows }` with roles `category`, `series`, or `ignore`. `dataLink` is `{ elementId, roles? }` for a table on the same slide. A table link is used first; otherwise the sheet wins over `categories` and `series`.
 - manim: `script`, `scene`, `output` (`image` or `video`)
 
 Transitions: `none`, `fade`, `slide-left`, `slide-right`, `slide-up`, `slide-down`, `morph`.

@@ -401,6 +401,8 @@ export class SlidePixEditorProvider implements vscode.CustomTextEditorProvider {
     }
     if (message.type === "selectFont") return this.selectFont(panel, message);
     if (message.type === "selectBibliography") return this.selectBibliography(document, panel, message);
+    if (message.type === "selectChartData") return this.selectChartData(document, panel, message);
+    if (message.type === "readChartData") return this.readChartData(document, panel, message);
     if (message.type === "copyText") {
       await vscode.env.clipboard.writeText(message.text);
       return;
@@ -674,6 +676,59 @@ export class SlidePixEditorProvider implements vscode.CustomTextEditorProvider {
       await notify("error", message);
       void vscode.window.showErrorMessage(message);
     }
+  }
+
+  private async selectChartData(document: vscode.TextDocument, panel: vscode.WebviewPanel, message: Extract<WebviewToHostMessage, { type: "selectChartData" }>): Promise<void> {
+    const response: HostToWebviewMessage = { version: 2, type: "chartDataReady", requestId: message.requestId };
+    try {
+      const picked = await vscode.window.showOpenDialog({
+        canSelectMany: false,
+        canSelectFiles: true,
+        canSelectFolders: false,
+        filters: { "Chart data": ["csv", "tsv", "txt", "xlsx"] },
+        defaultUri: workspaceRootUris(document)[0]
+      });
+      if (!picked?.[0]) return void panel.webview.postMessage(response);
+      await this.answerChartFile(document, response, picked[0], message.storage);
+    } catch (error) {
+      response.error = error instanceof Error ? error.message : "Could not read the chart file.";
+    }
+    await panel.webview.postMessage(response);
+  }
+
+  private async readChartData(document: vscode.TextDocument, panel: vscode.WebviewPanel, message: Extract<WebviewToHostMessage, { type: "readChartData" }>): Promise<void> {
+    const response: HostToWebviewMessage = { version: 2, type: "chartDataReady", requestId: message.requestId };
+    try {
+      const source = resolveMediaPath(document.uri.fsPath, message.src, message.storage, linkedRoots(document));
+      await this.answerChartFile(document, response, vscode.Uri.file(source), message.storage, message.src);
+    } catch (error) {
+      response.error = error instanceof Error ? error.message : "Could not refresh the chart file.";
+    }
+    await panel.webview.postMessage(response);
+  }
+
+  private async answerChartFile(document: vscode.TextDocument, response: Extract<HostToWebviewMessage, { type: "chartDataReady" }>, uri: vscode.Uri, storage: "linked" | "embedded", knownReference?: string): Promise<void> {
+    if (uri.scheme !== "file") throw new Error("Only local files can be used as chart data.");
+    const name = path.basename(uri.fsPath);
+    if (!/\.(csv|tsv|txt|xlsx)$/i.test(name)) throw new Error("Choose a CSV, TSV, or XLSX file.");
+    const stat = await vscode.workspace.fs.stat(uri);
+    if (stat.size > 2_000_000) throw new Error("Chart files are limited to 2 MB.");
+    const bytes = await vscode.workspace.fs.readFile(uri);
+    const resolved = path.resolve(uri.fsPath);
+    const inside = linkedRoots(document).some((root) => isInside(root, resolved));
+    if (knownReference) {
+      response.src = knownReference;
+      response.storage = storage;
+    } else if (storage === "linked" && inside) {
+      response.src = relativeDeckReference(document.uri.fsPath, resolved);
+      response.storage = "linked";
+    } else {
+      if (storage === "linked") void vscode.window.showInformationMessage("The selected file is outside the open workspace, so SlidePix embedded a safe copy.");
+      response.src = await storeEmbeddedBytes(document.uri.fsPath, bytes, name, "");
+      response.storage = "embedded";
+    }
+    response.name = name;
+    response.base64 = Buffer.from(bytes).toString("base64");
   }
 
   private async selectBibliography(document: vscode.TextDocument, panel: vscode.WebviewPanel, message: Extract<WebviewToHostMessage, { type: "selectBibliography" }>): Promise<void> {

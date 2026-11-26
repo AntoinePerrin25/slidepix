@@ -125,7 +125,10 @@ always calls its resolver with both `src` and `storage`, including thumbnails.
   Until a render exists, image and video Manim elements both show the same
   bordered placeholder with the linked `.py` filename centered in the box.
   The Insert ribbon also adds a line, arrow, elbow, or SVG shape, and a bar,
-  line, area, or pie chart. A chart can read a table on the same slide.
+  line, area, or pie chart. **Edit data** opens a grid on the canvas: type, paste,
+  or drop a CSV, TSV, or XLSX file, and mark each column as categories, a series,
+  or ignored. A linked file can be refreshed. Dragging a bar or a point changes
+  that cell. A chart can still read a table on the same slide.
   **Group** wraps the selection; groups can contain groups. **Component**
   saves the selection as a reusable object or inserts one. Slide properties
   can save the current slide as a layout and later slides can use it.
