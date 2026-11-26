@@ -17,6 +17,30 @@ const platforms = {
 
 export const packageTargets = Object.keys(platforms);
 
+export function currentTarget() {
+  return process.platform === "darwin"
+    ? `darwin-${process.arch}`
+    : process.platform === "win32"
+      ? `win32-${process.arch}`
+      : `linux-${process.arch === "arm64" ? "arm64" : "x64"}`;
+}
+
+export function nativeFile(target) {
+  return platforms[target]?.file;
+}
+
+export function resolveNativeBinary(target) {
+  const spec = platforms[target];
+  if (!spec) return undefined;
+  const loader = require.resolve("@number0/iroh");
+  const irohRequire = createRequire(loader);
+  try {
+    return irohRequire.resolve(`${spec.pkg}/${spec.file}`);
+  } catch {
+    return undefined;
+  }
+}
+
 export function stageNative(target, required) {
   const spec = platforms[target];
   if (!spec) {
@@ -29,12 +53,9 @@ export function stageNative(target, required) {
     return 0;
   }
 
+  const binary = resolveNativeBinary(target);
   const loader = require.resolve("@number0/iroh");
-  const irohRequire = createRequire(loader);
-  let binary;
-  try {
-    binary = irohRequire.resolve(`${spec.pkg}/${spec.file}`);
-  } catch {
+  if (!binary) {
     console.error(`Missing ${spec.pkg}. Install optional dependencies for ${target} before packaging.`);
     return 1;
   }
@@ -50,10 +71,5 @@ export function stageNative(target, required) {
 const isDirect = process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url));
 if (isDirect) {
   const requested = process.argv.find((arg) => arg.startsWith("--target="))?.slice("--target=".length);
-  const current = process.platform === "darwin"
-    ? `darwin-${process.arch}`
-    : process.platform === "win32"
-      ? `win32-${process.arch}`
-      : `linux-${process.arch === "arm64" ? "arm64" : "x64"}`;
-  process.exit(stageNative(requested || current, Boolean(requested)));
+  process.exit(stageNative(requested || currentTarget(), Boolean(requested)));
 }

@@ -27,9 +27,6 @@
   "extensionKind": [
     "ui"
   ],
-  "activationEvents": [
-    "onCustomEditor:slidepix.deckEditor"
-  ],
   "contributes": {
     "customEditors": [
       {

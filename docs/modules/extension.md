@@ -256,9 +256,12 @@ panel and out of audience HTML.
 
 `package.json` owns custom editor selectors, JSON validation, commands, menus,
 keybindings, bundled files, and VS Code engine compatibility. Its build emits
-the extension, MCP server, and standalone semantic merge-driver bundles. See
-the script table in root [architecture.md](../../architecture.md) before
-altering build outputs.
+the extension, MCP server, and standalone semantic merge-driver bundles.
+`scripts/package-targets.mjs` writes every platform VSIX: `vsce package` runs
+once, then each other target is a copy with a different iroh binary and
+manifest `TargetPlatform`. `scripts/publish-all.mjs` uploads those VSIXes
+concurrently. See the script table in root [architecture.md](../../architecture.md)
+before altering build outputs.
 
 The Explorer context menu contributes **SlidePix: Create Deck** so the selected
 file or folder URI can be used as the creation location without opening a

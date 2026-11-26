@@ -29,10 +29,12 @@ pnpm test:live
 `pnpm test:live` is separate from `pnpm test`. It binds two local iroh endpoints
 with relays disabled. `pnpm package` stages the current platform's iroh binary
 and passes `--target` to vsce from a Node script, so the same command works in
-`cmd.exe`. `pnpm package:all` repeats that for darwin-arm64, linux-x64,
-linux-arm64, win32-x64, and win32-arm64. `pnpm publish:all` stages the
-matching iroh binary, packages that target once, and uploads the same VSIX to
-the Visual Studio Marketplace and Open VSX. `--no-dependencies` keeps `vsce`
+`cmd.exe`. `pnpm package:all` covers darwin-arm64, linux-x64,
+linux-arm64, win32-x64, and win32-arm64. It runs `vsce package` once, then
+writes each other target by copying that VSIX and replacing the iroh binary
+plus the manifest `TargetPlatform`. `pnpm publish:all` produces those VSIXes
+the same way, then uploads every VSIX to the Visual Studio Marketplace and
+Open VSX at the same time. `--no-dependencies` keeps `vsce`
 from running `npm list` in this pnpm workspace. `VSCE_PAT` and `OVSX_PAT`
 must be set. Intel macOS has no published iroh
 binary; `pnpm build` and `pnpm package` still succeed there and the editor
@@ -94,13 +96,16 @@ export OVSX_PAT="..."
 pnpm publish:all
 ```
 
-`pnpm publish:all` builds the workspace and publishes `darwin-arm64`,
-`linux-x64`, `linux-arm64`, `win32-x64`, and `win32-arm64` as the same
-extension version. The Open VSX namespace must be `antoineperrin`, matching
-the Marketplace publisher. A target already present on either registry is
-skipped. Pass targets after the script to publish a subset:
+`pnpm publish:all` builds the workspace once, packages `darwin-arm64`, and
+derives `linux-x64`, `linux-arm64`, `win32-x64`, and `win32-arm64` from that
+VSIX by swapping the iroh binary and `TargetPlatform`. It then publishes every
+VSIX at once. The Open VSX namespace must be `antoineperrin`, matching the
+Marketplace publisher. A target already present on either registry is skipped.
+Pass targets after the script to publish a subset:
 `pnpm --filter slidepix-deck publish:all -- darwin-arm64`.
-Open VSX alone uses `pnpm publish:ovsx` and needs only `OVSX_PAT`.
+The first target is the one `vsce package` builds; the rest are derived from
+it. Open VSX alone uses `pnpm publish:ovsx` and needs only `OVSX_PAT`.
+Those uploads still run concurrently, one per target.
 
 ## Generated-output discipline
 

@@ -124,9 +124,9 @@ Edit source files, then regenerate outputs with the documented commands.
 | `pnpm docs:check` | Verifies local Markdown links and required agent-native files. |
 | `pnpm package` | Performs a full workspace build and creates the VSIX for the current platform. The vsce target is computed in Node. Intel macOS skips the missing iroh binary and still packages. |
 | `pnpm test:live` | Connects two local iroh endpoints with relays disabled and exchanges a frame and a media file. It is not part of `pnpm test`. |
-| `pnpm package:all` | Builds, stages each platform's iroh binary, and packages a VSIX per target. |
-| `pnpm publish:all` | Builds, then publishes one package per target to the Marketplace and Open VSX. Each target is staged, packaged once, then uploaded with `vsce` and `ovsx`. |
-| `pnpm publish:ovsx` | Same packages as `pnpm publish:all`, uploaded only to Open VSX. |
+| `pnpm package:all` | Builds, runs `vsce package` once, then writes each other target by copying that VSIX and replacing the iroh binary and manifest `TargetPlatform`. Restores the host binary in `dist/native/iroh` afterward. |
+| `pnpm publish:all` | Builds, writes one VSIX per target the same way as `package:all`, then uploads those VSIXes to the Marketplace and Open VSX concurrently. |
+| `pnpm publish:ovsx` | Same packages as `pnpm publish:all`, uploaded only to Open VSX, concurrently across targets. |
 | `packages/extension/scripts/generate-schema.mjs` | Converts the Zod deck schema into the contributed draft-7 JSON Schema. |
 | `scripts/render-smoke.mjs [deck] [output]` | Uses the installed Google Chrome or Microsoft Edge to create a smoke-test PDF, contact sheet, exact-size single-slide PNG, and one exact-size PNG per visible slide from a built deck. |
 | `scripts/build-demo.mjs <hero> [video poster]` | Rebuilds the canonical light-theme product demo through the core schema; the optional embedded reel is generated separately from exported PNGs with FFmpeg. |
