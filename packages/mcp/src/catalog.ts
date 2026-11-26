@@ -71,7 +71,7 @@ export const codemodeCatalog = {
     vector: { fields: ["kind", "d", "svg", "fill", "stroke", "strokeWidth", "markerStart", "markerEnd", "routing", "from", "to"], kind: ["path", "connector", "svg"], routing: ["straight", "elbow", "curve"], note: "path d uses a 0–100 box. connector from/to may set elementId and anchor (center, top, right, bottom, left). svg must be one safe <svg> document." },
     group: { fields: ["parentId"], note: "Members point at the group with parentId. Groups can contain groups." },
     component: { fields: ["componentId"], note: "An instance of a component created with defineComponent." },
-    chart: { fields: ["chart", "categories", "series", "legend", "valueLabels", "dataLink"], chart: ["bar", "line", "area", "pie"], note: "dataLink: { elementId } reads a table on the same slide. Otherwise series is [{ name, values }]." }
+    chart: { fields: ["chart", "categories", "series", "legend", "valueLabels", "dataLink", "sheet"], chart: ["bar", "line", "area", "pie"], note: "sheet is { headers, roles, rows } with roles category, series, or ignore. dataLink: { elementId, roles? } reads a table on the same slide. Without either, series is [{ name, values }]. A table link is used first. Otherwise a sheet wins over categories." }
   },
   transitions: ["none", "fade", "slide-left", "slide-right", "slide-up", "slide-down", "morph"],
   effects: ["appear", "fade", "fly"],

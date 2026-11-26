@@ -23,6 +23,10 @@ export function deckMediaReferences(deck: Deck, options?: { includeHidden?: bool
       if (element.outputMedia) add(element.outputMedia.src, element.outputMedia.storage);
       return;
     }
+    if (element.type === "chart" && element.sheet?.source) {
+      add(element.sheet.source.src, element.sheet.source.storage);
+      return;
+    }
     if (element.type !== "image" && element.type !== "video") return;
     add(element.src, element.storage);
     if (element.type === "video" && element.poster) add(element.poster, "embedded");

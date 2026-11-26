@@ -60,13 +60,13 @@ so a conflicting key can be chosen without dropping entries the other side added
 | `normalizeAssetReference(reference)` | Converts backslashes to POSIX separators and removes one leading `./`. |
 | `resolveAssetPath(deckPath, reference)` | Resolves inside the asset root and rejects absolute, empty, NUL, or escaping paths. |
 | `resolveMediaPath(deckPath, reference, storage, allowedLinkedRoots?)` | Resolves embedded media through the asset root or linked media through an allowlist of workspace roots. |
-| `deckMediaReferences(deck, options?)` | Lists image, video, poster, Manim output, background, and bibliography-file references. The bibliography file is included whenever its path is set, including hidden slides. Other hidden slides and elements are skipped unless `includeHidden` is set. |
+| `deckMediaReferences(deck, options?)` | Lists image, video, poster, Manim output, chart data file, background, and bibliography-file references. The bibliography file is included whenever its path is set, including hidden slides. Other hidden slides and elements are skipped unless `includeHidden` is set. |
 
 All extension, presentation, export, and MCP asset reads must use these helpers.
 Add security tests for path-handling changes.
 
-`src/vector.ts`, `src/charts.ts`, `src/groups.ts`, and `src/compose.ts` own
-connector geometry, chart markup, group membership, and the layout/component
+`src/vector.ts`, `src/charts.ts`, `src/chart-sheet.ts`, `src/groups.ts`, and `src/compose.ts` own
+connector geometry, chart markup, chart grids parsed from text or XLSX, group membership, and the layout/component
 paint order. `render.ts` and the editor call those helpers instead of keeping
 a second implementation. `syncDeckGeometry` rewrites connector boxes from
 their anchors before a deck is painted or saved. An arrow marker is a triangle

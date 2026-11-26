@@ -182,6 +182,11 @@ async function placeElementMedia(
   copiedOutside: Map<string, string>
 ): Promise<void> {
   if (isPlaceholderImage(element)) return;
+  if (element.type === "chart" && element.sheet?.source) {
+    const placed = await placeMedia(element.sheet.source, deckPath, deckDirectory, assetFolder, allowedLinkedRoots, canonicalLinkedRoots, assetRoots, files, copiedOutside);
+    element.sheet.source = { src: placed.src, storage: placed.storage };
+    return;
+  }
   if (element.type === "image" || element.type === "video") {
     const placed = await placeMedia(element, deckPath, deckDirectory, assetFolder, allowedLinkedRoots, canonicalLinkedRoots, assetRoots, files, copiedOutside);
     element.src = placed.src;

@@ -15,6 +15,12 @@ import {
   movePathHandle,
   nearestAnchor,
   parseBibliography,
+  parseChartFile,
+  parseChartTable,
+  resolveChartData,
+  seriesColumn,
+  sheetFromChart,
+  writeChartSheet,
   pathHandles,
   reidentifyElements,
   removedElementIds,
@@ -30,6 +36,7 @@ import {
   renderMarkdown,
   widthForLockedAspect,
   type AnimationStep,
+  type ChartColumnRole,
   type Citation,
   type Deck,
   type HostToWebviewMessage,
@@ -64,6 +71,7 @@ type Tab = "properties" | "layers" | "animations" | "bibliography";
 const transitionTypes: Transition["type"][] = ["none", "fade", "slide-left", "slide-right", "slide-up", "slide-down", "morph"];
 type MediaResult = { reference: string; storage: MediaStorage };
 const pendingAssets = new Map<string, (result?: MediaResult, error?: string) => void>();
+const pendingChartData = new Map<string, (message: Extract<HostToWebviewMessage, { type: "chartDataReady" }>) => void>();
 const pendingFonts = new Map<string, (family?: string, error?: string) => void>();
 const pendingBibliography = new Map<string, (message: Extract<HostToWebviewMessage, { type: "bibliographySelected" }>) => void>();
 const pendingManimScripts = new Map<string, (message: Extract<HostToWebviewMessage, { type: "manimScriptSelected" }>) => void>();
@@ -86,6 +94,8 @@ export default function App() {
   const store = useDeckStore();
   const [tab, setTab] = useState<Tab>("properties");
   const [editingTextId, setEditingTextId] = useState<string>();
+  const [chartSheetId, setChartSheetId] = useState<string>();
+  const [chartFocus, setChartFocus] = useState<{ row: number; column: number }>();
   const [selectAllOnEdit, setSelectAllOnEdit] = useState(false);
   const [advancedTextId, setAdvancedTextId] = useState<string>();
   const [croppingId, setCroppingId] = useState<string>();
@@ -299,6 +309,57 @@ export default function App() {
       if (result) store.mutate((draft) => { draft.slides.find((item) => item.id === slide.id)!.backgroundImage = { src: result.reference, storage: result.storage }; });
     });
     postMessage({ type: "selectMedia", requestId, kind: "image" });
+  };
+  const stageChartTable = (elementId: string, parsed: { headers: string[]; roles: ("category" | "series" | "ignore")[]; rows: string[][]; truncated: boolean }, source?: { src: string; storage: MediaStorage }, keepLabels = false) => {
+    if (parsed.truncated) showError("Only the first 50 rows and 12 columns were imported.");
+    store.mutate((draft) => {
+      const target = findElement(draft, slide.id, elementId);
+      if (target?.type !== "chart") return;
+      const current = target.sheet;
+      const sameWidth = Boolean(keepLabels && current && current.headers.length === parsed.headers.length);
+      writeChartSheet(target, { headers: sameWidth && current ? current.headers : parsed.headers, roles: sameWidth && current ? current.roles : parsed.roles, rows: parsed.rows, source });
+    });
+    setChartSheetId(elementId);
+  };
+  const requestChartFile = (elementId: string, storage: "linked" | "embedded") => {
+    const requestId = crypto.randomUUID();
+    pendingChartData.set(requestId, (message) => {
+      if (message.error) return void showError(message.error);
+      if (!message.base64 || !message.src || !message.storage) return;
+      try { stageChartTable(elementId, parseChartFile(message.name || "data.csv", base64ToBytes(message.base64)), { src: message.src, storage: message.storage }); }
+      catch (error) { showError(error instanceof Error ? error.message : "Could not read the chart file."); }
+    });
+    postMessage({ type: "selectChartData", requestId, storage });
+  };
+  const refreshChartFile = (elementId: string) => {
+    const source = findElement(deck, slide.id, elementId);
+    const file = source?.type === "chart" ? source.sheet?.source : undefined;
+    if (!file) return;
+    const requestId = crypto.randomUUID();
+    pendingChartData.set(requestId, (message) => {
+      if (message.error) return void showError(message.error);
+      if (!message.base64) return;
+      try { stageChartTable(elementId, parseChartFile(message.name || file.src, base64ToBytes(message.base64)), file, true); }
+      catch (error) { showError(error instanceof Error ? error.message : "Could not refresh the chart file."); }
+    });
+    postMessage({ type: "readChartData", requestId, src: file.src, storage: file.storage });
+  };
+  const importChartFile = (elementId: string, file: File) => {
+    if (file.size > 2_000_000) return void showError("Chart files are limited to 2 MB.");
+    const reader = new FileReader();
+    reader.onload = () => {
+      const bytes = new Uint8Array(reader.result as ArrayBuffer);
+      let parsed: ReturnType<typeof parseChartFile>;
+      try { parsed = parseChartFile(file.name, bytes); }
+      catch (error) { showError(error instanceof Error ? error.message : "Could not read the chart file."); return; }
+      const requestId = crypto.randomUUID();
+      pendingAssets.set(requestId, (result, error) => {
+        if (error) showError(error);
+        stageChartTable(elementId, parsed, result ? { src: result.reference, storage: result.storage } : undefined);
+      });
+      postMessage({ type: "importAsset", requestId, name: file.name, mime: file.type || "text/csv", base64: bytesToBase64(bytes) });
+    };
+    reader.readAsArrayBuffer(file);
   };
   const importFile = async (file: File, kind: "image" | "video") => {
     if (file.size > 100 * 1024 * 1024) return void showError("Media files are limited to 100 MB per import.");
@@ -667,6 +728,29 @@ export default function App() {
                 onEditText={(id) => beginTextEditing(id)}
                 onEditImage={setCroppingId}
                 onEditComponent={(componentId) => store.setDesignTarget({ kind: "component", id: componentId })}
+                onEditChart={(id) => { setChartSheetId(id); setChartFocus(undefined); }}
+                onChartValue={(id, seriesIndex, rowIndex, value) => {
+                  setChartSheetId(id);
+                  const current = activeElements.find((item) => item.id === id);
+                  if (current?.type !== "chart") return;
+                  const base = current.sheet ?? sheetFromChart(current.categories, current.series);
+                  const column = seriesColumn(base, seriesIndex);
+                  if (column >= 0) setChartFocus({ row: rowIndex, column });
+                  if (value === "focus" || current.dataLink) return;
+                  if (value === "commit") { store.commit(); return; }
+                  store.preview((draft) => {
+                    const target = findElement(draft, slide.id, id);
+                    if (target?.type !== "chart" || target.dataLink) return;
+                    const sheet = target.sheet ?? sheetFromChart(target.categories, target.series);
+                    const rows = sheet.rows.map((row) => row.slice());
+                    while (rows.length <= rowIndex) rows.push(sheet.headers.map(() => ""));
+                    const line = rows[rowIndex];
+                    if (!line || column < 0) return;
+                    while (line.length < sheet.headers.length) line.push("");
+                    line[column] = String(value);
+                    writeChartSheet(target, { ...sheet, rows });
+                  });
+                }}
               />
               {dragTarget && (groupMove || target) && !cropping && editingTextId !== dragTarget.id && (
                 <Moveable
@@ -819,6 +903,7 @@ export default function App() {
             )}
           </div>
         </div>
+        {chartSheetId && activeElements.find((item) => item.id === chartSheetId && item.type === "chart") && <ChartDataDock element={activeElements.find((item): item is Extract<SlideElement, { type: "chart" }> => item.id === chartSheetId && item.type === "chart")!} peers={activeElements} slideId={slide.id} focus={chartFocus} mutate={store.mutate} preview={store.preview} scheduleCommit={store.scheduleCommit} commit={store.commit} onClose={() => setChartSheetId(undefined)} onPickFile={(storage) => requestChartFile(chartSheetId, storage)} onRefresh={() => refreshChartFile(chartSheetId)} onImportFile={(file) => importChartFile(chartSheetId, file)} />}
         <section className="notes">
           <header className="notes-header">
             <strong>Speaker notes</strong>
@@ -829,7 +914,7 @@ export default function App() {
           {!notesCollapsed && <textarea aria-label="Speaker notes" value={slide.notes} onChange={(event) => { store.preview((draft) => { draft.slides.find((item) => item.id === slide.id)!.notes = event.target.value; }); store.scheduleCommit(); }} onBlur={store.commit} />}
         </section>
       </main>
-      <Inspector collapsed={inspectorCollapsed} onToggleCollapse={() => setInspectorCollapsed((value) => !value)} tab={tab} setTab={setTab} deck={deck} slide={slide} element={selected} layers={activeElements} slotElement={slotElement} designTarget={designTarget} setDesignTarget={store.setDesignTarget} citations={citations} cropping={cropping} batchShapeEdit={batchShapeEdit} setBatchShapeEdit={setBatchShapeEdit} assetUrl={assetUrl} mutate={store.mutate} preview={store.preview} scheduleCommit={store.scheduleCommit} commit={store.commit} selectElement={store.selectElement} editText={(id) => { store.commit(); setEditingTextId(undefined); setAdvancedTextId(id); }} editImage={(id) => setCroppingId((current) => current === id ? undefined : id)} relinkMedia={(kind, id) => requestMedia(kind, undefined, id)} chooseBackgroundImage={requestBackgroundImage} chooseSlotImage={(id) => { pendingSlot.current = id; requestMedia("image"); }} />
+      <Inspector collapsed={inspectorCollapsed} onToggleCollapse={() => setInspectorCollapsed((value) => !value)} tab={tab} setTab={setTab} deck={deck} slide={slide} element={selected} layers={activeElements} slotElement={slotElement} designTarget={designTarget} setDesignTarget={store.setDesignTarget} citations={citations} cropping={cropping} batchShapeEdit={batchShapeEdit} setBatchShapeEdit={setBatchShapeEdit} assetUrl={assetUrl} mutate={store.mutate} preview={store.preview} scheduleCommit={store.scheduleCommit} commit={store.commit} selectElement={store.selectElement} editText={(id) => { store.commit(); setEditingTextId(undefined); setAdvancedTextId(id); }} editImage={(id) => setCroppingId((current) => current === id ? undefined : id)} editChart={(id) => { setChartSheetId(id); setChartFocus(undefined); }} relinkMedia={(kind, id) => requestMedia(kind, undefined, id)} chooseBackgroundImage={requestBackgroundImage} chooseSlotImage={(id) => { pendingSlot.current = id; requestMedia("image"); }} />
       {advancedTextId && <TextEditor deck={deck} slideId={slide.id} elementId={advancedTextId} citations={citations} preview={store.preview} scheduleCommit={store.scheduleCommit} commit={store.commit} close={() => setAdvancedTextId(undefined)} />}
       {store.mergeState && <MergeConflictDialog conflict={store.mergeState.conflicts[0]} resolve={store.resolveMergeConflict} useLatest={store.useLatestDeck} />}
       <ToastStack />
@@ -1513,8 +1598,8 @@ function ManimInspector({ slideId, slideSize, element, mutate, preview, schedule
   </>;
 }
 
-function Inspector({ collapsed, onToggleCollapse, tab, setTab, deck, slide, element, layers, slotElement, designTarget, setDesignTarget, citations, cropping, batchShapeEdit, setBatchShapeEdit, assetUrl, mutate, preview, scheduleCommit, commit, selectElement, editText, editImage, relinkMedia, chooseBackgroundImage, chooseSlotImage }: {
-  collapsed: boolean; onToggleCollapse(): void; tab: Tab; setTab(tab: Tab): void; deck: Deck; slide: Slide; element?: SlideElement; layers: SlideElement[]; slotElement?: SlideElement; designTarget?: { kind: "layout" | "component"; id: string }; setDesignTarget(target?: { kind: "layout" | "component"; id: string }): void; citations: readonly Citation[]; cropping: boolean; batchShapeEdit: boolean; setBatchShapeEdit(enabled: boolean): void; assetUrl(reference: string, storage: MediaStorage): string; mutate(fn: (deck: Deck) => void): void; preview(fn: (deck: Deck) => void): void; scheduleCommit(): void; commit(): void; selectElement(id?: string, additive?: boolean): void; editText(id: string): void; editImage(id: string): void; relinkMedia(kind: "image" | "video", id: string): void; chooseBackgroundImage(): void; chooseSlotImage(id: string): void;
+function Inspector({ collapsed, onToggleCollapse, tab, setTab, deck, slide, element, layers, slotElement, designTarget, setDesignTarget, citations, cropping, batchShapeEdit, setBatchShapeEdit, assetUrl, mutate, preview, scheduleCommit, commit, selectElement, editText, editImage, editChart, relinkMedia, chooseBackgroundImage, chooseSlotImage }: {
+  collapsed: boolean; onToggleCollapse(): void; tab: Tab; setTab(tab: Tab): void; deck: Deck; slide: Slide; element?: SlideElement; layers: SlideElement[]; slotElement?: SlideElement; designTarget?: { kind: "layout" | "component"; id: string }; setDesignTarget(target?: { kind: "layout" | "component"; id: string }): void; citations: readonly Citation[]; cropping: boolean; batchShapeEdit: boolean; setBatchShapeEdit(enabled: boolean): void; assetUrl(reference: string, storage: MediaStorage): string; mutate(fn: (deck: Deck) => void): void; preview(fn: (deck: Deck) => void): void; scheduleCommit(): void; commit(): void; selectElement(id?: string, additive?: boolean): void; editText(id: string): void; editImage(id: string): void; editChart(id: string): void; relinkMedia(kind: "image" | "video", id: string): void; chooseBackgroundImage(): void; chooseSlotImage(id: string): void;
 }) {
   const selectedIds = useDeckStore((state) => state.selectedElementIds);
   const update = (patch: Partial<SlideElement>) => element && mutate((draft) => Object.assign(findElement(draft, slide.id, element.id)!, patch));
@@ -1654,7 +1739,7 @@ function Inspector({ collapsed, onToggleCollapse, tab, setTab, deck, slide, elem
             <CheckboxField label="Controls" checked={element.playback.controls} onChange={(controls) => mutate((draft) => { const target = findElement(draft, slide.id, element.id); if (target?.type === "video") target.playback.controls = controls; })} />
           </>}
           {element.type === "vector" && <VectorFields element={element} peers={layers} slideId={slide.id} mutate={mutate} preview={preview} scheduleCommit={scheduleCommit} commit={commit} />}
-          {element.type === "chart" && <ChartFields element={element} peers={layers} slideId={slide.id} mutate={mutate} preview={preview} scheduleCommit={scheduleCommit} commit={commit} />}
+          {element.type === "chart" && <ChartFields element={element} peers={layers} slideId={slide.id} mutate={mutate} preview={preview} scheduleCommit={scheduleCommit} commit={commit} onEdit={() => editChart(element.id)} />}
           {element.type === "group" && <p className="panel-help">A group moves and scales every nested member, including groups inside it. The frame stays axis-aligned.</p>}
           {element.type === "component" && <>
             <p className="panel-help">{deck.components[element.componentId]?.name ?? "Missing component"}. Editing the component updates every instance.</p>
@@ -1971,6 +2056,17 @@ function ToastStack() {
 }
 
 function showError(message: string): void { notifyToast({ id: crypto.randomUUID(), kind: "error", message }); }
+function base64ToBytes(value: string): Uint8Array {
+  const binary = atob(value);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+  return bytes;
+}
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = "";
+  for (let index = 0; index < bytes.length; index += 0x8000) binary += String.fromCharCode(...bytes.subarray(index, index + 0x8000));
+  return btoa(binary);
+}
 
 function InvalidDeck({ message, gitConflict }: { message: string; gitConflict: boolean }) { return <div className="invalid"><h1>{gitConflict ? "This deck has an unresolved Git conflict" : "SlidePix could not open this deck"}</h1><pre>{message}</pre>{gitConflict ? <p><button onClick={() => postMessage({ type: "command", command: "resolveGitConflict" })}>Resolve with SlidePix</button> <button onClick={() => postMessage({ type: "command", command: "openTextEditor" })}>Open as text</button></p> : <p>Fix the JSON in the text editor. SlidePix will reopen the last valid preview automatically.</p>}</div>; }
 
@@ -2221,23 +2317,104 @@ function AnchorFields({ label, value, choices, onChange }: { label: string; valu
     <label>{label} side<select value={anchor.anchor} onChange={(event) => onChange({ ...anchor, anchor: event.target.value as typeof anchor.anchor })}><option value="center">Center</option><option value="top">Top</option><option value="right">Right</option><option value="bottom">Bottom</option><option value="left">Left</option></select></label>
   </>;
 }
-function ChartFields({ element, peers, slideId, mutate, preview, scheduleCommit, commit }: { element: Extract<SlideElement, { type: "chart" }>; peers: readonly SlideElement[]; slideId: string; mutate(fn: (deck: Deck) => void): void; preview(fn: (deck: Deck) => void): void; scheduleCommit(): void; commit(): void }) {
+function ChartFields({ element, peers, slideId, mutate, onEdit }: { element: Extract<SlideElement, { type: "chart" }>; peers: readonly SlideElement[]; slideId: string; mutate(fn: (deck: Deck) => void): void; preview(fn: (deck: Deck) => void): void; scheduleCommit(): void; commit(): void; onEdit(): void }) {
   const tables = peers.filter((item) => item.type === "table");
-  const edit = (fn: (target: Extract<SlideElement, { type: "chart" }>) => void, live = true) => {
-    const apply = (draft: Deck) => { const target = findElement(draft, slideId, element.id); if (target?.type === "chart") fn(target); };
+  const resolved = resolveChartData(element, tables);
+  const edit = (fn: (target: Extract<SlideElement, { type: "chart" }>) => void) => mutate((draft) => { const target = findElement(draft, slideId, element.id); if (target?.type === "chart") fn(target); });
+  return <>
+    <label>Chart<select value={element.chart} onChange={(event) => edit((target) => { target.chart = event.target.value as typeof element.chart; })}><option value="bar">Bar</option><option value="line">Line</option><option value="area">Area</option><option value="pie">Pie</option></select></label>
+    <button className="edit-text-button" onClick={onEdit}>Edit data</button>
+    <label>Data<select value={element.dataLink?.elementId ?? ""} onChange={(event) => edit((target) => {
+      if (!event.target.value) {
+        const data = resolveChartData(target, tables);
+        writeChartSheet(target, sheetFromChart(data.categories, data.series));
+        return;
+      }
+      delete target.sheet;
+      target.dataLink = { elementId: event.target.value };
+    })}><option value="">Chart sheet</option>{tables.map((table) => <option key={table.id} value={table.id}>{table.name || "Table"}</option>)}</select></label>
+    <p className="panel-help">{element.sheet?.source ? `File: ${element.sheet.source.src}` : element.dataLink ? "This chart reads a table on the slide. Column roles are set in the data sheet." : "Double-click the chart, or drag a bar, to edit its sheet. Paste or drop a CSV or XLSX there."}</p>
+    <CheckboxField label="Legend" checked={element.legend} onChange={(legend) => edit((target) => { target.legend = legend; })} />
+    <CheckboxField label="Value labels" checked={element.valueLabels} onChange={(valueLabels) => edit((target) => { target.valueLabels = valueLabels; })} />
+    {resolved.series.map((series) => <ColorField key={series.name} label={series.name} value={series.color} onChange={(color) => edit((target) => {
+      const match = target.series.find((item) => item.name === series.name);
+      if (match) match.color = color;
+      else target.series.push({ name: series.name, values: series.values, color });
+    })} onCommit={() => undefined} />)}
+  </>;
+}
+function ChartDataDock({ element, peers, slideId, focus, mutate, preview, scheduleCommit, commit, onClose, onPickFile, onRefresh, onImportFile }: { element: Extract<SlideElement, { type: "chart" }>; peers: readonly SlideElement[]; slideId: string; focus?: { row: number; column: number }; mutate(fn: (deck: Deck) => void): void; preview(fn: (deck: Deck) => void): void; scheduleCommit(): void; commit(): void; onClose(): void; onPickFile(storage: "linked" | "embedded"): void; onRefresh(): void; onImportFile(file: File): void }) {
+  const linked = element.dataLink ? peers.find((item) => item.id === element.dataLink?.elementId && item.type === "table") : undefined;
+  const sheet = element.sheet ?? sheetFromChart(element.categories, element.series);
+  const write = (next: typeof sheet, live = false) => {
+    const apply = (draft: Deck) => { const target = findElement(draft, slideId, element.id); if (target?.type === "chart") writeChartSheet(target, next); };
     if (live) { preview(apply); scheduleCommit(); } else mutate(apply);
   };
-  return <>
-    <label>Chart<select value={element.chart} onChange={(event) => edit((target) => { target.chart = event.target.value as typeof element.chart; }, false)}><option value="bar">Bar</option><option value="line">Line</option><option value="area">Area</option><option value="pie">Pie</option></select></label>
-    <label>Data<select value={element.dataLink?.elementId ?? ""} onChange={(event) => edit((target) => { if (event.target.value) target.dataLink = { elementId: event.target.value }; else delete target.dataLink; }, false)}><option value="">Typed values</option>{tables.map((table) => <option key={table.id} value={table.id}>{table.name || "Table"}</option>)}</select></label>
-    <p className="panel-help">A linked table uses the first column as categories and the remaining columns as series. A header row names the series.</p>
-    <CheckboxField label="Legend" checked={element.legend} onChange={(legend) => edit((target) => { target.legend = legend; }, false)} />
-    <CheckboxField label="Value labels" checked={element.valueLabels} onChange={(valueLabels) => edit((target) => { target.valueLabels = valueLabels; }, false)} />
-    {!element.dataLink && <>
-      <label>Categories<textarea value={element.categories.join("\n")} onChange={(event) => edit((target) => { target.categories = event.target.value.split("\n"); })} onBlur={commit} /></label>
-      {element.series.map((series, index) => <label key={index}>Series {index + 1}<input value={series.name} onChange={(event) => edit((target) => { const next = target.series[index]; if (next) next.name = event.target.value; })} onBlur={commit} /><textarea aria-label={`${series.name} values`} value={series.values.join(", ")} onChange={(event) => edit((target) => { const next = target.series[index]; if (next) next.values = event.target.value.split(",").map((item) => Number(item.trim()) || 0); })} onBlur={commit} /></label>)}
-    </>}
-  </>;
+  const setRole = (column: number, role: "category" | "series" | "ignore") => {
+    if (!linked || linked.type !== "table") {
+      const roles = sheet.roles.slice();
+      if (role === "category") for (let index = 0; index < roles.length; index += 1) if (roles[index] === "category") roles[index] = "ignore";
+      roles[column] = role;
+      if (!roles.includes("series")) return;
+      write({ ...sheet, roles });
+      return;
+    }
+    const roles = Array.from({ length: linked.columns }, (_, index) => element.dataLink?.roles?.[index] ?? (index === 0 ? "category" : "series"));
+    if (role === "category") for (let index = 0; index < roles.length; index += 1) if (roles[index] === "category") roles[index] = "ignore";
+    roles[column] = role;
+    if (!roles.includes("series")) return;
+    mutate((draft) => { const target = findElement(draft, slideId, element.id); if (target?.type === "chart" && target.dataLink) target.dataLink.roles = roles; });
+  };
+  const onPaste = (event: ReactClipboardEvent<HTMLDivElement>) => {
+    const text = event.clipboardData.getData("text/plain");
+    if (!text.includes("\n") && !text.includes("\t") && !text.includes(",") && !text.includes(";")) return;
+    event.preventDefault();
+    try {
+      const parsed = parseChartTable(text);
+      if (parsed.truncated) showError("Only the first 50 rows and 12 columns were imported.");
+      write({ headers: parsed.headers, roles: parsed.roles, rows: parsed.rows });
+    } catch (error) { showError(error instanceof Error ? error.message : "Could not paste the table."); }
+  };
+  const headers = linked?.type === "table" ? Array.from({ length: linked.columns }, (_, column) => linked.headerRow ? linked.cells[0]?.[column] || (column === 0 ? "Category" : `Series ${column}`) : column === 0 ? "Category" : `Series ${column}`) : sheet.headers;
+  const roles = linked?.type === "table" ? Array.from({ length: linked.columns }, (_, column) => element.dataLink?.roles?.[column] ?? (column === 0 ? "category" as const : "series" as const)) : sheet.roles;
+  const rows = linked?.type === "table" ? Array.from({ length: Math.max(0, linked.rows - (linked.headerRow ? 1 : 0)) }, (_, row) => Array.from({ length: linked.columns }, (_, column) => linked.cells[row + (linked.headerRow ? 1 : 0)]?.[column] ?? "")) : sheet.rows;
+  const addColumn = () => {
+    const nextRoles: ChartColumnRole[] = [...sheet.roles, "series"];
+    write({ ...sheet, headers: [...sheet.headers, `Series ${sheet.headers.length}`].slice(0, 12), roles: nextRoles.slice(0, 12), rows: sheet.rows.map((row) => [...row, ""].slice(0, 12)) });
+  };
+  const seriesCount = roles.filter((role) => role === "series").length;
+  useEffect(() => {
+    if (!focus) return;
+    document.querySelector<HTMLInputElement>(`.chart-sheet input[data-chart-cell="${focus.row}-${focus.column}"]`)?.focus();
+  }, [focus]);
+  return <section className="chart-sheet" aria-label="Chart data" onPaste={onPaste} onDragOver={(event) => { event.preventDefault(); }} onDrop={(event) => { event.preventDefault(); const file = event.dataTransfer.files[0]; if (file) onImportFile(file); }}>
+    <header className="chart-sheet-bar">
+      <strong>Chart data</strong>
+      <span>{element.sheet?.source ? element.sheet.source.src : linked ? "Linked table" : "In this chart"}</span>
+      <button type="button" onClick={() => onPickFile("linked")}>Link file…</button>
+      <button type="button" onClick={() => onPickFile("embedded")}>Embed file…</button>
+      {element.sheet?.source && <button type="button" onClick={onRefresh}>Refresh</button>}
+      {element.sheet?.source && <button type="button" onClick={() => write({ ...sheet, source: undefined })}>Detach file</button>}
+      {linked && <button type="button" onClick={() => { const data = resolveChartData(element, peers.filter((item) => item.type === "table")); write(sheetFromChart(data.categories, data.series)); }}>Edit a copy</button>}
+      {!linked && <button type="button" onClick={addColumn} disabled={sheet.headers.length >= 12}>Add column</button>}
+      {!linked && <button type="button" onClick={() => write({ ...sheet, rows: [...sheet.rows, sheet.headers.map(() => "")].slice(0, 50) })} disabled={sheet.rows.length >= 50}>Add row</button>}
+      <button type="button" onClick={onClose}>Done</button>
+    </header>
+    <p className="panel-help">The first row names the columns. Choose a role for each one. Drop a CSV, TSV, or XLSX file, or paste a table. Up to 8 series are drawn.</p>
+    <div className="chart-sheet-scroll">
+      <table className="chart-grid">
+        <thead><tr>{headers.map((header, column) => <th key={column}>
+          {linked ? <span>{header}</span> : <input aria-label={`Column ${column + 1} name`} value={header} onChange={(event) => { const next = sheet.headers.slice(); next[column] = event.target.value; write({ ...sheet, headers: next }, true); }} onBlur={commit} />}
+          <select aria-label={`Column ${column + 1} role`} value={roles[column] ?? "ignore"} onChange={(event) => setRole(column, event.target.value as "category" | "series" | "ignore")}>
+            <option value="category">Categories</option>
+            <option value="series" disabled={seriesCount >= 8 && roles[column] !== "series"}>Series</option>
+            <option value="ignore" disabled={roles[column] === "series" && seriesCount === 1}>Ignore</option>
+          </select>
+        </th>)}</tr></thead>
+        <tbody>{rows.map((row, rowIndex) => <tr key={rowIndex}>{headers.map((_, column) => <td key={column}><input aria-label={`Row ${rowIndex + 1} column ${column + 1}`} data-chart-cell={`${rowIndex}-${column}`} disabled={Boolean(linked)} className={focus?.row === rowIndex && focus.column === column ? "chart-cell-focus" : undefined} value={row[column] ?? ""} onChange={(event) => { const next = sheet.rows.map((line) => line.slice()); while (next.length <= rowIndex) next.push(sheet.headers.map(() => "")); const line = next[rowIndex]; if (!line) return; while (line.length < sheet.headers.length) line.push(""); line[column] = event.target.value; write({ ...sheet, rows: next }, true); }} onBlur={commit} onKeyDown={(event) => { if (event.key !== "Enter") return; event.preventDefault(); event.currentTarget.closest("tr")?.nextElementSibling?.querySelector<HTMLInputElement>(`input[data-chart-cell="${rowIndex + 1}-${column}"]`)?.focus(); }} /></td>)}</tr>)}</tbody>
+      </table>
+    </div>
+  </section>;
 }
 function SlotFields({ slide, element, mutate, preview, scheduleCommit, commit, chooseSlotImage }: { slide: Slide; element: SlideElement; mutate(fn: (deck: Deck) => void): void; preview(fn: (deck: Deck) => void): void; scheduleCommit(): void; commit(): void; chooseSlotImage(id: string): void }) {
   const slot = slide.slots[element.id];
@@ -2312,6 +2489,7 @@ function handleHostMessage(message: HostToWebviewMessage, setDeck: (deck: Deck, 
   else if (message.type === "invalidDeck") setInvalid(message.message, message.gitConflict, message.uri, message.linkedUri);
   else if (message.type === "documentEditResult") handleEditResult(message);
   else if (message.type === "historyResult") handleHistoryResult(message);
+  else if (message.type === "chartDataReady") { pendingChartData.get(message.requestId)?.(message); pendingChartData.delete(message.requestId); }
   else if (message.type === "assetImported") {
     pendingAssets.get(message.requestId)?.(message.reference && message.storage ? { reference: message.reference, storage: message.storage } : undefined, message.error);
     pendingAssets.delete(message.requestId);

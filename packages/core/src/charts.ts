@@ -1,4 +1,6 @@
-/** Native bar, line, area, and pie charts, including values read from a slide table. */
+/** Native bar, line, area, and pie charts. Values come from the chart sheet, a linked table, or stored series. */
+
+import { clampSheet, type ChartColumnRole, type ChartSheetModel } from "./chart-sheet.js";
 
 const PALETTE = ["#2563eb", "#f97316", "#16a34a", "#9333ea", "#e11d48", "#0891b2", "#ca8a04", "#475569"];
 
@@ -12,7 +14,8 @@ export type ChartModel = {
   valueLabels: boolean;
   width: number;
   height: number;
-  dataLink?: { elementId: string };
+  dataLink?: { elementId: string; roles?: ChartColumnRole[] };
+  sheet?: ChartSheetModel;
 };
 
 export type ChartTable = {
@@ -30,36 +33,75 @@ export type ResolvedChart = {
 };
 
 export function resolveChartData(element: ChartModel, tables: readonly ChartTable[]): ResolvedChart {
-  const linked = element.dataLink ? tables.find((table) => table.id === element.dataLink?.elementId) : undefined;
-  const resolved = linked ? chartFromTable(linked) : {
-    categories: element.categories,
-    series: element.series.map((series, index) => ({
-      name: series.name || `Series ${index + 1}`,
-      values: series.values,
-      color: series.color || PALETTE[index % PALETTE.length]!
-    }))
-  };
-  if (!resolved.series.length) {
-    resolved.series.push({ name: "Series", values: resolved.categories.map(() => 0), color: PALETTE[0]! });
+  if (element.dataLink) {
+    const linked = tables.find((table) => table.id === element.dataLink?.elementId);
+    if (linked) return chartFromTable(linked, element.dataLink.roles, element.series);
   }
-  return resolved;
+  if (element.sheet) return chartFromSheet(element.sheet, element.series);
+  return chartFromSeries(element.categories, element.series);
 }
 
-export function chartFromTable(table: ChartTable): ResolvedChart {
+export function chartFromSheet(sheet: ChartSheetModel, existing: readonly { name: string; color?: string }[] = []): ResolvedChart {
+  const clamped = clampSheet(sheet);
+  const categoryIndex = clamped.roles.indexOf("category");
+  const categories = clamped.rows.map((row, index) => categoryIndex >= 0 ? row[categoryIndex]?.trim() || `${index + 1}` : `${index + 1}`);
+  return finishChart(categories, seriesFromColumns(clamped.headers, clamped.roles, clamped.rows, existing));
+}
+
+export function writeChartSheet(element: { categories: string[]; series: { name: string; values: number[]; color?: string }[]; sheet?: ChartSheetModel; dataLink?: { elementId: string } }, sheet: ChartSheetModel): void {
+  const clamped = clampSheet(sheet);
+  const resolved = chartFromSheet(clamped, element.series);
+  element.sheet = clamped;
+  delete element.dataLink;
+  element.categories = resolved.categories;
+  element.series = resolved.series.map((series) => ({ name: series.name, values: series.values, color: series.color }));
+}
+
+export function chartFromTable(table: ChartTable, roles?: readonly ChartColumnRole[], existing: readonly { name: string; color?: string }[] = []): ResolvedChart {
+  const columnRoles: ChartColumnRole[] = Array.from({ length: table.columns }, (_, column) => roles?.[column] ?? (column === 0 ? "category" : "series"));
+  const categoryIndex = columnRoles.indexOf("category");
   const start = table.headerRow ? 1 : 0;
   const categories: string[] = [];
-  for (let row = start; row < table.rows; row += 1) categories.push(cellText(table, row, 0) || `${row + 1}`);
-  const series: ResolvedChart["series"] = [];
-  for (let column = 1; column < table.columns; column += 1) {
-    const values: number[] = [];
-    for (let row = start; row < table.rows; row += 1) values.push(parseChartNumber(cellText(table, row, column)));
-    series.push({
-      name: table.headerRow ? cellText(table, 0, column) || `Series ${column}` : `Series ${column}`,
-      values,
-      color: PALETTE[(column - 1) % PALETTE.length]!
-    });
+  const columns = columnRoles.map(() => [] as string[]);
+  for (let row = start; row < table.rows; row += 1) {
+    categories.push(categoryIndex >= 0 ? cellText(table, row, categoryIndex) || `${categories.length + 1}` : `${categories.length + 1}`);
+    columnRoles.forEach((_, column) => columns[column]!.push(cellText(table, row, column)));
   }
-  return { categories, series };
+  const headers = columnRoles.map((_, column) => table.headerRow ? cellText(table, 0, column) : `Series ${column}`);
+  return finishChart(categories, seriesFromColumns(headers, columnRoles, transpose(columns), existing));
+}
+
+function chartFromSeries(categories: readonly string[], series: readonly ChartSeries[]): ResolvedChart {
+  return finishChart(categories.length ? [...categories] : ["A"], series.map((item, index) => ({
+    name: item.name || `Series ${index + 1}`,
+    values: item.values,
+    color: item.color || PALETTE[index % PALETTE.length]!
+  })));
+}
+
+function seriesFromColumns(headers: readonly string[], roles: readonly ChartColumnRole[], rows: readonly (readonly string[])[], existing: readonly { name: string; color?: string }[]): ResolvedChart["series"] {
+  const series: ResolvedChart["series"] = [];
+  headers.forEach((header, column) => {
+    if (roles[column] !== "series" || series.length >= 8) return;
+    const name = header.trim() || `Series ${series.length + 1}`;
+    series.push({
+      name,
+      values: rows.map((row) => parseChartNumber(row[column] ?? "")),
+      color: existing.find((item) => item.name === name)?.color || PALETTE[series.length % PALETTE.length]!
+    });
+  });
+  return series;
+}
+
+function transpose(columns: string[][]): string[][] {
+  const height = Math.max(0, ...columns.map((column) => column.length));
+  return Array.from({ length: height }, (_, row) => columns.map((column) => column[row] ?? ""));
+}
+
+function finishChart(categories: string[], series: ResolvedChart["series"]): ResolvedChart {
+  const labels = categories.length ? categories : ["A"];
+  const painted = series.length ? series : [{ name: "Series", values: labels.map(() => 0), color: PALETTE[0]! }];
+  return { categories: labels, series: painted };
 }
 
 export function parseChartNumber(value: string): number {
@@ -106,12 +148,12 @@ function cartesianChart(kind: Exclude<ChartKind, "pie">, data: ResolvedChart, wi
         const y = Math.min(yOf(value), baseline);
         const barHeight = Math.max(0, Math.abs(yOf(value) - baseline));
         const x = left + slot * index + slot * 0.14 + barWidth * seriesIndex;
-        parts.push(`<rect x="${trim(x)}" y="${trim(y)}" width="${trim(barWidth - 2)}" height="${trim(barHeight)}" fill="${series.color}"/>`);
+        parts.push(`<rect x="${trim(x)}" y="${trim(y)}" width="${trim(barWidth - 2)}" height="${trim(barHeight)}" fill="${series.color}"${markAttrs(seriesIndex, index, value, { min, max, plotH })}/>`);
         if (labels) parts.push(`<text x="${trim(x + barWidth / 2)}" y="${trim(y - 4)}" text-anchor="middle" font-size="11" fill="#111827">${escapeText(formatTick(value))}</text>`);
       });
     });
   } else {
-    data.series.forEach((series) => {
+    data.series.forEach((series, seriesIndex) => {
       const points = data.categories.map((_, index) => {
         const x = left + slot * index + slot / 2;
         const y = yOf(series.values[index] ?? 0);
@@ -124,7 +166,7 @@ function cartesianChart(kind: Exclude<ChartKind, "pie">, data: ResolvedChart, wi
       }
       parts.push(`<polyline points="${line}" fill="none" stroke="${series.color}" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>`);
       points.forEach((point, index) => {
-        parts.push(`<circle cx="${trim(point.x)}" cy="${trim(point.y)}" r="3.5" fill="${series.color}"/>`);
+        parts.push(`<circle cx="${trim(point.x)}" cy="${trim(point.y)}" r="4.5" fill="${series.color}"${markAttrs(seriesIndex, index, series.values[index] ?? 0, { min, max, plotH })}/>`);
         if (labels) parts.push(`<text x="${trim(point.x)}" y="${trim(point.y - 8)}" text-anchor="middle" font-size="11" fill="#111827">${escapeText(formatTick(series.values[index] ?? 0))}</text>`);
       });
     });
@@ -146,7 +188,7 @@ function pieChart(data: ResolvedChart, width: number, height: number, labels: bo
     const sweep = (value / total) * Math.PI * 2;
     const next = angle + sweep;
     const color = data.series[index]?.color ?? PALETTE[index % PALETTE.length]!;
-    parts.push(`<path d="${wedge(cx, cy, radius, angle, next)}" fill="${color}"/>`);
+    parts.push(`<path d="${wedge(cx, cy, radius, angle, next)}" fill="${color}"${markAttrs(0, index, value)}/>`);
     if (labels && value > 0) {
       const mid = angle + sweep / 2;
       parts.push(`<text x="${trim(cx + Math.cos(mid) * radius * 0.62)}" y="${trim(cy + Math.sin(mid) * radius * 0.62)}" text-anchor="middle" font-size="12" fill="#fff">${escapeText(formatTick(value))}</text>`);
@@ -196,6 +238,12 @@ function shorten(value: string): string {
 
 function escapeText(value: string): string {
   return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function markAttrs(seriesIndex: number, rowIndex: number, value: number, scale?: { min: number; max: number; plotH: number }): string {
+  const base = ` data-chart-series="${seriesIndex}" data-chart-row="${rowIndex}" data-chart-value="${trim(value)}"`;
+  if (!scale) return base;
+  return `${base} data-min="${trim(scale.min)}" data-max="${trim(scale.max)}" data-plot-h="${trim(scale.plotH)}"`;
 }
 
 function trim(value: number): string {

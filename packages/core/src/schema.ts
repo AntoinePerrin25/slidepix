@@ -275,7 +275,16 @@ export const chartElementSchema = baseElementSchema.extend({
   series: z.array(chartSeriesSchema).min(1).max(8).default([{ name: "Series", values: [1, 2, 3] }]),
   legend: z.boolean().default(true),
   valueLabels: z.boolean().default(false),
-  dataLink: z.object({ elementId: z.string().min(1) }).optional()
+  dataLink: z.object({
+    elementId: z.string().min(1),
+    roles: z.array(z.enum(["category", "series", "ignore"])).max(20).optional()
+  }).optional(),
+  sheet: z.object({
+    headers: z.array(z.string().max(80)).min(1).max(12),
+    roles: z.array(z.enum(["category", "series", "ignore"])).max(12),
+    rows: z.array(z.array(z.string().max(400)).max(12)).max(50),
+    source: z.object({ src: z.string().min(1), storage: mediaStorageSchema }).optional()
+  }).optional()
 });
 
 export const elementSchema = z.discriminatedUnion("type", [

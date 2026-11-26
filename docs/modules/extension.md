@@ -203,6 +203,8 @@ panel and out of audience HTML.
 - The extension generates OOXML directly with pinned PptxGenJS. LibreOffice is
   useful as a compatibility oracle in development but is not a runtime
   dependency or conversion step.
+- A chart data file is linked or embedded with the same path rules as an image.
+  The deck stores the cell snapshot, so a presentation does not reread the file.
 - Vectors and charts become SVG pictures. Groups emit nothing. A component
   instance expands into scaled copies of its definition. A missing component
   is a warning.

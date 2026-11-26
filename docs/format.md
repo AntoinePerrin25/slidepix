@@ -127,9 +127,13 @@ ignores it. Markers are `none` or `arrow`. The arrowhead tip sits on the path
 end; the stroke stops at the base of the triangle. An `svg` value must be a single `<svg>` element and cannot contain
 scripts, embedded images, or event handlers. A `group` has no paint of its own;
 its members stay in the same element list. A `chart` is `bar`, `line`, `area`,
-or `pie`, with `categories` and `series`, or a `dataLink` to a table in the same
-collection. The table's header names the series and its first column names the
-categories.
+or `pie`. Its `sheet` stores column headers, a role per column (`category`,
+`series`, or `ignore`), and the cell text. An optional `sheet.source` is a
+linked or embedded CSV, TSV, or XLSX file; the cells are the snapshot used for
+painting, and Refresh reads the file again. A `dataLink` still reads a table
+in the same collection, with the same column roles. Without a sheet or a link,
+`categories` and `series` are the values. A sheet is used instead of those
+fields when both are present and there is no table link.
 Image and video elements also carry `storage: "linked" | "embedded"`; the
 `src` string alone is never enough to decide its security boundary. Optional
 `lockAspectRatio` defaults to on. `aspectRatio` is the ratio of the current

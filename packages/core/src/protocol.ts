@@ -20,6 +20,7 @@ export type HostToWebviewMessage =
   | { version: 2; type: "notify"; notificationId: string; status: "progress" | "success" | "error" | "dismiss"; message?: string; progress?: number; elementId?: string; elementProgress?: number }
   | { version: 2; type: "collaboration"; status: LiveCollaborationStatus; role: "host" | "guest" | "none"; canEdit: boolean; hostName?: string; self?: LivePeer; peers: LivePeer[]; temporaryMirror?: boolean }
   | { version: 2; type: "bibliography"; source: string; error?: string }
+  | { version: 2; type: "chartDataReady"; requestId: string; src?: string; storage?: "linked" | "embedded"; name?: string; base64?: string; error?: string }
   | { version: 2; type: "bibliographySelected"; requestId: string; file?: string; source?: string; error?: string }
   | { version: 2; type: "assetsUpdated"; references: string[] }
   | { version: 2; type: "startCapture"; format: "pdf" | "png" }
@@ -49,6 +50,8 @@ export type WebviewToHostMessage =
   | { version: 2; type: "embedMedia"; elementIds?: string[] }
   | { version: 2; type: "selectFont"; requestId: string; current: string }
   | { version: 2; type: "selectBibliography"; requestId: string }
+  | { version: 2; type: "selectChartData"; requestId: string; storage: "linked" | "embedded" }
+  | { version: 2; type: "readChartData"; requestId: string; src: string; storage: "linked" | "embedded" }
   | { version: 2; type: "embedBibliography" }
   | { version: 2; type: "copyText"; text: string }
   | { version: 2; type: "selectManimScript"; requestId: string; elementId: string }

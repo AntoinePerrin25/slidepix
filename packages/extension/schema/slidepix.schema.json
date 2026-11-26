@@ -2364,10 +2364,87 @@
                         "elementId": {
                           "type": "string",
                           "minLength": 1
+                        },
+                        "roles": {
+                          "maxItems": 20,
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "enum": [
+                              "category",
+                              "series",
+                              "ignore"
+                            ]
+                          }
                         }
                       },
                       "required": [
                         "elementId"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "sheet": {
+                      "type": "object",
+                      "properties": {
+                        "headers": {
+                          "minItems": 1,
+                          "maxItems": 12,
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "maxLength": 80
+                          }
+                        },
+                        "roles": {
+                          "maxItems": 12,
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "enum": [
+                              "category",
+                              "series",
+                              "ignore"
+                            ]
+                          }
+                        },
+                        "rows": {
+                          "maxItems": 50,
+                          "type": "array",
+                          "items": {
+                            "maxItems": 12,
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "maxLength": 400
+                            }
+                          }
+                        },
+                        "source": {
+                          "type": "object",
+                          "properties": {
+                            "src": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "storage": {
+                              "type": "string",
+                              "enum": [
+                                "embedded",
+                                "linked"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "src",
+                            "storage"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "headers",
+                        "roles",
+                        "rows"
                       ],
                       "additionalProperties": false
                     }
@@ -4266,10 +4343,87 @@
                         "elementId": {
                           "type": "string",
                           "minLength": 1
+                        },
+                        "roles": {
+                          "maxItems": 20,
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "enum": [
+                              "category",
+                              "series",
+                              "ignore"
+                            ]
+                          }
                         }
                       },
                       "required": [
                         "elementId"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "sheet": {
+                      "type": "object",
+                      "properties": {
+                        "headers": {
+                          "minItems": 1,
+                          "maxItems": 12,
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "maxLength": 80
+                          }
+                        },
+                        "roles": {
+                          "maxItems": 12,
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "enum": [
+                              "category",
+                              "series",
+                              "ignore"
+                            ]
+                          }
+                        },
+                        "rows": {
+                          "maxItems": 50,
+                          "type": "array",
+                          "items": {
+                            "maxItems": 12,
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "maxLength": 400
+                            }
+                          }
+                        },
+                        "source": {
+                          "type": "object",
+                          "properties": {
+                            "src": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "storage": {
+                              "type": "string",
+                              "enum": [
+                                "embedded",
+                                "linked"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "src",
+                            "storage"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "headers",
+                        "roles",
+                        "rows"
                       ],
                       "additionalProperties": false
                     }
@@ -6351,10 +6505,87 @@
                         "elementId": {
                           "type": "string",
                           "minLength": 1
+                        },
+                        "roles": {
+                          "maxItems": 20,
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "enum": [
+                              "category",
+                              "series",
+                              "ignore"
+                            ]
+                          }
                         }
                       },
                       "required": [
                         "elementId"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "sheet": {
+                      "type": "object",
+                      "properties": {
+                        "headers": {
+                          "minItems": 1,
+                          "maxItems": 12,
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "maxLength": 80
+                          }
+                        },
+                        "roles": {
+                          "maxItems": 12,
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "enum": [
+                              "category",
+                              "series",
+                              "ignore"
+                            ]
+                          }
+                        },
+                        "rows": {
+                          "maxItems": 50,
+                          "type": "array",
+                          "items": {
+                            "maxItems": 12,
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "maxLength": 400
+                            }
+                          }
+                        },
+                        "source": {
+                          "type": "object",
+                          "properties": {
+                            "src": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "storage": {
+                              "type": "string",
+                              "enum": [
+                                "embedded",
+                                "linked"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "src",
+                            "storage"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "headers",
+                        "roles",
+                        "rows"
                       ],
                       "additionalProperties": false
                     }

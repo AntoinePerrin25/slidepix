@@ -485,6 +485,10 @@ async function validateMedia(deck: Deck, deckPath: string, allowedLinkedRoots: s
       if (element.outputMedia) await access(resolveMediaPath(deckPath, element.outputMedia.src, element.outputMedia.storage, allowedLinkedRoots));
       return;
     }
+    if (element.type === "chart" && element.sheet?.source) {
+      await access(resolveMediaPath(deckPath, element.sheet.source.src, element.sheet.source.storage, allowedLinkedRoots));
+      return;
+    }
     if (element.type !== "image" && element.type !== "video") return;
     await access(resolveMediaPath(deckPath, element.src, element.storage, allowedLinkedRoots));
     if (element.type === "video" && element.poster) await access(resolveMediaPath(deckPath, element.poster, "embedded", allowedLinkedRoots));
