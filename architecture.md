@@ -152,7 +152,7 @@ For any nontrivial change:
 8. Update this index or the relevant module document when ownership, public
    methods, scripts, commands, or invariants change.
 
-## Current v0.2 gaps
+## Current v0.3 gaps
 
 Do not assume every planned feature is complete. Current known gaps include:
 

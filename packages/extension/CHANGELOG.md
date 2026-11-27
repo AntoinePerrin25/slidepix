@@ -1,14 +1,39 @@
 # Changelog
 
+## 0.3.0
+
+### Editing
+
+- Insert a line, an arrow, an elbow, or an SVG shape. Drag the ends of an arrow to move it; the ends snap onto another object. Drag the orange handle to bend it. The arrowhead tip meets the end of the line. A path shows a handle on each point and curve control.
+- Insert a bar, line, area, or pie chart. **Edit data** opens a grid on the canvas: type, paste, or drop a CSV, TSV, or XLSX file, and mark each column as categories, a series, or ignored. Refresh rereads a linked file. Dragging a bar or a point changes that cell. A chart can still read a table on the same slide.
+- **Group** wraps the selection. Groups can contain groups. Dragging or resizing one selected item keeps the whole unlocked selection, and resizing scales each item from its own box.
+- **Component** saves the selection as a reusable object or inserts one. Slide properties can save the current slide as a layout, and later slides can use it. Editing a layout or a component replaces the canvas until **Done**. A layout placeholder can be filled on one slide.
+- `slidepix.selection.highlight` shows a group or a multi-selection by dimming the other elements to half opacity, pulsing the selected elements by opacity, or both. The default is both. The deck does not store this.
+- Header, footer, bibliography, and citations show their name above the box. The violet frame appears while that chrome is selected, and for five seconds after the pointer leaves it. Dragging or resizing one updates the deck-wide box.
+
+### Presentation
+
+- A morph interpolates text color, shape fill, borders, and vector strokes in OKLCH.
+
+### Export
+
+- PowerPoint export paints vectors and charts as pictures. A group emits nothing. A component instance expands into copies of its definition. A chart keeps the cell snapshot from its data file, so the presentation does not reread that file.
+
+### AI
+
+- **AI** and **SlidePix: Configure MCP** install the MCP server and copy the agent skills. The server starts with the editor's Node. `list_slides` and `inspect_slides` stay read-only. `search` reads the authoring catalog. `execute` runs JavaScript against one deck, validates it, and saves that file only when the deck changed.
+
+### Distribution
+
+- Package one platform VSIX and derive the others by swapping the live-collaboration binary. The file name is `slidepix-deck-<platform>-<version>.vsix`. `pnpm publish:all` publishes those files together to the Marketplace and Open VSX.
+
 ## 0.2.0
 
 ### Editing
 
 - Add in-place Markdown editing. Double-click a text box, or select it and press Enter or F2. Escape or Ctrl/Cmd+Enter finishes. Bold, italic, and lists apply to the current selection. The advanced editor keeps a live preview for LaTeX and highlighted code.
 - Add a compact PowerPoint-style ribbon that collapses to icons when the editor is narrow. Insert text, images, video, shapes, tables, and Manim stills or videos from the toolbar.
-- Shift-click to multi-select. Align to the page or the selection, center on the page, and distribute three or more unlocked items. Dragging or resizing one selected item keeps the whole unlocked selection. Hold Shift to snap to other items and the slide edges.
-- `slidepix.selection.highlight` shows a group or a multi-selection by dimming the other elements to half opacity, pulsing the selected elements by opacity, or both. The default is both. The deck does not store this.
-- Drag the ends of an arrow to move it; the ends snap onto another object. Drag the orange handle to bend it. The arrowhead tip meets the end of the line.
+- Shift-click to multi-select. Align to the page or the selection, center on the page, and distribute three or more unlocked items. Dragging one selected item moves the unlocked selection. Hold Shift to snap to other items and the slide edges.
 - Copy and paste elements between slides with a typed clipboard. A copy onto another slide keeps its morph name.
 - Drag slide thumbnails to reorder them. Insert a slide between two slides, and apply one incoming transition to every slide.
 - Zoom with Ctrl/Cmd+wheel and the canvas zoom controls. Collapse speaker notes, the slide rail, and the inspector without changing the deck.
@@ -33,7 +58,6 @@
 ### Presentation
 
 - Advance entrance animations before changing slides. Previous and next restore a completed animation state or the initial state.
-- A morph interpolates text color, shape fill, borders, and vector strokes in OKLCH.
 - Pause video when leaving a slide or hiding the presentation.
 - Double-buffer presenter previews so the current and next slides do not flash black.
 

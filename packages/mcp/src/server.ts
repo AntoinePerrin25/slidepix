@@ -12,7 +12,7 @@ const selectorSchema = {
 
 function buildServer(): McpServer {
   const server = new McpServer(
-    { name: "slidepix", version: "0.2.0" },
+    { name: "slidepix", version: "0.3.0" },
     { instructions: "Review with list_slides and inspect_slides; those tools never write. Author a deck with search, then execute. search reads the authoring catalog. execute runs JavaScript against one .slidepix.json file, validates it, and saves only that file when the deck changes. Do not generate a Python or Node script to write the JSON." }
   );
 
